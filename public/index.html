@@ -72,7 +72,7 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 .role .tx b{font-size:17px;font-weight:800}
 .role .tx span{font-size:13px;color:var(--sub);line-height:1.4}
 .conn-card{margin-top:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.conn-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.conn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .conn-grid div{background:var(--card2);border-radius:10px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;font-weight:700;text-align:center}
 
 /* MASTER */
@@ -138,7 +138,7 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 
 /* SLAVE CONNECT */
 .s-body{padding:16px;display:flex;flex-direction:column;gap:14px;flex:1}
-.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px}
 .tabs button{min-height:42px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:700 13px var(--f)}
 .tabs button.on{background:var(--gold);color:var(--on-gold)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -274,7 +274,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="sec" data-i18n="connWays"></span>
       <div class="conn-grid">
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fbf8c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="#2fbf8c"/></svg>Wi-Fi</div>
-        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg><span data-i18n="scanTab"></span></div>
+        
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20v-12M20 20V4"/></svg><span data-i18n="mobile"></span></div>
       </div>
     </div>
@@ -398,8 +398,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="sec muted" data-i18n="method"></span>
       <div class="tabs" id="tabs">
         <button data-t="wifi" class="on">Wi-Fi</button>
-        <button data-t="qr" data-i18n="scanTab"></button>
-        <button data-t="data" data-i18n="data"></button>
+                <button data-t="data" data-i18n="data"></button>
       </div>
     </div>
 
@@ -410,19 +409,6 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="hint" style="line-height:1.5" data-i18n="noRouter"></span>
     </div>
 
-    <div id="tab-qr" class="panel" style="display:none;align-items:center;text-align:center">
-      <div id="qrCamBox" style="position:relative;width:100%;max-width:300px;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#05080d;display:none">
-        <video id="qrVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
-        <div style="position:absolute;inset:18%;border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)"></div>
-      </div>
-      <div id="qrIntro" style="display:flex;flex-direction:column;align-items:center;gap:10px">
-        <div style="width:64px;height:64px;border-radius:50%;background:var(--gold2);display:grid;place-items:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg></div>
-        <b style="font-size:16px" data-i18n="scanTitle"></b>
-        <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="scanDesc"></span>
-      </div>
-      <button class="btn btn-gold" id="qrBtn" onclick="toggleScan()" data-i18n="scanStart"></button>
-    </div>
-
     <div id="tab-data" class="panel" style="display:none">
       <b style="font-size:16px" data-i18n="dataTitle"></b>
       <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="dataDesc"></span>
@@ -430,6 +416,12 @@ input[type=range]{accent-color:var(--gold);width:100%}
         <input class="input" id="joinCode" inputmode="numeric" maxlength="6" data-i18n-ph="codePh" style="flex:1;min-width:0">
         <button class="btn btn-gold" onclick="joinByCode()" data-i18n="join"></button>
       </div>
+      <span class="hint" style="text-align:center" data-i18n="orScan"></span>
+      <div id="qrCamBox" style="position:relative;width:100%;max-width:300px;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#05080d;display:none;align-self:center">
+        <video id="qrVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+        <div style="position:absolute;inset:18%;border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)"></div>
+      </div>
+      <button class="btn" id="qrBtn" onclick="toggleScan()" data-i18n="scanStart"></button>
     </div>
 
     <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
@@ -1375,18 +1367,18 @@ async function toggleScan(){if(scanStream){stopScan();return;}
   if(!('BarcodeDetector' in window)){toast(t('scanNo'),5000);return;}
   try{scanDet=scanDet||new BarcodeDetector({formats:['qr_code']});}catch(e){toast(t('scanNo'),5000);return;}
   try{scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});}catch(e){toast(t('allowCam'));return;}
-  $('qrVideo').srcObject=scanStream;$('qrCamBox').style.display='block';$('qrIntro').style.display='none';$('qrBtn').textContent=t('scanStop');
+  $('qrVideo').srcObject=scanStream;$('qrCamBox').style.display='block';$('qrBtn').textContent=t('scanStop');
   scanTimer=setInterval(async()=>{
     try{const codes=await scanDet.detect($('qrVideo'));for(const c of codes){const m=String(c.rawValue||'').match(/[?&]join=(\d{6})/)||String(c.rawValue||'').match(/^(\d{6})$/);
-      if(m){stopScan();try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}toast(t('qrReady'),3000);startSlaveCam(PFX+'code-'+m[1],'wifi');track('scan_join');return;}}}catch(e){}
+      if(m){stopScan();try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}toast(t('qrReady'),3000);startSlaveCam(PFX+'code-'+m[1],'data');track('scan_join');return;}}}catch(e){}
   },350);
 }
 function stopScan(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanStream.getTracks().forEach(tr=>tr.stop());scanStream=null;}
   const v=$('qrVideo');if(v)v.srcObject=null;if($('qrCamBox'))$('qrCamBox').style.display='none';if($('qrIntro'))$('qrIntro').style.display='flex';if($('qrBtn'))$('qrBtn').textContent=t('scanStart');}
 function selTab(name){
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===name));
-  ['wifi','qr','data'].forEach(k=>$('tab-'+k).style.display=k===name?'flex':'none');
-  if(name!=='qr')stopScan();
+  ['wifi','data'].forEach(k=>$('tab-'+k).style.display=k===name?'flex':'none');
+  if(name!=='data')stopScan();
   if(name==='wifi')scanMasters();
 }
 function goSlave(){
