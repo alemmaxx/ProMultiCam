@@ -98,9 +98,20 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 .tile.main{border-color:var(--gold)}
 .tile.sec2{border-color:var(--info)}
 .tile video{width:100%;height:100%;object-fit:cover;display:block}
-.tile video.flip{transform:rotate(180deg)}
-body.upside #master,body.upside .sheet-wrap{transform:rotate(180deg)}
-body.upside .toast{top:24px;bottom:auto;transform:translateX(-50%) rotate(180deg)}
+.tile video.r180{transform:rotate(180deg)}
+.tile video.r90,.tile video.r270{position:absolute;left:50%;top:50%;object-fit:cover}
+.tile video.r90{transform:translate(-50%,-50%) rotate(90deg)}
+.tile video.r270{transform:translate(-50%,-50%) rotate(270deg)}
+/* Director phone turned while the system screen stays put: turn the app instead */
+body.ur180 #master.show,body.ur180 .sheet-wrap{transform:rotate(180deg)}
+body.ur90 #master.show,body.ur90 .sheet-wrap.show,body.ur270 #master.show,body.ur270 .sheet-wrap.show{inset:auto;left:50%;top:50%;width:100vh;height:100vw;width:100dvh;height:100dvw}
+body.ur90 #master.show,body.ur90 .sheet-wrap.show{transform:translate(-50%,-50%) rotate(90deg)}
+body.ur270 #master.show,body.ur270 .sheet-wrap.show{transform:translate(-50%,-50%) rotate(270deg)}
+body.ur90 .toast,body.ur270 .toast,body.ur180 .toast{top:50%;bottom:auto}
+body.ur90 .toast{transform:translate(-50%,-50%) rotate(90deg)}
+body.ur270 .toast{transform:translate(-50%,-50%) rotate(270deg)}
+body.ur180 .toast{transform:translate(-50%,-50%) rotate(180deg)}
+body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .tile .lb{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(11,15,23,.9));padding:14px 6px 5px;font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .nb{position:absolute;top:4px;right:4px;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;color:var(--on-gold);background:var(--gold)}
 .tile .nb.b{background:var(--info);color:#0b1a33}
@@ -135,6 +146,10 @@ body.upside .toast{top:24px;bottom:auto;transform:translateX(-50%) rotate(180deg
 .item .tx{display:flex;flex-direction:column;flex:1;min-width:0}
 .item .tx b{font-size:15px}
 .item .tx span{font-size:12px;color:var(--muted)}
+.rec-item{flex-wrap:wrap}
+.rec-item .tx b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-item .acts{flex:1 1 100%;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+.rec-item .acts .btn{width:100%;min-height:40px}
 .codebox{background:var(--gold2);border:1px solid var(--gold);border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center}
 .codebox big{font-size:26px;font-weight:800;letter-spacing:4px;color:var(--gold)}
 .files a{color:var(--gold);font-size:14px;word-break:break-all}
@@ -193,21 +208,21 @@ input[type=range]{accent-color:var(--gold);width:100%}
 #master .m-foot{padding:4px 12px 14px;padding-bottom:max(14px,env(safe-area-inset-bottom))}
 #master #recBtn{min-height:54px}
 /* Director held sideways (YouTube format): compact controls so the video fills the screen */
-@media (orientation:landscape) and (max-height:620px){
-  .ov-top{padding:6px 10px 18px;padding-top:max(6px,env(safe-area-inset-top))}
-  .ov-top .icon-btn{width:38px;height:38px}
-  .ov-tags{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
-  #master .recbadge{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
-  #tileHint{display:none}
-  .ov-bot{display:flex;align-items:flex-end;gap:10px;padding:14px 10px 0;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));background:linear-gradient(rgba(11,15,23,0),rgba(11,15,23,.85) 45%)}
-  .ov-bot .strip{flex:1;min-width:0;padding:0 0 10px}
-  .strip .tile,.tile-add{flex:0 0 84px;height:58px}
-  .strip .tile .nb{bottom:18px}
-  #master .m-foot{flex:0 0 auto;width:min(44%,340px);padding:0 0 10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
-  #master #recBtn{min-height:46px;font-size:15px}
-  .zoomv{height:150px}.zoomv input{width:120px;transform:rotate(-90deg) translateX(-55px);margin-top:50px}
-  #home.show{overflow-y:auto}
-  .sheet{max-height:92vh}
+/* Director sideways (YouTube format): compact controls. body.land = real or sensor landscape */
+body.land .ov-top{padding:6px 10px 18px;padding-top:max(6px,env(safe-area-inset-top))}
+body.land .ov-top .icon-btn{width:38px;height:38px}
+body.land .ov-tags{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
+body.land #master .recbadge{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
+body.land #tileHint{display:none}
+body.land .ov-bot{display:flex;align-items:flex-end;gap:10px;padding:14px 10px 0;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));background:linear-gradient(rgba(11,15,23,0),rgba(11,15,23,.85) 45%)}
+body.land .ov-bot .strip{flex:1;min-width:0;padding:0 0 10px}
+body.land .strip .tile,body.land .tile-add{flex:0 0 84px;height:58px}
+body.land .strip .tile .nb{bottom:18px}
+body.land #master .m-foot{flex:0 0 auto;width:min(44%,340px);padding:0 0 10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+body.land #master #recBtn{min-height:46px;font-size:15px}
+body.land .zoomv{height:150px}.zoomv input{width:120px;transform:rotate(-90deg) translateX(-55px);margin-top:50px}
+body.land #home.show{overflow-y:auto}
+body.land .sheet{max-height:92vh
 }
 
 .qrwrap{display:flex;gap:12px;align-items:center;background:#fff;border-radius:12px;padding:10px;color:#1b1503}
@@ -234,12 +249,11 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .fmtguide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;display:none;z-index:1}
 .fmtguide.show{display:block}
 .fmtguide span{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--on-gold);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800}
-@media (orientation:landscape) and (max-height:620px){
-  .cam-top{padding:8px 12px 20px;padding-top:max(8px,env(safe-area-inset-top));flex-direction:row;align-items:center;flex-wrap:wrap}
-  .cam-bot{flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:8px;padding:16px 12px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
-  .cam-bot #zoomRow{flex:1 1 100%}
-  .cam-bot .g3{flex:1;min-width:0}
-  .cam-bot .g3 .btn,.cam-tools .btn{min-height:40px;padding:6px 10px}
+body.land .cam-top{padding:8px 12px 20px;padding-top:max(8px,env(safe-area-inset-top));flex-direction:row;align-items:center;flex-wrap:wrap}
+body.land .cam-bot{flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:8px;padding:16px 12px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+body.land .cam-bot #zoomRow{flex:1 1 100%}
+body.land .cam-bot .g3{flex:1;min-width:0}
+body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6px 10px
 }
 .cam-tools .btn{background:rgba(238,240,244,.12);min-height:38px;padding:6px 12px;font-size:13px}
 .cam-tools .btn.on{background:var(--gold);color:var(--on-gold)}
@@ -676,7 +690,7 @@ function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.re
 let rotHintShown='';
 function rotateHint(){
   const m=$('master');if(!m||!m.classList.contains('show'))return;
-  const wantL=$('aspectSel').value==='l',isL=window.innerWidth>window.innerHeight,k=wantL?'l':'p';
+  const wantL=$('aspectSel').value==='l',isL=effLand(),k=wantL?'l':'p';
   if(wantL!==isL&&rotHintShown!==k){rotHintShown=k;toast(t(wantL?'rotL':'rotP'),3500);}
   if(wantL===isL)rotHintShown='';
 }
@@ -751,23 +765,23 @@ async function listSaved(boxId){
   items.sort((a,b)=>a.name<b.name?1:-1);
   box.innerHTML='';box.style.display=items.length?'flex':'none';
   if(!items.length)return;
-  const hd=document.createElement('span');hd.className='sec';hd.textContent=t('savedRecs');box.appendChild(hd);
+  if(box.id!=='files'){const hd=document.createElement('span');hd.className='sec';hd.textContent=t('savedRecs');box.appendChild(hd);}
   items.forEach(it=>{
-    const d=document.createElement('div');d.className='item';
-    d.innerHTML='<span class="dot ok"></span><div class="tx"><b></b><span></span></div>';
+    const d=document.createElement('div');d.className='item rec-item';
+    d.innerHTML='<span class="dot ok"></span><div class="tx"><b></b><span></span></div><div class="acts"></div>';const acts=d.querySelector('.acts');
     d.querySelector('b').textContent=it.name;
     const mc=it.marks?it.marks.trim().split('\n').filter(Boolean).length-1:0;
     d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(mc>0?' · '+t('markers',{n:mc}):'')+(it.done?'':' · '+t('recovered'));
     if(!it.done)d.querySelector('.dot').style.background='var(--gold)';
     const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('download');
     dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));downloadBlob(b,it.name);};
-    d.appendChild(dl);
-    if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');d.appendChild(mk);}
+    acts.appendChild(dl);
+    if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');acts.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
-      sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};d.appendChild(sh);}
+      sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};acts.appendChild(sh);}
     const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
     del.onclick=async()=>{try{await root.removeEntry(it.name,{recursive:true});}catch(e){}listSaved();};
-    d.appendChild(del);
+    acts.appendChild(del);
     box.appendChild(d);
   });
 }
@@ -827,7 +841,8 @@ async function goMaster(){
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();
-  if(!dirUpWatch)dirUpWatch=watchUpside(onDirUpside);
+  if(!dirTurnWatch)dirTurnWatch=watchTurn(onDirTurn);
+  setLand();
   loadSettings();applyTier();
   resizeStage();renderTiles();
   clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
@@ -860,7 +875,7 @@ function openPeer(id,isCode,onTaken){
       if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'&&overLimit(conn.peer)){try{conn.send({t:'full'});}catch(e){}setTimeout(()=>{try{conn.close();}catch(e){}},500);toast(t('limitCams'),4000);return;}
       if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});conn.send({t:'fmt',v:$('aspectSel').value});}
-      if(d.t==='flip'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.flipManual){setFlip(s,!!d.on);renderConnList();}}
+      if(d.t==='flip'||d.t==='rot'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.rotManual){setRot(s,d.t==='rot'?Number(d.v)||0:(d.on?180:0));renderConnList();}}
       if(d.t==='caps'){const s=sources.find(x=>x.id===conn.peer);if(s){s.caps=d;updateZoomUI();}}
       if(d.t==='stat'){const s=sources.find(x=>x.id===conn.peer);if(s){const was=s.batt;s.batt=d.batt;s.charging=d.charging;paintStat(s);if(d.batt<=15&&!d.charging&&(was==null||was>15))toast(t('battLow',{name:s.name,n:d.batt}));}}
     });
@@ -903,7 +918,7 @@ function renderTiles(){
     const b=document.createElement('button');
     b.className='tile'+(s.id===mainId?' main':'')+(mode!=='full'&&s.id===secId?' sec2':'');
     b.setAttribute('aria-label','Paparkan '+s.name);
-    s.video.classList.toggle('flip',!!s.flip);s.video._flip=!!s.flip;b.appendChild(s.video);s.video.play().catch(()=>{});
+    b.appendChild(s.video);setRot(s,s.rot||0);s.video.play().catch(()=>{});
     const l=document.createElement('span');l.className='lb';l.textContent=s.name+(s.stream?'':' …');b.appendChild(l);
     const st=document.createElement('span');st.className='stat';b.appendChild(st);s.statEl=st;paintStat(s);
     if(s.id===mainId){const n=document.createElement('span');n.className='nb';n.textContent=t('bMain');b.appendChild(n);}
@@ -933,7 +948,7 @@ function renderConnList(){
     d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?t('live'):t('loading')}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
     d.querySelector('b').textContent=s.name;
     if(!s.local&&s.caps&&s.caps.lock){const lk=document.createElement('button');lk.className='btn btn-sm'+(s.locked?' btn-gold':'');lk.textContent=s.locked?'🔒':'🔓';lk.setAttribute('aria-label',t('lockLbl'));lk.onclick=()=>{s.locked=!s.locked;try{s.conn.send({t:'lock',on:s.locked});}catch(e){}renderConnList();};d.appendChild(lk);}
-    {const f=document.createElement('button');f.className='btn btn-sm'+(s.flip?' btn-gold':'');f.textContent='⟲ 180°';f.setAttribute('aria-label',t('flipLbl'));f.onclick=()=>{s.flipManual=true;setFlip(s,!s.flip);renderConnList();};d.appendChild(f);}
+    {const f=document.createElement('button');f.className='btn btn-sm'+(s.rot?' btn-gold':'');f.textContent='⟳ '+(s.rot||0)+'°';f.setAttribute('aria-label',t('flipLbl'));f.onclick=()=>{s.rotManual=true;setRot(s,(s.rot||0)+90);renderConnList();};d.appendChild(f);}
     if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
     box.appendChild(d);
   });
@@ -956,7 +971,7 @@ async function addLocalCam(silent){
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
   s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null};if(s.caps.zoom)s.zoom=c.zoom.min;
-  setFlip(s,dirUpside);setStream(s,localStream);$('localBtn').disabled=true;renderConnList();
+  setStream(s,localStream);setRot(s,dirTurn);$('localBtn').disabled=true;renderConnList();
   if(!silent)$('optSelf').checked=true;lsSet('pmc_selfcam','1');
 }
 function removeLocalCam(){
@@ -1005,25 +1020,43 @@ function resizeStage(){
   const long=q===1080?1920:1280;stage.width=portrait?q:long;stage.height=portrait?long:q;
 }
 let fadePrev=null,fadeCur=null,fadeAt=0;
-function setFlip(s,on){s.flip=!!on;if(s.video){s.video._flip=s.flip;s.video.classList.toggle('flip',s.flip);}}
-/* upside-down detection: phone turned so the camera sits at the bottom */
-function watchUpside(cb){
-  let up=false;
-  const h=e=>{if(e.beta==null)return;const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;if(Math.abs(ang)===180)return;
-    if(window.innerWidth>window.innerHeight){if(up){up=false;cb(false);}return;}
-    const portrait=window.innerHeight>=window.innerWidth;const v=portrait?e.beta:(ang===90?-e.gamma:e.gamma);
-    if(!up&&v<-50){up=true;cb(true);}else if(up&&v>50){up=false;cb(false);}};
+function setRot(s,deg){s.rot=((deg%360)+360)%360;if(s.video){const v=s.video;v._rot=s.rot;v.classList.remove('r90','r180','r270');if(s.rot)v.classList.add('r'+s.rot);sizeTileVid(v);}}
+function sizeTileVid(v){const b=v.parentElement;if(!b)return;if(v._rot===90||v._rot===270){v.style.width=b.clientHeight+'px';v.style.height=b.clientWidth+'px';}else{v.style.width='';v.style.height='';}}
+/* How far this phone is turned compared with its screen, from the motion sensor (works even with auto-rotate off).
+   Returns the clockwise turn (0/90/180/270) the picture needs to look upright. */
+function watchTurn(cb){
+  let phys=0,last=-1;
+  const scr=()=>{const a=(screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(window.orientation||0);return((a%360)+360)%360;};
+  const emit=()=>{const need=(phys+scr())%360;if(need!==last){last=need;cb(need);}};
+  const h=e=>{if(e.beta==null||e.gamma==null)return;const b=e.beta*Math.PI/180,g=e.gamma*Math.PI/180;
+    const ux=-Math.cos(b)*Math.sin(g),uy=Math.sin(b);if(Math.hypot(ux,uy)<0.55)return; /* lying flat: keep last */
+    const ang=((Math.atan2(-ux,uy)*180/Math.PI)+360)%360;
+    for(const c of [0,90,180,270]){let d=Math.abs(ang-c);d=Math.min(d,360-d);if(d<35){if(c!==phys){phys=c;emit();}break;}}};
   try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);}).catch(()=>{});else window.addEventListener('deviceorientation',h);}catch(e){}
-  return ()=>window.removeEventListener('deviceorientation',h);
+  const oc=()=>setTimeout(emit,300);window.addEventListener('orientationchange',oc);try{screen.orientation&&screen.orientation.addEventListener('change',oc);}catch(e){}
+  return ()=>{window.removeEventListener('deviceorientation',h);window.removeEventListener('orientationchange',oc);};
 }
-let dirUpside=false,dirUpWatch=null;
-function onDirUpside(on){dirUpside=on;document.body.classList.toggle('upside',on);const l=sources.find(x=>x.local);if(l&&!l.flipManual){setFlip(l,on);renderConnList();}if(on)toast(t('flipAuto'),2500);}
+let dirTurn=0,dirTurnWatch=null;
+function isSide(n){return n===90||n===270;}
+function effLand(){const scrL=window.innerWidth>window.innerHeight;
+  if($('master').classList.contains('show'))return scrL!==isSide(dirTurn);
+  if($('slavecam').classList.contains('show'))return scrL!==isSide(sTurn);
+  return scrL;}
+/* compact sideways controls only for the Director (its whole app turns); the Camera keeps its preview as the system draws it */
+function setLand(){document.body.classList.toggle('land',$('master').classList.contains('show')?effLand():window.innerWidth>window.innerHeight);}
+window.addEventListener('resize',()=>setTimeout(setLand,150));
+function onDirTurn(need){
+  dirTurn=need;const b=document.body;b.classList.remove('ur90','ur180','ur270');if(need)b.classList.add('ur'+need);
+  const l=sources.find(x=>x.local);if(l&&!l.rotManual){setRot(l,need);renderConnList();}
+  setLand();setTimeout(()=>{document.querySelectorAll('.tile video').forEach(sizeTileVid);rotateHint();},350);
+}
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
-  let sw,sh;const r=w/h;if(vw/vh>r){sh=vh;sw=vh*r;}else{sw=vw;sh=vw/r;}
+  const rot=v._rot||0,swap=rot===90||rot===270,tw=swap?h:w,th=swap?w:h;
+  let sw,sh;const r=tw/th;if(vw/vh>r){sh=vh;sw=vh*r;}else{sw=vw;sh=vw/r;}
   sw/=zoom;sh/=zoom;
-  if(v._flip){ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(Math.PI);ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,-w/2,-h/2,w,h);ctx.restore();}
+  if(rot){ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(rot*Math.PI/180);ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,-tw/2,-th/2,tw,th);ctx.restore();}
   else ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,x,y,w,h);
 }
 const dz=s=>(s.caps&&s.caps.zoom)?1:s.zoom;
@@ -1630,11 +1663,11 @@ async function runTest(){
 }
 
 /* ================= SLAVE ================= */
-let sUpWatch=null,sUpside=false,sFmt='';
+let sTurnWatch=null,sTurn=0,sFmt='';
 /* Camera: show which part of the picture goes into the final video, and ask to turn the phone if needed */
 function fmtGuide(announce){
   const g=$('fmtGuide');if(!g||!sFmt)return;
-  const W=window.innerWidth,H=window.innerHeight,a=sFmt==='l'?16/9:9/16,isL=W>H;
+  const W=window.innerWidth,H=window.innerHeight,side=sTurn===90||sTurn===270,a0=sFmt==='l'?16/9:9/16,a=side?1/a0:a0,isL=(W>H)!==side;
   if((sFmt==='l')===isL){g.classList.remove('show');if(announce)toast(t(sFmt==='l'?'fmtOkL':'fmtOkP'),2500);return;}
   let w,h;if(W/H>a){h=H;w=H*a;}else{w=W;h=W/a;}
   g.style.width=Math.round(w)+'px';g.style.height=Math.round(h)+'px';
@@ -1822,7 +1855,7 @@ async function sConnect(){
   sConn=p.connect(sTarget,{reliable:true});
   sConn.on('open',()=>{
     sConn.send({t:'hello',name:camLabel(),via:sVia});
-    if(sUpWatch)sUpWatch();sUpWatch=watchUpside(on=>{sUpside=on;sSend({t:'flip',on});});if(sUpside)sSend({t:'flip',on:true});
+    if(sTurnWatch)sTurnWatch();sTurnWatch=watchTurn(n=>{sTurn=n;sSend({t:'rot',v:n});fmtGuide(false);});sSend({t:'rot',v:sTurn});
     sCall=p.call(sTarget,sStream,{metadata:{name:camLabel(),via:sVia}});
     tuneSender();
     sCall.on('close',()=>sLost());
