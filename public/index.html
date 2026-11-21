@@ -660,7 +660,7 @@ const $=id=>document.getElementById(id);
 function toast(t,ms=2600){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);}
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));$(id).classList.add('show');
   /* menu stays upright; Director and Camera may turn sideways for YouTube format */
-  try{if(screen.orientation){if(id==='home')screen.orientation.lock('portrait').catch(()=>{});else screen.orientation.unlock();}}catch(e){}
+  try{if(screen.orientation){if(id==='home')screen.orientation.lock('portrait').catch(()=>{});else screen.orientation.lock('any').catch(()=>{try{screen.orientation.unlock();}catch(e){}});}}catch(e){}
   if(id==='master')setTimeout(rotateHint,800);}
 let rotHintShown='';
 function rotateHint(){
