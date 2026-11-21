@@ -399,7 +399,8 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <label class="lbl"><span data-i18n="quality"></span><select class="input" id="qualSel"><option value="720" data-i18n="q720"></option><option value="1080" data-i18n="q1080"></option></select></label>
     <label class="lbl"><span data-i18n="audio"></span><select class="input" id="audioSel"><option value="none">-</option></select></label>
     <label class="lbl"><span data-i18n="title"></span><input class="input" id="titleTxt" maxlength="40" data-i18n-ph="titlePh"></label>
-    <div class="subsec">
+    <div class="subsec pro-only">
+      <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
       <span class="sec" data-i18n="autoSw"></span>
       <select class="input" id="autoSel"><option value="0" data-i18n="autoOff"></option><option value="5"></option><option value="10"></option><option value="15"></option><option value="30"></option></select>
     </div>
@@ -426,7 +427,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     </div>
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
     <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
-    <label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label>
+    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label></div>
     <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
     <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
@@ -774,6 +775,7 @@ async function goMaster(){
   // looks
   renderLooks();
   document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.m!=='full'&&!isPro()){openPro();return;}
     if(b.dataset.m!=='full'&&sources.filter(x=>x.stream).length<2){toast(t('need2'),3500);return;}
     mode=b.dataset.m;document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
@@ -1301,7 +1303,7 @@ function closeGuide(){$('guide').classList.remove('show');lsSet('pmc_guided','1'
 function track(ev,params){try{if(window.gtag)gtag('event',ev,params||{});}catch(e){}}
 
 /* ---------- account, plans & Pro gating ---------- */
-const FREE_LOOKS=['std','warm','pop'],FREE_MAX=2,PRO_MAX=6;
+const FREE_LOOKS=['std'],FREE_MAX=1,PRO_MAX=6;
 function isPro(){return !!(window.PMC&&PMC.isPro&&PMC.isPro());}
 function overLimit(id){if(id==='local'||sources.find(x=>x.id===id))return false;return sources.filter(x=>!x.local).length>=(isPro()?PRO_MAX:FREE_MAX);}
 function money(v){return 'RM'+Number(v||0).toFixed(2).replace(/\.00$/,'');}
@@ -1309,7 +1311,9 @@ function applyTier(){
   const pro=isPro();
   document.querySelectorAll('.pro-only').forEach(e=>e.classList.toggle('locked',!pro));
   const q=$('qualSel');if(q){const o=q.querySelector('option[value="1080"]');if(o){o.disabled=!pro;o.textContent=(pro?'':'🔒 ')+t('q1080');}if(!pro&&q.value==='1080'){q.value='720';resizeStage();}}
-  if(!pro){if(!FREE_LOOKS.includes(look.id)){look=LOOKS[0];}const hd=$('optHD');if(hd)hd.checked=false;}
+  if(!pro){if(!FREE_LOOKS.includes(look.id)){look=LOOKS[0];}const hd=$('optHD');if(hd)hd.checked=false;const fd=$('optFade');if(fd)fd.checked=false;const au=$('autoSel');if(au)au.value='0';
+    if(typeof mode!=='undefined'&&mode!=='full'){mode='full';try{renderTiles();sendLive();}catch(e){}}}
+  document.querySelectorAll('#modeSeg button').forEach(b=>{if(b.dataset.m!=='full')b.textContent=(pro?'':'🔒 ')+t(b.dataset.i18n);});
   if($('looks')&&$('looks').children.length)renderLooks();
   renderAcctBtn();
 }
