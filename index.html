@@ -8,6 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0b0f17">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
 <script src="i18n.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
@@ -92,6 +93,10 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 .tile .lb{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(11,15,23,.9));padding:14px 6px 5px;font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .nb{position:absolute;top:4px;right:4px;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;color:var(--on-gold);background:var(--gold)}
 .tile .nb.b{background:var(--info);color:#0b1a33}
+.tile .stat{position:absolute;top:4px;left:4px;display:flex;gap:5px;align-items:center;background:rgba(11,15,23,.8);border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700}
+.bars{display:inline-flex;gap:1px;align-items:flex-end;height:10px}
+.bars i{display:block;width:3px;border-radius:1px;background:#3b4558}
+.bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:7px}.bars i:nth-child(3){height:10px}
 .tile-empty{grid-column:1/-1;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:16px;font-size:13px;color:var(--sub);line-height:1.5;text-align:center}
 .hint{font-size:12px;color:var(--muted)}
 .m-foot{padding:10px 16px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
@@ -365,28 +370,83 @@ async function lanKey(){
   }catch(e){return null;}
 }
 
-/* file saver: APK (Capacitor) -> Documents/ProMultiCam, browser -> Downloads */
-const Cap=window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()?window.Capacitor:null;
-function blobToB64(b){return new Promise(r=>{const f=new FileReader();f.onloadend=()=>r(String(f.result).split(',')[1]||'');f.readAsDataURL(b);});}
+/* ---------- crash-safe recording storage (OPFS: each chunk is its own file on disk) ---------- */
+async function recRoot(){try{const r=await navigator.storage.getDirectory();return await r.getDirectoryHandle('recordings',{create:true});}catch(e){return null;}}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 class Saver{
-  constructor(name){this.name=name;this.chunks=[];this.first=true;this.dir='DOCUMENTS';this.q=Promise.resolve();this.fs=Cap&&Cap.Plugins&&Cap.Plugins.Filesystem;}
+  constructor(name){this.name=name;this.mem=[];this.n=0;this.q=Promise.resolve();this.ready=this.init();}
+  async init(){
+    try{const root=await recRoot();if(!root)return;this.dir=await root.getDirectoryHandle(this.name,{create:true});
+      const fh=await this.dir.getFileHandle('_test',{create:true});const w=await fh.createWritable();await w.close();await this.dir.removeEntry('_test');}
+    catch(e){this.dir=null;}
+  }
   push(blob){
     if(!blob||!blob.size)return;
-    if(!this.fs){this.chunks.push(blob);return;}
     this.q=this.q.then(async()=>{
-      const data=await blobToB64(blob);const path='ProMultiCam/'+this.name;
-      try{if(this.first){await this.fs.writeFile({path,data,directory:this.dir,recursive:true});this.first=false;}else await this.fs.appendFile({path,data,directory:this.dir});}
-      catch(e){this.chunks.push(blob);}
+      await this.ready;
+      if(this.dir){try{const fh=await this.dir.getFileHandle(String(++this.n).padStart(6,'0'),{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();return;}catch(e){}}
+      this.mem.push(blob);
     });
   }
   async finish(type){
     await this.q;
-    if(this.fs&&!this.chunks.length)return{where:'Documents/ProMultiCam/'+this.name};
-    const blob=new Blob(this.chunks,{type});const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=this.name;document.body.appendChild(a);a.click();a.remove();
-    return{url,blob,where:'Downloads/'+this.name};
+    if(this.dir){try{await (await this.dir.getFileHandle('_done',{create:true})).createWritable().then(w=>w.close());}catch(e){}}
+    const blob=this.dir?new Blob([await savedBlob(this.dir,type),...this.mem],{type}):new Blob(this.mem,{type});
+    downloadBlob(blob,this.name);
+    return{blob,where:'Downloads/'+this.name};
   }
 }
+async function savedBlob(dir,type){
+  const parts=[];for await(const [k,h] of dir.entries()){if(k[0]!=='_'&&h.kind==='file')parts.push([k,await h.getFile()]);}
+  parts.sort((a,b)=>a[0]<b[0]?-1:1);
+  return new Blob(parts.map(p=>p[1]),{type});
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+function mimeOf(name){return name.endsWith('.mp4')?'video/mp4':'video/webm';}
+async function listSaved(){
+  const box=$('files');if(!box)return;
+  const root=await recRoot();if(!root){return;}
+  const items=[];
+  for await(const [name,h] of root.entries()){
+    if(h.kind!=='directory')continue;
+    let size=0,done=false,count=0;
+    for await(const [k,f] of h.entries()){if(k==='_done')done=true;else if(f.kind==='file'){count++;try{size+=(await f.getFile()).size;}catch(e){}}}
+    if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
+    items.push({name,h,size,done});
+  }
+  items.sort((a,b)=>a.name<b.name?1:-1);
+  box.innerHTML='';box.style.display=items.length?'flex':'none';
+  if(!items.length)return;
+  const hd=document.createElement('span');hd.className='sec';hd.textContent=t('savedRecs');box.appendChild(hd);
+  items.forEach(it=>{
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML='<span class="dot ok"></span><div class="tx"><b></b><span></span></div>';
+    d.querySelector('b').textContent=it.name.replace(/^ProMultiCam_/,'');
+    d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(it.done?'':' · '+t('recovered'));
+    if(!it.done)d.querySelector('.dot').style.background='var(--gold)';
+    const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('download');
+    dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));downloadBlob(b,it.name);};
+    d.appendChild(dl);
+    if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
+      sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};d.appendChild(sh);}
+    const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
+    del.onclick=async()=>{try{await root.removeEntry(it.name,{recursive:true});}catch(e){}listSaved();};
+    d.appendChild(del);
+    box.appendChild(d);
+  });
+}
+
+/* ---------- ICE / TURN ---------- */
+async function loadIce(){
+  const base=[{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun.l.google.com:19302'}];
+  const c=window.PMC_CONFIG||{};
+  if(c.meteredApp&&c.meteredApiKey){
+    try{const r=await fetch(`https://${c.meteredApp}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(c.meteredApiKey)}`);const list=await r.json();if(Array.isArray(list)&&list.length){peerOpts.config.iceServers=base.concat(list);return;}}catch(e){}
+  }
+  if(Array.isArray(c.iceServers)&&c.iceServers.length){peerOpts.config.iceServers=base.concat(c.iceServers);return;}
+  peerOpts.config.iceServers=base;
+}
+const iceReady=loadIce();
 
 /* ================= MASTER ================= */
 const LOOKS=[
@@ -402,6 +462,7 @@ const LOOKS=[
 ];
 let look=LOOKS[0];
 let peers=[], roomCode='', sources=[], mainId=null, secId=null, mode='full';
+let statTimer=null;
 let recorder=null, saver=null, recStart=0, recTimer=null, drawTimer=null, actx=null, adest=null, aNode=null, localStream=null;
 const stage=$('stage'), ctx=stage.getContext('2d');
 function renderLooks(){
@@ -426,6 +487,9 @@ async function goMaster(){
   $('zoom').oninput=e=>setZoom(Number(e.target.value));
   resizeStage();renderTiles();
   clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
+  clearInterval(statTimer);statTimer=setInterval(pollStats,3000);
+  listSaved();
+  await iceReady;
   // code peer (data)
   roomCode=newCode();$('roomCode').textContent=roomCode;
   openPeer(PFX+'code-'+roomCode,true);
@@ -449,6 +513,7 @@ function openPeer(id,isCode,onTaken){
       if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});}
       if(d.t==='caps'){const s=sources.find(x=>x.id===conn.peer);if(s){s.caps=d;updateZoomUI();}}
+      if(d.t==='stat'){const s=sources.find(x=>x.id===conn.peer);if(s){const was=s.batt;s.batt=d.batt;s.charging=d.charging;paintStat(s);if(d.batt<=15&&!d.charging&&(was==null||was>15))toast(t('battLow',{name:s.name,n:d.batt}));}}
     });
     conn.on('close',()=>{const s=sources.find(x=>x.id===conn.peer);if(s&&s.conn===conn)removeSrc(conn.peer);});
   });
@@ -490,6 +555,7 @@ function renderTiles(){
     b.setAttribute('aria-label','Paparkan '+s.name);
     b.appendChild(s.video);s.video.play().catch(()=>{});
     const l=document.createElement('span');l.className='lb';l.textContent=s.name+' · '+viaLabel(s.via)+(s.stream?'':' …');b.appendChild(l);
+    const st=document.createElement('span');st.className='stat';b.appendChild(st);s.statEl=st;paintStat(s);
     if(s.id===mainId){const n=document.createElement('span');n.className='nb';n.textContent=t('bMain');b.appendChild(n);}
     else if(mode!=='full'&&s.id===secId){const n=document.createElement('span');n.className='nb b';n.textContent=t('bSec');b.appendChild(n);}
     b.onclick=()=>pick(s.id);
@@ -619,7 +685,7 @@ async function toggleRec(){
   catch(e){toast(t('noRec'));return;}
   const sv=saver=new Saver(`ProMultiCam_${stamp()}.${ext}`);
   recorder.ondataavailable=e=>sv.push(e.data);
-  recorder.onstop=async()=>{const r=await sv.finish(recorder.mimeType||mime||'video/webm');addFile(r,sv.name);try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;};
+  recorder.onstop=async()=>{const r=await sv.finish(recorder.mimeType||mime||'video/webm');toast(t('saved',{w:r.where}),4000);listSaved();try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;};
   recorder.start(3000);recStart=Date.now();
   $('recBtn').textContent=t('recStop')+'  ·  00:00';$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
@@ -631,13 +697,33 @@ function stopRec(){
   $('recBtn').textContent=t('recStart');$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
   $('aspectSel').disabled=$('qualSel').disabled=false;toast(t('saving'));
 }
-function addFile(r,name){
-  const box=$('files');box.style.display='flex';
-  const d=document.createElement('div');d.className='item';
-  d.innerHTML='<span class="dot ok"></span><div class="tx"><b>'+t('videoSaved')+'</b><span></span></div>';
-  d.querySelector('.tx span').textContent=r.where;
-  if(r.url&&r.blob&&navigator.canShare){const f=new File([r.blob],name,{type:r.blob.type});if(navigator.canShare({files:[f]})){const b=document.createElement('button');b.className='btn btn-sm btn-gold';b.textContent=t('share');b.onclick=()=>navigator.share({files:[f]}).catch(()=>{});d.appendChild(b);}}
-  box.prepend(d);toast(t('saved',{w:r.where}),4000);
+/* ---------- signal & battery ---------- */
+function paintStat(s){
+  if(!s.statEl)return;
+  if(s.local){s.statEl.style.display='none';return;}
+  const q=s.q||0,col=q>=3?'#2fbf8c':q===2?'#d9b44a':q===1?'#ef6b5c':'#3b4558';
+  let h='<span class="bars">'+[1,2,3].map(i=>`<i style="background:${i<=q?col:'#3b4558'}"></i>`).join('')+'</span>';
+  if(s.relay)h+='<span style="color:#7aa7f5">R</span>';
+  if(typeof s.batt==='number')h+=`<span style="color:${s.batt<=15&&!s.charging?'#ef6b5c':'#eef0f4'}">${s.charging?'⚡':''}${s.batt}%</span>`;
+  s.statEl.innerHTML=h;
+}
+async function pollStats(){
+  for(const s of sources){
+    const pc=s.call&&s.call.peerConnection;if(!pc)continue;
+    try{
+      const rep=await pc.getStats();let rtt=null,lost=0,recv=0,relay=false,localId=null;
+      rep.forEach(r=>{
+        if(r.type==='candidate-pair'&&(r.nominated||r.selected)&&r.state==='succeeded'){if(r.currentRoundTripTime!=null)rtt=r.currentRoundTripTime*1000;localId=r.localCandidateId;}
+        if(r.type==='inbound-rtp'&&r.kind==='video'){lost=r.packetsLost||0;recv=r.packetsReceived||0;}
+      });
+      if(localId){const lc=rep.get(localId);relay=!!(lc&&lc.candidateType==='relay');}
+      const dl=lost-(s._lost||0),dr=recv-(s._recv||0);s._lost=lost;s._recv=recv;
+      const loss=dr+dl>0?dl/(dr+dl)*100:0;
+      const q=rtt==null?2:(rtt<180&&loss<2?3:rtt<450&&loss<8?2:1);
+      if(q===1&&s.q!==1&&(!s._warnQ||Date.now()-s._warnQ>60000)){s._warnQ=Date.now();toast(t('weak',{name:s.name}));}
+      s.q=q;s.relay=relay;paintStat(s);
+    }catch(e){}
+  }
 }
 
 /* ================= SLAVE ================= */
@@ -652,7 +738,8 @@ function goSlave(){
   scanMasters();
 }
 function camLabel(){const v=($('camLabel').value||'').trim();try{localStorage.setItem('pmc_label',v);}catch(e){}return v||getName();}
-function ensurePeer(){
+async function ensurePeer(){
+  await iceReady;
   return new Promise(res=>{
     if(sPeer&&!sPeer.destroyed&&sPeer.open)return res(sPeer);
     if(sPeer)try{sPeer.destroy();}catch(e){}
@@ -718,6 +805,13 @@ async function camFlip(){
     sSend({t:'caps',...camCaps()});
   }catch(e){toast(t('flipFail'));}
 }
+let battObj=null;
+async function sendBattery(){
+  try{
+    if(!battObj&&navigator.getBattery){battObj=await navigator.getBattery();const f=()=>sendBattery();battObj.addEventListener('levelchange',f);battObj.addEventListener('chargingchange',f);}
+    if(battObj)sSend({t:'stat',batt:Math.round(battObj.level*100),charging:!!battObj.charging});
+  }catch(e){}
+}
 function sSend(o){try{if(sConn&&sConn.open)sConn.send(o);}catch(e){}}
 function sStatus(ok,t){$('camDot').classList.toggle('ok',ok);$('camStatus').textContent=t;}
 async function startSlaveCam(target,via){
@@ -737,6 +831,7 @@ async function sConnect(){
     sConn.send({t:'hello',name:camLabel(),via:sVia});
     sCall=p.call(sTarget,sStream,{metadata:{name:camLabel(),via:sVia}});
     sCall.on('close',()=>sLost());
+    sendBattery();
     sSend({t:'caps',...camCaps()});
   });
   sConn.on('data',d=>{

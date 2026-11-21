@@ -6,6 +6,7 @@ window.LANGS = [
 ];
 window.I18N = {
 en:{
+ savedRecs:'Saved recordings', download:'Download', del:'Delete', recovered:'recovered', weak:'{name}: weak signal', battLow:'{name}: low battery ({n}%)',
  tag:'A MULTI-CAMERA STUDIO IN YOUR POCKET',
  hero:'Create studio-quality cooking videos with several phones. Switch camera angles live, with a single tap.',
  install:'Install App', installIos:'To install: tap Share, then “Add to Home Screen”.', installed:'App installed',
@@ -43,6 +44,7 @@ en:{
  kicked:'The Director ended the connection', back:'Back', close:'Close', settingsBtn:'Settings'
 },
 ms:{
+ savedRecs:'Rakaman tersimpan', download:'Muat turun', del:'Padam', recovered:'dipulihkan', weak:'{name}: isyarat lemah', battLow:'{name}: bateri rendah ({n}%)',
  tag:'STUDIO MULTI-KAMERA DALAM POKET ANDA',
  hero:'Hasilkan video masakan bertaraf studio dengan beberapa telefon. Tukar sudut kamera secara langsung, dengan satu sentuhan.',
  install:'Pasang App', installIos:'Untuk pasang: tekan Kongsi, kemudian “Add to Home Screen”.', installed:'App telah dipasang',
@@ -80,6 +82,7 @@ ms:{
  kicked:'Pengarah telah memutuskan sambungan', back:'Kembali', close:'Tutup', settingsBtn:'Tetapan'
 },
 id:{
+ savedRecs:'Rekaman tersimpan', download:'Unduh', del:'Hapus', recovered:'dipulihkan', weak:'{name}: sinyal lemah', battLow:'{name}: baterai lemah ({n}%)',
  installed:'Aplikasi terpasang', camInUse:'Kamera ponsel ini sudah dipakai', noRec:'Perangkat ini tidak mendukung perekaman video', flipFail:'Tidak bisa mengganti kamera', torchFail:'Senter tidak didukung',
  tag:'STUDIO MULTI-KAMERA DI SAKU ANDA', hero:'Buat video masak berkualitas studio dengan beberapa ponsel. Ganti sudut kamera secara langsung, cukup satu sentuhan.',
  install:'Pasang Aplikasi', installIos:'Untuk memasang: ketuk Bagikan, lalu “Add to Home Screen”.', lang:'Bahasa', devName:'Nama perangkat Anda', devNamePh:'mis. Dapur Alim', pickRole:'Pilih peran ponsel ini',
@@ -105,6 +108,7 @@ id:{
  allowCam:'Izinkan akses kamera', allowCamMic:'Izinkan akses kamera dan mikrofon', needCam:'Hubungkan minimal satu kamera dulu', saving:'Menyimpan video Anda…', saved:'✅ Video disimpan: {w}', videoSaved:'Video tersimpan', share:'Bagikan', kicked:'Sutradara memutuskan koneksi', back:'Kembali', close:'Tutup', settingsBtn:'Pengaturan'
 },
 zh:{
+ savedRecs:'已保存的录像', download:'下载', del:'删除', recovered:'已恢复', weak:'{name}：信号弱', battLow:'{name}：电量低（{n}%）',
  installed:'应用已安装', camInUse:'本机摄像头已在使用', noRec:'此设备不支持视频录制', flipFail:'无法切换摄像头', torchFail:'不支持闪光灯',
  tag:'口袋里的多机位工作室', hero:'用几部手机拍出影棚级烹饪视频。一键实时切换机位。',
  install:'安装应用', installIos:'安装方法：点“分享”，再点“添加到主屏幕”。', lang:'语言', devName:'设备名称', devNamePh:'例如：阿林的厨房', pickRole:'选择这部手机的角色',
@@ -130,6 +134,7 @@ zh:{
  allowCam:'请允许使用摄像头', allowCamMic:'请允许使用摄像头和麦克风', needCam:'请先连接至少一个机位', saving:'正在保存视频…', saved:'✅ 视频已保存：{w}', videoSaved:'视频已保存', share:'分享', kicked:'导演已断开连接', back:'返回', close:'关闭', settingsBtn:'设置'
 },
 es:{
+ savedRecs:'Grabaciones guardadas', download:'Descargar', del:'Eliminar', recovered:'recuperada', weak:'{name}: señal débil', battLow:'{name}: batería baja ({n}%)',
  installed:'App instalada', camInUse:'La cámara de este teléfono ya está en uso', noRec:'Este dispositivo no admite grabación de video', flipFail:'No se pudo cambiar la cámara', torchFail:'Linterna no compatible',
  tag:'UN ESTUDIO MULTICÁMARA EN TU BOLSILLO', hero:'Crea videos de cocina con calidad de estudio usando varios teléfonos. Cambia de ángulo en directo con un toque.',
  install:'Instalar app', installIos:'Para instalar: toca Compartir y luego “Añadir a pantalla de inicio”.', lang:'Idioma', devName:'Nombre del dispositivo', devNamePh:'p. ej. Cocina de Alim', pickRole:'Elige el rol de este teléfono',
@@ -155,6 +160,7 @@ es:{
  allowCam:'Permite el acceso a la cámara', allowCamMic:'Permite el acceso a cámara y micrófono', needCam:'Conecta al menos una cámara', saving:'Guardando tu video…', saved:'✅ Video guardado: {w}', videoSaved:'Video guardado', share:'Compartir', kicked:'El Director cerró la conexión', back:'Atrás', close:'Cerrar', settingsBtn:'Ajustes'
 },
 pt:{
+ savedRecs:'Gravações salvas', download:'Baixar', del:'Excluir', recovered:'recuperada', weak:'{name}: sinal fraco', battLow:'{name}: bateria fraca ({n}%)',
  installed:'App instalado', camInUse:'A câmera deste celular já está em uso', noRec:'Este dispositivo não suporta gravação de vídeo', flipFail:'Não foi possível trocar a câmera', torchFail:'Lanterna não suportada',
  tag:'UM ESTÚDIO MULTICÂMERA NO SEU BOLSO', hero:'Crie vídeos de culinária com qualidade de estúdio usando vários celulares. Troque de ângulo ao vivo com um toque.',
  install:'Instalar app', installIos:'Para instalar: toque em Compartilhar e depois “Adicionar à Tela de Início”.', lang:'Idioma', devName:'Nome do dispositivo', devNamePh:'ex.: Cozinha do Alim', pickRole:'Escolha a função deste celular',
@@ -180,6 +186,7 @@ pt:{
  allowCam:'Permita o acesso à câmera', allowCamMic:'Permita o acesso à câmera e ao microfone', needCam:'Conecte pelo menos uma câmera', saving:'Salvando seu vídeo…', saved:'✅ Vídeo salvo: {w}', videoSaved:'Vídeo salvo', share:'Compartilhar', kicked:'O Diretor encerrou a conexão', back:'Voltar', close:'Fechar', settingsBtn:'Configurações'
 },
 fr:{
+ savedRecs:'Enregistrements', download:'Télécharger', del:'Supprimer', recovered:'récupéré', weak:'{name} : signal faible', battLow:'{name} : batterie faible ({n} %)',
  installed:'Application installée', camInUse:'La caméra de ce téléphone est déjà utilisée', noRec:'Cet appareil ne prend pas en charge l’enregistrement vidéo', flipFail:'Impossible de changer de caméra', torchFail:'Lampe non prise en charge',
  tag:'UN STUDIO MULTICAMÉRA DANS VOTRE POCHE', hero:'Créez des vidéos culinaires de qualité studio avec plusieurs téléphones. Changez d’angle en direct, d’un seul geste.',
  install:'Installer l’app', installIos:'Pour installer : touchez Partager, puis « Sur l’écran d’accueil ».', lang:'Langue', devName:'Nom de l’appareil', devNamePh:'ex. Cuisine d’Alim', pickRole:'Choisissez le rôle de ce téléphone',
@@ -205,6 +212,7 @@ fr:{
  allowCam:'Autorisez l’accès à la caméra', allowCamMic:'Autorisez l’accès à la caméra et au micro', needCam:'Connectez au moins une caméra', saving:'Enregistrement de votre vidéo…', saved:'✅ Vidéo enregistrée : {w}', videoSaved:'Vidéo enregistrée', share:'Partager', kicked:'Le réalisateur a mis fin à la connexion', back:'Retour', close:'Fermer', settingsBtn:'Réglages'
 },
 ar:{
+ savedRecs:'التسجيلات المحفوظة', download:'تنزيل', del:'حذف', recovered:'مُستعاد', weak:'{name}: إشارة ضعيفة', battLow:'{name}: بطارية منخفضة ({n}%)',
  installed:'تم تثبيت التطبيق', camInUse:'كاميرا هذا الهاتف قيد الاستخدام', noRec:'هذا الجهاز لا يدعم تسجيل الفيديو', flipFail:'تعذّر تبديل الكاميرا', torchFail:'الفلاش غير مدعوم',
  tag:'استوديو متعدد الكاميرات في جيبك', hero:'اصنع فيديوهات طبخ بجودة الاستوديو باستخدام عدة هواتف. بدّل زوايا التصوير مباشرةً بلمسة واحدة.',
  install:'تثبيت التطبيق', installIos:'للتثبيت: اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية».', lang:'اللغة', devName:'اسم جهازك', devNamePh:'مثال: مطبخ عليم', pickRole:'اختر دور هذا الهاتف',
@@ -230,6 +238,7 @@ ar:{
  allowCam:'يرجى السماح بالوصول إلى الكاميرا', allowCamMic:'يرجى السماح بالوصول إلى الكاميرا والميكروفون', needCam:'اربط كاميرا واحدة على الأقل', saving:'جارٍ حفظ الفيديو…', saved:'✅ تم حفظ الفيديو: {w}', videoSaved:'تم حفظ الفيديو', share:'مشاركة', kicked:'أنهى المخرج الاتصال', back:'رجوع', close:'إغلاق', settingsBtn:'الإعدادات'
 },
 hi:{
+ savedRecs:'सेव रिकॉर्डिंग', download:'डाउनलोड', del:'हटाएँ', recovered:'रिकवर', weak:'{name}: कमज़ोर सिग्नल', battLow:'{name}: बैटरी कम ({n}%)',
  installed:'ऐप इंस्टॉल हो गया', camInUse:'इस फ़ोन का कैमरा पहले से उपयोग में है', noRec:'यह डिवाइस वीडियो रिकॉर्डिंग सपोर्ट नहीं करता', flipFail:'कैमरा बदल नहीं सका', torchFail:'फ़्लैशलाइट सपोर्ट नहीं है',
  tag:'आपकी जेब में मल्टी-कैमरा स्टूडियो', hero:'कई फ़ोन से स्टूडियो-क्वालिटी कुकिंग वीडियो बनाएँ। एक टैप में लाइव कैमरा एंगल बदलें।',
  install:'ऐप इंस्टॉल करें', installIos:'इंस्टॉल करने के लिए: शेयर पर टैप करें, फिर “Add to Home Screen”।', lang:'भाषा', devName:'आपके डिवाइस का नाम', devNamePh:'जैसे: अलीम की रसोई', pickRole:'इस फ़ोन की भूमिका चुनें',
@@ -255,6 +264,7 @@ hi:{
  allowCam:'कृपया कैमरा एक्सेस दें', allowCamMic:'कृपया कैमरा और माइक्रोफ़ोन एक्सेस दें', needCam:'पहले कम से कम एक कैमरा जोड़ें', saving:'आपका वीडियो सेव हो रहा है…', saved:'✅ वीडियो सेव हुआ: {w}', videoSaved:'वीडियो सेव हुआ', share:'शेयर', kicked:'डायरेक्टर ने कनेक्शन बंद किया', back:'वापस', close:'बंद करें', settingsBtn:'सेटिंग'
 },
 th:{
+ savedRecs:'วิดีโอที่บันทึกไว้', download:'ดาวน์โหลด', del:'ลบ', recovered:'กู้คืนแล้ว', weak:'{name}: สัญญาณอ่อน', battLow:'{name}: แบตเตอรี่ต่ำ ({n}%)',
  installed:'ติดตั้งแอปแล้ว', camInUse:'กล้องของเครื่องนี้ถูกใช้อยู่แล้ว', noRec:'อุปกรณ์นี้ไม่รองรับการบันทึกวิดีโอ', flipFail:'สลับกล้องไม่ได้', torchFail:'ไม่รองรับไฟฉาย',
  tag:'สตูดิโอหลายกล้องในกระเป๋าของคุณ', hero:'สร้างวิดีโอทำอาหารระดับสตูดิโอด้วยโทรศัพท์หลายเครื่อง สลับมุมกล้องแบบสดได้ในแตะเดียว',
  install:'ติดตั้งแอป', installIos:'วิธีติดตั้ง: แตะแชร์ แล้วเลือก “เพิ่มไปยังหน้าจอโฮม”', lang:'ภาษา', devName:'ชื่ออุปกรณ์', devNamePh:'เช่น ครัวของอลิม', pickRole:'เลือกบทบาทของโทรศัพท์เครื่องนี้',
@@ -280,6 +290,7 @@ th:{
  allowCam:'โปรดอนุญาตการเข้าถึงกล้อง', allowCamMic:'โปรดอนุญาตการเข้าถึงกล้องและไมโครโฟน', needCam:'เชื่อมต่ออย่างน้อยหนึ่งกล้องก่อน', saving:'กำลังบันทึกวิดีโอ…', saved:'✅ บันทึกวิดีโอแล้ว: {w}', videoSaved:'บันทึกวิดีโอแล้ว', share:'แชร์', kicked:'ผู้กำกับตัดการเชื่อมต่อ', back:'กลับ', close:'ปิด', settingsBtn:'ตั้งค่า'
 },
 vi:{
+ savedRecs:'Bản ghi đã lưu', download:'Tải xuống', del:'Xóa', recovered:'đã khôi phục', weak:'{name}: tín hiệu yếu', battLow:'{name}: pin yếu ({n}%)',
  installed:'Đã cài ứng dụng', camInUse:'Camera của máy này đang được dùng', noRec:'Thiết bị không hỗ trợ ghi video', flipFail:'Không thể đổi camera', torchFail:'Không hỗ trợ đèn pin',
  tag:'STUDIO NHIỀU MÁY QUAY TRONG TÚI BẠN', hero:'Tạo video nấu ăn chất lượng studio bằng nhiều điện thoại. Chuyển góc máy trực tiếp chỉ với một chạm.',
  install:'Cài ứng dụng', installIos:'Để cài: chạm Chia sẻ, rồi “Thêm vào MH chính”.', lang:'Ngôn ngữ', devName:'Tên thiết bị', devNamePh:'vd: Bếp của Alim', pickRole:'Chọn vai trò cho điện thoại này',
@@ -305,6 +316,7 @@ vi:{
  allowCam:'Vui lòng cho phép truy cập camera', allowCamMic:'Vui lòng cho phép truy cập camera và micro', needCam:'Hãy kết nối ít nhất một máy quay', saving:'Đang lưu video…', saved:'✅ Đã lưu video: {w}', videoSaved:'Đã lưu video', share:'Chia sẻ', kicked:'Đạo diễn đã ngắt kết nối', back:'Quay lại', close:'Đóng', settingsBtn:'Cài đặt'
 },
 ja:{
+ savedRecs:'保存済みの録画', download:'ダウンロード', del:'削除', recovered:'復元済み', weak:'{name}：電波が弱い', battLow:'{name}：バッテリー残量低下（{n}%）',
  installed:'アプリをインストールしました', camInUse:'このスマホのカメラは使用中です', noRec:'この端末は動画録画に対応していません', flipFail:'カメラを切り替えられません', torchFail:'ライトに対応していません',
  tag:'ポケットの中のマルチカメラスタジオ', hero:'複数のスマホでスタジオ品質の料理動画を。ワンタップでカメラアングルをライブ切替。',
  install:'アプリをインストール', installIos:'インストール方法：共有をタップし「ホーム画面に追加」。', lang:'言語', devName:'デバイス名', devNamePh:'例：アリムのキッチン', pickRole:'このスマホの役割を選択',
