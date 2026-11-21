@@ -192,6 +192,23 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .tile-add{flex:0 0 66px;height:88px;border:2px dashed var(--line);border-radius:10px;background:rgba(19,26,38,.7);color:var(--gold);font:800 26px var(--f)}
 #master .m-foot{padding:4px 12px 14px;padding-bottom:max(14px,env(safe-area-inset-bottom))}
 #master #recBtn{min-height:54px}
+/* Director held sideways (YouTube format): compact controls so the video fills the screen */
+@media (orientation:landscape) and (max-height:620px){
+  .ov-top{padding:6px 10px 18px;padding-top:max(6px,env(safe-area-inset-top))}
+  .ov-top .icon-btn{width:38px;height:38px}
+  .ov-tags{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
+  #master .recbadge{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
+  #tileHint{display:none}
+  .ov-bot{display:flex;align-items:flex-end;gap:10px;padding:14px 10px 0;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));background:linear-gradient(rgba(11,15,23,0),rgba(11,15,23,.85) 45%)}
+  .ov-bot .strip{flex:1;min-width:0;padding:0 0 10px}
+  .strip .tile,.tile-add{flex:0 0 84px;height:58px}
+  .strip .tile .nb{bottom:18px}
+  #master .m-foot{flex:0 0 auto;width:min(44%,340px);padding:0 0 10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  #master #recBtn{min-height:46px;font-size:15px}
+  .zoomv{height:150px}.zoomv input{width:120px;transform:rotate(-90deg) translateX(-55px);margin-top:50px}
+  #home.show{overflow-y:auto}
+  .sheet{max-height:92vh}
+}
 
 .qrwrap{display:flex;gap:12px;align-items:center;background:#fff;border-radius:12px;padding:10px;color:#1b1503}
 #qrBox{width:128px;height:128px;flex-shrink:0}#qrBox svg{width:100%;height:100%}
@@ -641,7 +658,18 @@ function initInstall(){
 const LAN_SLOTS=5;
 const $=id=>document.getElementById(id);
 function toast(t,ms=2600){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);}
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));$(id).classList.add('show');}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));$(id).classList.add('show');
+  /* menu stays upright; Director and Camera may turn sideways for YouTube format */
+  try{if(screen.orientation){if(id==='home')screen.orientation.lock('portrait').catch(()=>{});else screen.orientation.unlock();}}catch(e){}
+  if(id==='master')setTimeout(rotateHint,800);}
+let rotHintShown='';
+function rotateHint(){
+  const m=$('master');if(!m||!m.classList.contains('show'))return;
+  const wantL=$('aspectSel').value==='l',isL=window.innerWidth>window.innerHeight,k=wantL?'l':'p';
+  if(wantL!==isL&&rotHintShown!==k){rotHintShown=k;toast(t(wantL?'rotL':'rotP'),3500);}
+  if(wantL===isL)rotHintShown='';
+}
+window.addEventListener('resize',()=>{clearTimeout(window._rhT);window._rhT=setTimeout(rotateHint,600);});
 function openSheet(id){$(id).classList.add('show');if(id==='connSheet'){renderConnList();renderQR();}if(id==='filesSheet')listSaved('files');}
 function closeSheet(id){$(id).classList.remove('show');}
 function leave(){location.reload();}
@@ -784,7 +812,7 @@ async function goMaster(){
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
     renderTiles();sendLive();
   });
-  $('aspectSel').onchange=$('qualSel').onchange=resizeStage;
+  $('aspectSel').onchange=()=>{resizeStage();rotHintShown='';rotateHint();};$('qualSel').onchange=resizeStage;
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();
@@ -971,6 +999,7 @@ function setFlip(s,on){s.flip=!!on;if(s.video){s.video._flip=s.flip;s.video.clas
 function watchUpside(cb){
   let up=false;
   const h=e=>{if(e.beta==null)return;const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;if(Math.abs(ang)===180)return;
+    if(window.innerWidth>window.innerHeight){if(up){up=false;cb(false);}return;}
     const portrait=window.innerHeight>=window.innerWidth;const v=portrait?e.beta:(ang===90?-e.gamma:e.gamma);
     if(!up&&v<-50){up=true;cb(true);}else if(up&&v>50){up=false;cb(false);}};
   try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);}).catch(()=>{});else window.addEventListener('deviceorientation',h);}catch(e){}
