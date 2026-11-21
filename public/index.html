@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="ms">
+<html lang="ms" translate="no">
 <head>
 <meta charset="utf-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>ProMultiCam</title>
 <link rel="manifest" href="manifest.json">
@@ -25,6 +26,9 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
+img,canvas,video,svg{-webkit-user-drag:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased}
 button,input,select{font-family:var(--f)}
 button{cursor:pointer}
@@ -270,7 +274,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="sec" data-i18n="connWays"></span>
       <div class="conn-grid">
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fbf8c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="#2fbf8c"/></svg>Wi-Fi</div>
-        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>Bluetooth</div>
+        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg><span data-i18n="scanTab"></span></div>
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20v-12M20 20V4"/></svg><span data-i18n="mobile"></span></div>
       </div>
     </div>
@@ -394,7 +398,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="sec muted" data-i18n="method"></span>
       <div class="tabs" id="tabs">
         <button data-t="wifi" class="on">Wi-Fi</button>
-        <button data-t="bt">Bluetooth</button>
+        <button data-t="qr" data-i18n="scanTab"></button>
         <button data-t="data" data-i18n="data"></button>
       </div>
     </div>
@@ -406,11 +410,17 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="hint" style="line-height:1.5" data-i18n="noRouter"></span>
     </div>
 
-    <div id="tab-bt" class="panel" style="display:none;align-items:center;text-align:center">
-      <div style="width:64px;height:64px;border-radius:50%;background:var(--info-soft);display:grid;place-items:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg></div>
-      <b style="font-size:16px" data-i18n="btTitle"></b>
-      <span class="chip chip-gold" data-i18n="soon"></span>
-      <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="btDesc"></span>
+    <div id="tab-qr" class="panel" style="display:none;align-items:center;text-align:center">
+      <div id="qrCamBox" style="position:relative;width:100%;max-width:300px;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#05080d;display:none">
+        <video id="qrVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+        <div style="position:absolute;inset:18%;border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)"></div>
+      </div>
+      <div id="qrIntro" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--gold2);display:grid;place-items:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg></div>
+        <b style="font-size:16px" data-i18n="scanTitle"></b>
+        <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="scanDesc"></span>
+      </div>
+      <button class="btn btn-gold" id="qrBtn" onclick="toggleScan()" data-i18n="scanStart"></button>
     </div>
 
     <div id="tab-data" class="panel" style="display:none">
@@ -1359,9 +1369,24 @@ async function runTest(){
 
 /* ================= SLAVE ================= */
 let sPeer=null,sConn=null,sCall=null,sStream=null,sTarget=null,sVia='wifi',sFacing='environment',sTorch=false,sRetry=null,sKicked=false;
+/* in-app QR scan (camera phone scans the Director's QR) */
+let scanStream=null,scanTimer=null,scanDet=null,scanCv=null;
+async function toggleScan(){if(scanStream){stopScan();return;}
+  if(!('BarcodeDetector' in window)){toast(t('scanNo'),5000);return;}
+  try{scanDet=scanDet||new BarcodeDetector({formats:['qr_code']});}catch(e){toast(t('scanNo'),5000);return;}
+  try{scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});}catch(e){toast(t('allowCam'));return;}
+  $('qrVideo').srcObject=scanStream;$('qrCamBox').style.display='block';$('qrIntro').style.display='none';$('qrBtn').textContent=t('scanStop');
+  scanTimer=setInterval(async()=>{
+    try{const codes=await scanDet.detect($('qrVideo'));for(const c of codes){const m=String(c.rawValue||'').match(/[?&]join=(\d{6})/)||String(c.rawValue||'').match(/^(\d{6})$/);
+      if(m){stopScan();try{navigator.vibrate&&navigator.vibrate(80);}catch(e){}toast(t('qrReady'),3000);startSlaveCam(PFX+'code-'+m[1],'wifi');track('scan_join');return;}}}catch(e){}
+  },350);
+}
+function stopScan(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanStream.getTracks().forEach(tr=>tr.stop());scanStream=null;}
+  const v=$('qrVideo');if(v)v.srcObject=null;if($('qrCamBox'))$('qrCamBox').style.display='none';if($('qrIntro'))$('qrIntro').style.display='flex';if($('qrBtn'))$('qrBtn').textContent=t('scanStart');}
 function selTab(name){
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===name));
-  ['wifi','bt','data'].forEach(k=>$('tab-'+k).style.display=k===name?'flex':'none');
+  ['wifi','qr','data'].forEach(k=>$('tab-'+k).style.display=k===name?'flex':'none');
+  if(name!=='qr')stopScan();
   if(name==='wifi')scanMasters();
 }
 function goSlave(){
@@ -1505,6 +1530,7 @@ async function sendBattery(){
 function sSend(o){try{if(sConn&&sConn.open)sConn.send(o);}catch(e){}}
 function sStatus(ok,t){$('camDot').classList.toggle('ok',ok);$('camStatus').textContent=t;}
 async function startSlaveCam(target,via){
+  stopScan();
   if(!sStream){try{sStream=await getCam();}catch(e){toast(t('allowCamMic'));return;}}
   sTarget=target;sVia=via;sKicked=false;
   show('slavecam');keepAwake();
