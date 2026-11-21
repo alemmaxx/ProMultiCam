@@ -72,6 +72,17 @@ try {
     if (u) {
       try { const r = await call('pmc_initUser'); PMC.profile = { expiry: r.expiry, plan: r.plan, status: r.status }; }
       catch (e) { PMC.error = e.message; }
+      if (PMC._adm) { PMC._adm.forEach(f => f()); PMC._adm = null; }
+      if (C.superUid && u.uid === C.superUid) {
+        PMC._adm = [
+          F.onSnapshot(F.query(F.collection(db, 'supportChats'), F.where('unreadAdmin', '==', true)), s => {
+            PMC.adminChats = s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().lastAt?.toMillis?.() || 0 })); ev(); window.dispatchEvent(new Event('pmc-admin'));
+          }, () => {}),
+          F.onSnapshot(F.query(F.collection(db, 'payments'), F.where('status', '==', 'paid')), s => {
+            PMC.adminPaid = s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().paidAt?.toMillis?.() || 0 })); ev(); window.dispatchEvent(new Event('pmc-admin'));
+          }, () => {})
+        ];
+      }
       if (PMC._chatMeta) PMC._chatMeta();
       PMC._chatMeta = F.onSnapshot(F.doc(db, `supportChats/${u.uid}`), s => { PMC.chatUnread = !!(s.data() && s.data().unreadUser); ev(); }, () => {});
       unsubUser = F.onSnapshot(F.doc(db, `users/${u.uid}`), s => {

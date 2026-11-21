@@ -282,6 +282,15 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .msg.them{align-self:flex-start;background:var(--card2);color:var(--ink);border-bottom-left-radius:4px}
 .msg small{display:block;font-size:10px;opacity:.7;margin-top:3px}
 #chatSheet .sheet{display:flex;flex-direction:column}
+
+.bell{position:relative;padding:6px 9px}
+.bell-n{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font:800 11px var(--f);display:none;align-items:center;justify-content:center;padding:0 4px}
+.bell-n.on{display:flex}
+.npop{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:120;display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.5);transform:translateY(-140%);transition:transform .35s ease;cursor:pointer}
+.npop.show{transform:translateY(0)}
+.npop .ic{font-size:22px}.npop .tx{display:flex;flex-direction:column;min-width:0}.npop b{font-size:14px}.npop span{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.req{background:var(--card2);border-radius:12px;padding:12px;font-size:13px;color:var(--sub);line-height:1.5}
+.req b{color:var(--ink)}.req ul{margin:6px 0 0;padding-left:18px}
 </style>
 </head>
 <body>
@@ -289,7 +298,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <!-- ================= HOME ================= -->
 <div id="home" class="screen show">
   <div class="hero">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#7aa7f5" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c3cad6" stroke-width="5" fill="#131a26"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#d9b44a"/><circle cx="61" cy="61" r="7" fill="#1b1503"/><circle cx="61" cy="61" r="3" fill="#ef6b5c"/></svg></div><div style="display:flex;gap:6px;align-items:center"><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:130px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select><button class="acct-btn" id="acctBtn" onclick="openAccount()"></button></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#7aa7f5" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c3cad6" stroke-width="5" fill="#131a26"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#d9b44a"/><circle cx="61" cy="61" r="7" fill="#1b1503"/><circle cx="61" cy="61" r="3" fill="#ef6b5c"/></svg></div><div style="display:flex;gap:6px;align-items:center"><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:130px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select><button class="acct-btn bell" id="bellBtn" style="display:none" onclick="openNotif()" aria-label="Notifications"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bell-n" id="bellN"></span></button><button class="acct-btn" id="acctBtn" onclick="openAccount()"></button></div></div>
     <button class="renew-bar" id="renewBar" style="display:none" onclick="openPro()"></button>
     <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam <span class="ver">v1.0</span></h1>
@@ -542,11 +551,21 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="planCards"></div>
     <label class="lbl"><span data-i18n="promo"></span><input class="input" id="pPromo" style="text-transform:uppercase" data-i18n-ph="promoPh"></label>
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
+    <div class="req"><b data-i18n="reqT"></b><ul><li data-i18n="req1"></li><li data-i18n="req2"></li><li data-i18n="req3"></li><li data-i18n="req4"></li></ul></div>
+    <label class="check"><input type="checkbox" id="reqOk"><span data-i18n="reqAgree"></span></label>
     <button class="btn btn-gold" id="payBtn" onclick="startPay()" data-i18n="payNow"></button>
     <span class="hint" style="line-height:1.5" data-i18n="payNote"></span>
     <button class="btn btn-sm" style="background:none;color:var(--gold);align-self:center" onclick="openLegal('terms')" data-i18n="agreeTerms"></button>
   </div>
 </div>
+<div class="sheet-wrap" id="notifSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet">
+    <div class="row-between"><h3 data-i18n="notifT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('notifSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="notifList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn" onclick="markNotifSeen()" data-i18n="markSeen"></button>
+  </div>
+</div>
+<div class="npop" id="npop" onclick="npopTap()"><span class="ic">🔔</span><div class="tx"><b id="npopT"></b><span id="npopD"></span></div></div>
 <div class="sheet-wrap" id="chatSheet" onclick="if(event.target===this)closeSupport()">
   <div class="sheet" style="height:85vh;max-height:85vh">
     <div class="row-between"><h3 data-i18n="support"></h3><button class="icon-btn" aria-label="Close" onclick="closeSupport()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -1296,9 +1315,48 @@ function applyTier(){
 }
 function fitTools(){const n=[...document.querySelectorAll('.tools .tool')].filter(e=>e.style.display!=='none').length;const tl=document.querySelector('.tools');if(tl)tl.style.gridTemplateColumns=`repeat(${Math.min(Math.max(n,1),5)},minmax(0,1fr))`;}
 function isAdmin(){return !!(window.PMC&&PMC.isAdmin&&PMC.isAdmin());}
-function openAdmin(){
+/* ---------- Super Admin notifications ---------- */
+let notifItems=[],notifKnown=null,npopTarget='support';
+function notifSeenAt(){return Number(lsGet('pmc_notif_seen','0'))||0;}
+function buildNotifs(){
+  const seen=notifSeenAt(),items=[];
+  (PMC.adminChats||[]).forEach(c=>items.push({k:'chat:'+c.id+':'+c.ms,type:'support',ms:c.ms,t:t('nMsg',{e:c.email||''}),d:c.lastMsg||''}));
+  (PMC.adminPaid||[]).filter(p=>p.ms>seen).forEach(p=>items.push({k:'pay:'+p.id,type:'pays',ms:p.ms,t:t('nPay',{a:money(p.amount)}),d:(p.email||'')+' · '+(p.plan==='yearly'?t('yearly'):t('monthly'))}));
+  return items.sort((a,b)=>b.ms-a.ms);
+}
+function renderBell(){
+  const b=$('bellBtn');if(!b)return;const adm=isAdmin();b.style.display=adm?'inline-flex':'none';if(!adm)return;
+  if(lsGet('pmc_notif_seen','')==='')lsSet('pmc_notif_seen',String(Date.now()));
+  notifItems=buildNotifs();const n=notifItems.length;const e=$('bellN');e.textContent=n>99?'99+':n;e.classList.toggle('on',n>0);
+  // pop-up for anything new since the last check
+  const keys=new Set(notifItems.map(x=>x.k));
+  if(!PMC.adminChats||!PMC.adminPaid)return;
+  if(notifKnown){const fresh=notifItems.filter(x=>!notifKnown.has(x.k));if(fresh.length)showNpop(fresh[0]);}
+  notifKnown=keys;
+  if($('notifSheet').classList.contains('show'))renderNotifList();
+}
+function showNpop(it){
+  $('npopT').textContent=it.t;$('npopD').textContent=it.d;npopTarget=it.type;
+  const p=$('npop');p.classList.add('show');try{navigator.vibrate&&navigator.vibrate([60,40,60]);}catch(e){}
+  clearTimeout(p._t);p._t=setTimeout(()=>p.classList.remove('show'),6000);
+}
+function npopTap(){$('npop').classList.remove('show');openAdmin(npopTarget);}
+function openNotif(){renderNotifList();openSheet('notifSheet');}
+function renderNotifList(){
+  const box=$('notifList');box.innerHTML='';
+  if(!notifItems.length){box.innerHTML='<span class="hint">'+t('nNone')+'</span>';return;}
+  notifItems.forEach(it=>{const b=document.createElement('button');b.className='item';b.style.cssText='width:100%;text-align:left;color:var(--ink);border:0;font-family:var(--f)';
+    b.innerHTML='<span style="font-size:20px">'+(it.type==='support'?'💬':'💳')+'</span><div class="tx"><b></b><span></span></div>';
+    b.querySelector('b').textContent=it.t;b.querySelector('.tx span').textContent=it.d+(it.ms?' · '+new Date(it.ms).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'');
+    b.onclick=()=>{closeSheet('notifSheet');openAdmin(it.type);};box.appendChild(b);});
+}
+function markNotifSeen(){lsSet('pmc_notif_seen',String(Date.now()));renderBell();closeSheet('notifSheet');}
+window.addEventListener('pmc-admin',renderBell);
+function openAdmin(tab){
   if(!isAdmin())return;
-  const v=$('adminView');if(!v.querySelector('iframe')){const f=document.createElement('iframe');f.src='admin.html?embed=1';f.title='Admin';v.appendChild(f);}
+  const v=$('adminView');let f=v.querySelector('iframe');
+  if(!f){f=document.createElement('iframe');f.src='admin.html?embed=1'+(tab?'&tab='+tab:'');f.title='Admin';v.appendChild(f);}
+  else if(tab){try{f.contentWindow.postMessage({pmcTab:tab},location.origin);}catch(e){}}
   v.classList.add('show');track('open_admin');
 }
 function openLegal(sec){
@@ -1436,6 +1494,7 @@ function openPro(){
   openSheet('proSheet');track('view_pricing');
 }
 async function startPay(){
+  if(!$('reqOk').checked){toast(t('reqNeed'),4000);return;}
   const b=$('payBtn');b.disabled=true;const ph=$('pPhone').value.trim();lsSet('pmc_payphone',ph);
   try{const r=await PMC.createBill(payPlan,$('pPromo').value.trim().toUpperCase(),ph);track('begin_checkout',{plan:payPlan});location.href=r.url;}
   catch(e){toast((e&&e.message)||t('eGeneric'),5000);b.disabled=false;}
@@ -1462,7 +1521,7 @@ function drawWatermark(W,H,S,m,barH){
 }
 let authFirst=true;
 window.addEventListener('pmc-auth',()=>{
-  applyTier();renderRenew();
+  applyTier();renderRenew();renderBell();
   const un=!!(window.PMC&&PMC.chatUnread);['supDot','supDot2'].forEach(id=>{const e=$(id);if(e)e.style.display=un?'inline-block':'none';});
   if($('acctSheet').classList.contains('show')&&PMC.user&&$('acctOut').style.display!=='none')closeSheet('acctSheet');
   if(authFirst&&PMC.ready){authFirst=false;if(PMC.user)checkReturn();}

@@ -151,6 +151,8 @@ const rm=v=>'RM'+Number(v||0).toFixed(2);
 $('inBtn').onclick=async()=>{try{await A.signInWithEmailAndPassword(auth,$('em').value.trim(),$('pw').value);}catch(e){$('loginMsg').textContent='Log masuk gagal: '+(e.code||e.message);}};
 $('gBtn').onclick=async()=>{try{await A.signInWithPopup(auth,new A.GoogleAuthProvider());}catch(e){$('loginMsg').textContent='Log masuk gagal: '+(e.code||e.message);}};
 $('outBtn').onclick=()=>A.signOut(auth);
+function selTab(t){const b=document.querySelector(`#tabs button[data-t="${t}"]`);if(b)b.click();}
+window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.pmcTab)selTab(e.data.pmcTab);});
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('section[data-s]').forEach(s=>s.classList.toggle('hide',s.dataset.s!==b.dataset.t));});
 
 let users=[],pays=[],unsubs=[];
@@ -163,6 +165,7 @@ A.onAuthStateChanged(auth,async u=>{
 });
 
 function start(){
+  const qt=new URLSearchParams(location.search).get('tab');if(qt)setTimeout(()=>selTab(qt),0);
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'users'),F.orderBy('createdAt','desc'),F.limit(1000)),s=>{users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers();renderStats();}));
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'payments'),F.orderBy('createdAt','desc'),F.limit(500)),s=>{pays=s.docs.map(d=>({id:d.id,...d.data()}));renderPays();renderStats();}));
   unsubs.push(F.onSnapshot(F.collection(db,'promos'),s=>renderPromos(s.docs.map(d=>({id:d.id,...d.data()})))));
