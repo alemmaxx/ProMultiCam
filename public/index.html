@@ -373,6 +373,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="hint" style="line-height:1.5" data-i18n="musicNote"></span>
     </div>
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
+    <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
     <label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label>
     <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
@@ -699,6 +700,9 @@ async function goMaster(){
   clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
   clearInterval(statTimer);statTimer=setInterval(pollStats,3000);
   listSaved();
+  $('optSelf').checked=lsGet('pmc_selfcam','1')==='1';
+  $('optSelf').onchange=()=>{lsSet('pmc_selfcam',$('optSelf').checked?'1':'0');if($('optSelf').checked)addLocalCam(true);else removeLocalCam();};
+  if($('optSelf').checked)addLocalCam(true);
   await iceReady;
   // code peer (data)
   roomCode=newCode();$('roomCode').textContent=roomCode;
@@ -810,15 +814,21 @@ function setZoom(v){
   if(s.local&&s.caps&&s.caps.zoom){localStream.getVideoTracks()[0].applyConstraints({advanced:[{zoom:v}]}).catch(()=>{});}
   else if(s.caps&&s.caps.zoom&&s.conn){try{s.conn.send({t:'zoom',v});}catch(e){}}
 }
-async function addLocalCam(){
-  if(localStream){toast(t('camInUse'));return;}
-  if(overLimit('local')){toast(t('limitCams'),4000);openPro();return;}
+async function addLocalCam(silent){
+  if(localStream){if(!silent)toast(t('camInUse'));return;}
   try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:{echoCancellation:true,noiseSuppression:true}});}
   catch(e){toast(t('allowCam'));return;}
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
-  const t=localStream.getVideoTracks()[0];let c={};try{c=t.getCapabilities?t.getCapabilities():{};}catch(e){}
+  const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
   s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null};if(s.caps.zoom)s.zoom=c.zoom.min;
   setStream(s,localStream);$('localBtn').disabled=true;renderConnList();
+  if(!silent)$('optSelf').checked=true;lsSet('pmc_selfcam','1');
+}
+function removeLocalCam(){
+  if(!localStream)return;
+  localStream.getTracks().forEach(tr=>tr.stop());localStream=null;
+  const i=sources.findIndex(x=>x.id==='local');if(i>=0){sources.splice(i,1);if(mainId==='local')mainId=sources[0]?sources[0].id:null;if(secId==='local')secId=null;}
+  $('localBtn').disabled=false;renderTiles();renderConnList();refreshAudio();
 }
 function refreshAudio(){
   const sel=$('audioSel');const cur=sel.value;
@@ -1161,7 +1171,7 @@ function track(ev,params){try{if(window.gtag)gtag('event',ev,params||{});}catch(
 /* ---------- account, plans & Pro gating ---------- */
 const FREE_LOOKS=['std','warm','pop'],FREE_MAX=2,PRO_MAX=6;
 function isPro(){return !!(window.PMC&&PMC.isPro&&PMC.isPro());}
-function overLimit(id){if(sources.find(x=>x.id===id))return false;return sources.length>=(isPro()?PRO_MAX:FREE_MAX);}
+function overLimit(id){if(id==='local'||sources.find(x=>x.id===id))return false;return sources.filter(x=>!x.local).length>=(isPro()?PRO_MAX:FREE_MAX);}
 function money(v){return 'RM'+Number(v||0).toFixed(2).replace(/\.00$/,'');}
 function applyTier(){
   const pro=isPro();
