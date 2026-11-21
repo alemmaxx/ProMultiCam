@@ -230,6 +230,11 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .locked>*:not(.lockbar){opacity:.4;pointer-events:none}
 .lockbar{display:none}
 .locked .lockbar{display:flex;align-items:center;gap:8px;justify-content:space-between;background:var(--gold2);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--gold)}
+
+#adminView{position:fixed;inset:0;z-index:90;background:var(--bg);display:none;flex-direction:column}
+#adminView.show{display:flex}
+#adminView iframe{flex:1;border:0;width:100%;background:var(--bg)}
+.b-admin{background:#7aa7f5;color:#0b1a33}
 </style>
 </head>
 <body>
@@ -257,6 +262,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <div class="tx"><b style="color:var(--info)" data-i18n="cam"></b><span data-i18n="camDesc"></span></div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
+    <button class="btn btn-sm btn-gold" id="adminBtn" style="align-self:flex-start;display:none" onclick="openAdmin()">⚙ Admin</button>
     <button class="btn btn-sm" style="align-self:flex-start" onclick="runTest()">🩺 <span data-i18n="testBtn"></span></button>
     <button class="btn btn-sm" style="align-self:flex-start" onclick="openGuide()">📘 <span data-i18n="guide"></span></button>
     <a class="btn btn-sm" style="align-self:flex-start" href="landing.html" data-i18n="about"></a>
@@ -478,6 +484,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div id="acctIn" style="display:none;flex-direction:column;gap:10px">
       <div class="item"><div class="tx"><b id="aWho"></b><span id="aPlan"></span></div><span class="badge" id="aBadge"></span></div>
       <button class="btn btn-gold" onclick="openPro()" id="aUpBtn" data-i18n="upgrade"></button>
+      <button class="btn" id="aAdminBtn" style="display:none" onclick="closeSheet('acctSheet');openAdmin()">⚙ Admin</button>
       <div class="subsec"><span class="sec" data-i18n="promo"></span>
         <div style="display:flex;gap:8px"><input class="input" id="aPromo" style="flex:1;min-width:0;text-transform:uppercase" data-i18n-ph="promoPh"><button class="btn" onclick="redeemPromo()" data-i18n="redeem"></button></div>
       </div>
@@ -495,6 +502,9 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <button class="btn btn-gold" id="payBtn" onclick="startPay()" data-i18n="payNow"></button>
     <span class="hint" style="line-height:1.5" data-i18n="payNote"></span>
   </div>
+</div>
+<div id="adminView">
+  <div class="topbar"><button class="icon-btn" aria-label="Close" onclick="closeAdmin()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="t"><span class="k" style="color:var(--info)">SUPER ADMIN</span><span class="n">ProMultiCam</span></div></div>
 </div>
 <div class="guide" id="guide"><div class="gcard">
   <div id="gArt"></div><b id="gT"></b><p id="gD"></p><div class="gdots" id="gDots"></div>
@@ -1161,13 +1171,21 @@ function applyTier(){
   if($('looks')&&$('looks').children.length)renderLooks();
   renderAcctBtn();
 }
+function isAdmin(){return !!(window.PMC&&PMC.isAdmin&&PMC.isAdmin());}
+function openAdmin(){
+  if(!isAdmin())return;
+  const v=$('adminView');if(!v.querySelector('iframe')){const f=document.createElement('iframe');f.src='admin.html?embed=1';f.title='Admin';v.appendChild(f);}
+  v.classList.add('show');track('open_admin');
+}
+function closeAdmin(){$('adminView').classList.remove('show');}
 function renderAcctBtn(){
+  const ab=$('adminBtn');if(ab)ab.style.display=isAdmin()?'inline-flex':'none';
   const b=$('acctBtn');if(!b)return;
   if(!window.PMC||!PMC.ready){b.textContent='…';return;}
   if(!PMC.user){b.textContent=t('login');return;}
-  const p=PMC.profile,pro=isPro(),trial=p&&p.plan==='trial'&&pro;
+  const p=PMC.profile,pro=isPro(),trial=!isAdmin()&&p&&p.plan==='trial'&&pro;
   b.innerHTML='';const n=document.createElement('span');n.textContent='👤';b.appendChild(n);
-  const bd=document.createElement('span');bd.className='badge '+(trial?'b-trial':pro?'b-pro':'b-free');bd.textContent=trial?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');b.appendChild(bd);
+  const bd=document.createElement('span');bd.className='badge '+(isAdmin()?'b-admin':trial?'b-trial':pro?'b-pro':'b-free');bd.textContent=isAdmin()?'ADMIN':trial?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');b.appendChild(bd);
 }
 let acctModeV='login';
 function acctMode(m){acctModeV=m;$('tLogin').classList.toggle('on',m==='login');$('tReg').classList.toggle('on',m==='reg');$('aSubmit').textContent=m==='login'?t('login'):t('createAcct');$('aPass').autocomplete=m==='login'?'current-password':'new-password';}
@@ -1185,7 +1203,9 @@ function openAccount(){
     const d=p.expiry?new Date(p.expiry).toLocaleDateString():'';
     $('aPlan').textContent=p.status==='suspended'?t('suspended'):pro?(p.plan==='trial'?t('trialUntil',{d}):t('proUntil',{d})):t('freePlan');
     const bd=$('aBadge');bd.className='badge '+(p.plan==='trial'&&pro?'b-trial':pro?'b-pro':'b-free');bd.textContent=p.plan==='trial'&&pro?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');
-    $('aUpBtn').textContent=pro&&p.plan!=='trial'?t('renew'):t('upgrade');}
+    $('aUpBtn').textContent=pro&&p.plan!=='trial'?t('renew'):t('upgrade');
+    const adm=isAdmin();$('aAdminBtn').style.display=adm?'flex':'none';$('aUpBtn').style.display=adm?'none':'flex';
+    if(adm){$('aPlan').textContent=t('adminFull');bd.className='badge b-admin';bd.textContent='ADMIN';}}
   else acctMode(acctModeV);
   openSheet('acctSheet');
 }

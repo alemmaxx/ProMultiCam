@@ -14,6 +14,7 @@ window.PMC_CONFIG = {
     appId: '1:710803283811:web:3cedeaa7911135f739fd56'
   },
   dbId: 'promulticam',
+  superUid: 'D3U6Dxs5joZQq5EYRdjZQUmRV773',
   region: 'asia-southeast1',
   sdk: '10.12.2',
 

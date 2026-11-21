@@ -41,7 +41,7 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
 </style>
 </head>
 <body>
-<header><b>ProMultiCam · Admin</b><span class="muted" id="who"></span><button class="btn btn-sm hide" id="outBtn">Log keluar</button></header>
+<header id="hdr"><b>ProMultiCam · Admin</b><span class="muted" id="who"></span><button class="btn btn-sm hide" id="outBtn">Log keluar</button></header>
 
 <div class="wrap" id="loginBox" style="max-width:420px">
   <div class="card">
@@ -122,6 +122,7 @@ const Fn=await import(`https://www.gstatic.com/firebasejs/${V}/firebase-function
 const app=initializeApp(C.firebase),auth=A.getAuth(app),db=F.getFirestore(app,C.dbId||'promulticam'),fns=Fn.getFunctions(app,C.region);
 const call=(n,d)=>Fn.httpsCallable(fns,n)(d).then(r=>r.data);
 const $=id=>document.getElementById(id);
+if(new URLSearchParams(location.search).get('embed')){$('hdr').style.display='none';}
 const toast=(m,ms=3000)=>{const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);};
 const show=id=>['loginBox','claimBox','denyBox','app'].forEach(x=>$(x).classList.toggle('hide',x!==id));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

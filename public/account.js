@@ -4,7 +4,8 @@ const V = C.sdk || '10.12.2';
 const ev = () => window.dispatchEvent(new Event('pmc-auth'));
 const PMC = window.PMC = {
   ready: false, user: null, profile: null, plans: {}, error: null,
-  isPro() { const p = this.profile; return !!(p && p.status !== 'suspended' && (p.expiry || 0) > Date.now()); },
+  isAdmin() { return !!(this.user && C.superUid && this.user.uid === C.superUid); },
+  isPro() { if (this.isAdmin()) return true; const p = this.profile; return !!(p && p.status !== 'suspended' && (p.expiry || 0) > Date.now()); },
   daysLeft() { const p = this.profile; return p ? Math.max(0, Math.ceil(((p.expiry || 0) - Date.now()) / 86400000)) : 0; }
 };
 
