@@ -6,5 +6,9 @@
 window.PMC_CONFIG = {
   meteredApp: '',      // e.g. 'promulticam'
   meteredApiKey: '',   // e.g. 'abc123...'
-  iceServers: []       // or paste your own TURN servers: [{urls:'turn:host:3478',username:'u',credential:'p'}]
+  iceServers: [],      // or paste your own TURN servers: [{urls:'turn:host:3478',username:'u',credential:'p'}]
+
+  /* Analytics (optional): Google Analytics 4 / Firebase Analytics measurement ID, e.g. 'G-XXXXXXXXXX'.
+     Tracks only anonymous app events (role chosen, recording started/stopped, style used). */
+  ga4Id: ''
 };

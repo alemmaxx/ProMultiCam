@@ -1,0 +1,51 @@
+name: Deploy ke Firebase Hosting
+
+# Deploy automatik ke https://promulticammy.web.app setiap kali kod masuk ke "main".
+# Hanya berjalan jika secret FIREBASE_SERVICE_ACCOUNT_KUKUSANMY telah ditambah
+# (sama seperti repo ProAttendance). Tanpa secret, GitHub Pages tetap boleh digunakan.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-promulticam
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KUKUSANMY != '' }}
+    steps:
+      - name: Langkau (tiada secret)
+        if: env.HAS_SA != 'true'
+        run: echo "Secret FIREBASE_SERVICE_ACCOUNT_KUKUSANMY belum ditambah - deploy dilangkau."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_SA == 'true'
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_SA == 'true'
+        with:
+          node-version: 22
+
+      - name: Kunci akses Firebase
+        if: env.HAS_SA == 'true'
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KUKUSANMY }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Cipta laman hosting (jika belum ada)
+        if: env.HAS_SA == 'true'
+        run: npx --yes firebase-tools@latest hosting:sites:create promulticammy --project kukusanmy --non-interactive || true
+
+      - name: Deploy
+        if: env.HAS_SA == 'true'
+        run: npx --yes firebase-tools@latest deploy --project kukusanmy --only hosting:promulticam --non-interactive --force
+
+      - name: Padam kunci
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

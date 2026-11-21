@@ -8,3 +8,14 @@
 
 ## Install (web app)
 Open **https://alemmaxx.github.io/ProMultiCam/** in Chrome → **Install App** (or menu ⋮ → *Add to Home screen*). On iPhone: Share → *Add to Home Screen*.
+
+## Pages
+- `index.html` — the app (Director / Camera)
+- `landing.html` — sales / landing page
+
+## Optional setup (`config.js`)
+- **TURN relay:** `meteredApp` + `meteredApiKey` (free 20 GB/month at metered.ca/tools/openrelay)
+- **Analytics:** `ga4Id` (Google Analytics 4 measurement ID)
+
+## Firebase Hosting (optional)
+Add the repo secret `FIREBASE_SERVICE_ACCOUNT_KUKUSANMY` (same JSON as ProAttendance). Every push to `main` deploys to **https://promulticammy.web.app**.

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ProMultiCam · Studio multi-kamera dalam poket anda</title>
+<meta name="description" content="Rakam video masakan bertaraf studio dengan beberapa telefon. Tukar sudut kamera secara langsung, gaya visual sinematik, kad resepi dan Mod Live untuk TikTok.">
+<meta property="og:title" content="ProMultiCam · Studio multi-kamera dalam poket anda">
+<meta property="og:description" content="Rakam video masakan bertaraf studio dengan beberapa telefon.">
+<meta property="og:image" content="icon-512.png">
+<meta name="theme-color" content="#0b0f17">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--info:#7aa7f5;--f:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased;line-height:1.55}
+a{color:var(--gold)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:10;background:rgba(11,15,23,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;text-decoration:none;color:var(--ink);margin-right:auto}
+.brand i{width:34px;height:34px;border-radius:10px;border:1px solid var(--gold);display:grid;place-items:center;background:var(--card)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 20px;border-radius:10px;border:0;font:800 15px var(--f);text-decoration:none;cursor:pointer;background:rgba(238,240,244,.1);color:var(--ink)}
+.btn-gold{background:var(--gold);color:var(--on-gold)}
+.btn-sm{min-height:38px;padding:8px 14px;font-size:13px}
+.lang{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lang button{border:0;background:transparent;color:var(--ink);font:800 12px var(--f);padding:8px 12px;cursor:pointer;min-height:38px}
+.lang button.on{background:var(--gold);color:var(--on-gold)}
+.hero{padding:64px 0 48px;background:radial-gradient(70% 60% at 85% 0%,#1c2f52 0%,transparent 60%),radial-gradient(60% 60% at 0% 100%,#2a2210 0%,transparent 60%)}
+.hero .wrap{display:flex;flex-wrap:wrap;gap:40px;align-items:center}
+.hero .txt{flex:1 1 420px;display:flex;flex-direction:column;gap:18px}
+.tag{font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.5px}
+h1{margin:0;font-size:clamp(40px,7vw,64px);line-height:1;letter-spacing:-1.5px;font-weight:800;background-image:linear-gradient(180deg,#fffbe9 0%,#f3dc8e 42%,#c99a2e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{margin:0;font-size:18px;color:var(--sub);max-width:540px}
+.cta{display:flex;gap:10px;flex-wrap:wrap}
+.phone{flex:0 1 300px;margin:0 auto;aspect-ratio:9/18;border-radius:34px;border:2px solid var(--gold);background:#05080d;position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.phone .main{position:absolute;inset:0;background:radial-gradient(ellipse 60% 30% at 50% 48%,#c9862f 0 60%,#2b2b2e 61% 72%,transparent 73%),#3a2a16}
+.phone .dots span{position:absolute;border-radius:50%}
+.phone .chip{position:absolute;top:18px;left:14px;background:rgba(11,15,23,.85);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--gold)}
+.phone .rec{position:absolute;top:18px;right:14px;background:#ef6b5c;color:#1a0705;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
+.phone .strip{position:absolute;left:12px;right:12px;bottom:74px;display:flex;gap:6px}
+.phone .strip i{flex:1;height:58px;border-radius:8px;border:2px solid var(--line)}
+.phone .strip i:first-child{border-color:var(--gold)}
+.phone .btnr{position:absolute;left:12px;right:12px;bottom:18px;height:44px;border-radius:10px;background:#ef6b5c;color:#1a0705;display:grid;place-items:center;font-weight:800;font-size:13px}
+section{padding:56px 0}
+h2{margin:0 0 8px;font-size:clamp(28px,4.5vw,40px);letter-spacing:-.8px;line-height:1.1}
+.lead{color:var(--sub);margin:0 0 28px;max-width:640px;font-size:16px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px}
+.card b{font-size:18px}
+.card p{margin:0;color:var(--sub);font-size:15px}
+.num{width:36px;height:36px;border-radius:10px;background:var(--gold);color:var(--on-gold);display:grid;place-items:center;font-weight:800}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ico{width:42px;height:42px;border-radius:12px;background:var(--gold2);display:grid;place-items:center}
+.for{display:flex;flex-wrap:wrap;gap:10px}
+.for span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:10px 16px;font-weight:700}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.plan ul{margin:6px 0 0;padding-left:20px;color:var(--sub)}
+.plan li{margin:4px 0}
+.plan.pro{border-color:var(--gold)}
+.badge{align-self:flex-start;background:var(--gold2);color:var(--gold);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:800}
+.price{font-size:30px;font-weight:800}
+details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:10px}
+summary{font-weight:800;cursor:pointer;font-size:16px}
+details p{margin:10px 0 0;color:var(--sub)}
+.final{text-align:center;background:radial-gradient(60% 80% at 50% 0%,#2a2210 0%,transparent 70%)}
+.final .cta{justify-content:center}
+footer{border-top:1px solid var(--line);padding:24px 0;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="#"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="14" height="10" rx="2"/><path d="M16 11l6-3v8l-6-3"/></svg></i>ProMultiCam</a>
+  <div class="lang" role="group" aria-label="Language"><button data-l="ms" class="on">BM</button><button data-l="en">EN</button></div>
+  <a class="btn btn-gold btn-sm" href="index.html" data-k="tryShort">Cuba Percuma</a>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <div class="txt">
+    <span class="tag" data-k="tag">STUDIO MULTI-KAMERA DALAM POKET ANDA</span>
+    <h1>ProMultiCam</h1>
+    <p data-k="heroP">Rakam video masakan bertaraf studio dengan beberapa telefon. Tukar sudut kamera secara langsung dengan satu sentuhan — tanpa kamera mahal, tanpa editor.</p>
+    <div class="cta">
+      <a class="btn btn-gold" href="index.html" data-k="try">Cuba Percuma Sekarang</a>
+      <a class="btn" href="#cara" data-k="how">Lihat cara ia berfungsi</a>
+    </div>
+    <span style="color:var(--muted);font-size:14px" data-k="noApp">Terus dalam pelayar. Tiada muat turun dari app store — tekan “Pasang App” untuk letak di skrin utama.</span>
+  </div>
+  <div class="phone" aria-hidden="true">
+    <div class="main"></div>
+    <div class="dots"><span style="left:38%;top:44%;width:22px;height:22px;background:#d8402f"></span><span style="left:54%;top:41%;width:18px;height:18px;background:#3f9b45"></span><span style="left:60%;top:49%;width:24px;height:24px;background:#f2c43d"></span></div>
+    <span class="chip">Kuali · Sinematik</span><span class="rec">● REC 00:42</span>
+    <div class="strip"><i style="background:#3a2a16"></i><i style="background:#2c3a4f"></i><i style="background:#2f3b2c"></i></div>
+    <div class="btnr">■ 00:42</div>
+  </div>
+</div></div>
+
+<section id="cara"><div class="wrap">
+  <h2 data-k="howT">Siap dalam 3 langkah</h2>
+  <p class="lead" data-k="howL">Tiada wayar, tiada setup rumit. Semua telefon bersambung melalui Wi-Fi atau data mudah alih.</p>
+  <div class="steps">
+    <div class="card"><span class="num">1</span><b data-k="s1t">Pilih Pengarah</b><p data-k="s1d">Satu telefon menjadi Pengarah — skrin utama untuk pilih sudut dan merakam.</p></div>
+    <div class="card"><span class="num">2</span><b data-k="s2t">Sambung Kamera</b><p data-k="s2d">Telefon lain imbas kod QR dan terus menjadi kamera sudut: atas kuali, pandangan luas, sisi.</p></div>
+    <div class="card"><span class="num">3</span><b data-k="s3t">Tekan & rakam</b><p data-k="s3d">Sentuh mana-mana sudut untuk tukar paparan secara langsung. Video akhir siap disunting, terus dari telefon.</p></div>
+  </div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <h2 data-k="featT">Semua yang anda perlukan</h2>
+  <p class="lead" data-k="featL">Direka khas untuk video masakan, peniaga makanan dan content creator dapur.</p>
+  <div class="feat">
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span><b data-k="f1t">Tukar sudut secara langsung</b><p data-k="f1d">Penuh, skrin belah atau bingkai kecil. Auto-tukar sudut bila tangan sibuk memasak.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="#d9b44a"/></svg></span><b data-k="f2t">9 Gaya Visual</b><p data-k="f2d">Sinematik, Old School, Food Pop, Retro 90an dan banyak lagi — terus dalam video.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 17h6M16 17h2"/><rect x="15" y="4" width="6" height="6" rx="1"/></svg></span><b data-k="f3t">Logo & kad resepi</b><p data-k="f3d">Letak logo kedai, nama menu, harga dan nombor WhatsApp untuk tempahan terus dalam video.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><b data-k="f4t">Muzik latar bebas hak cipta</b><p data-k="f4d">Muzik terbina yang selamat untuk TikTok — tak risau video kena mute.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="#d9b44a"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg></span><b data-k="f5t">Mod Live untuk TikTok</b><p data-k="f5d">Paparan bersih penuh skrin untuk LIVE kongsi skrin. Ketik untuk tukar sudut semasa live.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span><b data-k="f6t">Rakaman selamat</b><p data-k="f6d">Video disimpan sedikit demi sedikit. App tertutup? Rakaman boleh dipulihkan.</p></div>
+  </div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <h2 data-k="forT">Sesuai untuk</h2>
+  <div class="for"><span data-k="u1">Peniaga makanan</span><span data-k="u2">Katering</span><span data-k="u3">Content creator dapur</span><span data-k="u4">Kelas masakan</span><span data-k="u5">Kedai kek & bakeri</span></div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <h2 data-k="planT">Pelan</h2>
+  <p class="lead" data-k="planL">Mula percuma. Naik taraf bila perniagaan anda berkembang.</p>
+  <div class="plans">
+    <div class="card plan"><b data-k="freeT">Percuma</b><span class="price">RM0</span>
+      <ul><li data-k="fr1">Pengarah + kamera sudut melalui Wi-Fi & data</li><li data-k="fr2">Gaya visual & susun atur</li><li data-k="fr3">Rakaman HD 720p & 1080p</li><li data-k="fr4">Mod Live untuk TikTok</li></ul>
+      <a class="btn btn-gold" href="index.html" style="margin-top:8px" data-k="tryShort">Cuba Percuma</a>
+    </div>
+    <div class="card plan pro"><span class="badge" data-k="soon">SEGERA HADIR</span><b data-k="proT">Pro</b><span class="price" data-k="proP">Harga akan diumumkan</span>
+      <ul><li data-k="pr1">Lebih banyak kamera sudut</li><li data-k="pr2">Logo kedai tanpa watermark</li><li data-k="pr3">Rakaman HD setiap sudut untuk suntingan</li><li data-k="pr4">Sokongan keutamaan</li></ul>
+    </div>
+  </div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap" style="max-width:780px">
+  <h2 data-k="faqT">Soalan lazim</h2>
+  <details><summary data-k="q1">Perlu internet ke?</summary><p data-k="a1">Ya, untuk mula bersambung. Selepas itu, video dihantar terus antara telefon melalui Wi-Fi rumah atau hotspot. Data mudah alih juga boleh digunakan.</p></details>
+  <details><summary data-k="q2">Berapa telefon saya perlukan?</summary><p data-k="a2">Sekurang-kurangnya dua: satu Pengarah dan satu kamera. Tiga hingga empat telefon memberi hasil terbaik untuk video masakan.</p></details>
+  <details><summary data-k="q3">Boleh guna telefon lama?</summary><p data-k="a3">Boleh, selagi telefon itu boleh menjalankan Chrome atau Safari versi terkini. Telefon lama sesuai dijadikan kamera sudut.</p></details>
+  <details><summary data-k="q4">Video disimpan di mana?</summary><p data-k="a4">Terus pada telefon Pengarah. Anda boleh muat turun atau kongsi terus ke TikTok, Instagram atau WhatsApp.</p></details>
+  <details><summary data-k="q5">Video saya dihantar ke server?</summary><p data-k="a5">Tidak. Video dihantar antara telefon anda dan disimpan pada telefon Pengarah sahaja — tiada salinan disimpan di server kami.</p></details>
+</div></section>
+
+<section class="final"><div class="wrap">
+  <h2 data-k="finT">Mula rakam video studio hari ini</h2>
+  <p class="lead" style="margin-left:auto;margin-right:auto" data-k="finL">Percuma, terus dalam pelayar, siap dalam 1 minit.</p>
+  <div class="cta"><a class="btn btn-gold" href="index.html" data-k="try">Cuba Percuma Sekarang</a></div>
+</div></section>
+
+<footer><div class="wrap"><span>© <span id="yr"></span> ProMultiCam · KUKUSAN LEGACY</span><a href="index.html" data-k="open">Buka app</a></div></footer>
+
+<script>
+const EN={tag:'A MULTI-CAMERA STUDIO IN YOUR POCKET',heroP:'Record studio-quality cooking videos with several phones. Switch camera angles live with a single tap — no expensive cameras, no editor.',try:'Try It Free Now',tryShort:'Try Free',how:'See how it works',noApp:'Runs right in your browser. No app store download — tap “Install App” to add it to your home screen.',howT:'Ready in 3 steps',howL:'No cables, no complicated setup. All phones connect over Wi-Fi or mobile data.',s1t:'Pick a Director',s1d:'One phone becomes the Director — the main screen where you choose angles and record.',s2t:'Connect Cameras',s2d:'Other phones scan a QR code and instantly become camera angles: over the wok, wide shot, side.',s3t:'Tap & record',s3d:'Tap any angle to switch the view live. Your final video comes out already edited, straight from your phone.',featT:'Everything you need',featL:'Built for cooking videos, food sellers and kitchen content creators.',f1t:'Switch angles live',f1d:'Full screen, split screen or picture-in-picture. Auto-switch angles while your hands are busy cooking.',f2t:'9 Visual Styles',f2d:'Cinematic, Old School, Food Pop, Retro 90s and more — applied right in the video.',f3t:'Logo & recipe card',f3d:'Add your shop logo, menu name, price and WhatsApp number for orders, right in the video.',f4t:'Royalty-free background music',f4d:'Built-in music that is safe for TikTok — no worries about your video getting muted.',f5t:'Live Mode for TikTok',f5d:'A clean full-screen view for screen-share LIVE. Tap to switch angles while live.',f6t:'Safe recording',f6d:'Video is saved piece by piece. App closed by accident? Your recording can be recovered.',forT:'Perfect for',u1:'Food sellers',u2:'Caterers',u3:'Kitchen content creators',u4:'Cooking classes',u5:'Cake & bakery shops',planT:'Plans',planL:'Start free. Upgrade as your business grows.',freeT:'Free',fr1:'Director + camera angles over Wi-Fi & data',fr2:'Visual styles & layouts',fr3:'HD 720p & 1080p recording',fr4:'Live Mode for TikTok',soon:'COMING SOON',proT:'Pro',proP:'Pricing to be announced',pr1:'More camera angles',pr2:'Shop logo without watermark',pr3:'HD recording on every angle for editing',pr4:'Priority support',faqT:'FAQ',q1:'Do I need internet?',a1:'Yes, to connect at first. After that, video travels directly between phones over your home Wi-Fi or a hotspot. Mobile data works too.',q2:'How many phones do I need?',a2:'At least two: one Director and one camera. Three to four phones give the best results for cooking videos.',q3:'Can I use old phones?',a3:'Yes, as long as it runs an up-to-date Chrome or Safari. Older phones make great camera angles.',q4:'Where are videos saved?',a4:'Right on the Director phone. Download them or share straight to TikTok, Instagram or WhatsApp.',q5:'Are my videos stored on a server?',a5:'No. Video travels between your phones and is saved on the Director phone only — no copy is kept on our servers.',finT:'Start recording studio videos today',finL:'Free, right in your browser, ready in 1 minute.',open:'Open app'};
+const MS={};document.querySelectorAll('[data-k]').forEach(e=>{if(!(e.dataset.k in MS))MS[e.dataset.k]=e.textContent;});
+function setLang(l){
+  document.documentElement.lang=l;
+  document.querySelectorAll('[data-k]').forEach(e=>{const d=l==='en'?EN:MS;if(d[e.dataset.k])e.textContent=d[e.dataset.k];});
+  document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===l));
+  try{localStorage.setItem('pmc_lang',l);}catch(e){}
+}
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+let saved=null;try{saved=localStorage.getItem('pmc_lang');}catch(e){}
+setLang(saved==='ms'||(!saved&&(navigator.language||'').toLowerCase().startsWith('ms'))?'ms':(saved?'en':'ms'));
+document.getElementById('yr').textContent=new Date().getFullYear();
+</script>
+</body>
+</html>
