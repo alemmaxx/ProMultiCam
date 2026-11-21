@@ -321,6 +321,44 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .tpbox.show{display:block}
 .tpbox .tpin{position:absolute;left:0;right:0;padding:0 22px;color:#fff;font-weight:700;line-height:1.45;white-space:pre-wrap;text-align:center;will-change:transform}
 .tpbox::after{content:'';position:absolute;left:0;right:0;top:34%;height:2px;background:rgba(217,180,74,.7)}
+.shelp{position:fixed;inset:0;z-index:110;background:rgba(5,8,13,.82);display:none;align-items:center;justify-content:center;padding:14px}
+.shelp.show{display:flex}
+.shcard{width:100%;max-width:440px;max-height:96%;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.shbody{display:flex;gap:14px;align-items:flex-start}
+.shtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}.shtx b{font-size:18px;line-height:1.2}
+.shtx ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--sub);line-height:1.4}
+.shnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.shnav .dots{display:flex;gap:5px}.shnav .dots i{width:7px;height:7px;border-radius:99px;background:var(--line)}.shnav .dots i.on{background:var(--gold);width:18px}
+/* animated mini previews */
+.shdemo{flex:0 0 118px}
+.dm{position:relative;width:118px;aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:#000;border:2px solid #263044}
+.dm .ang{position:absolute;inset:0;opacity:0;animation:dmCyc var(--cyc,9s) infinite;animation-delay:calc(var(--i)*var(--step,3s))}
+.dm .ang:first-child{opacity:1}
+@keyframes dmCyc{0%{opacity:1}31%{opacity:1}34%{opacity:0}97%{opacity:0}100%{opacity:1}}
+.dm .lb{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.6);color:#fff;font-size:8px;font-weight:800;border-radius:99px;padding:2px 6px}
+.dm .pan{position:absolute;left:50%;top:52%;border-radius:50%;transform:translate(-50%,-50%)}
+.dm.cbars::before,.dm.cbars::after{content:'';position:absolute;left:0;right:0;height:9%;background:#000;z-index:3}.dm.cbars::before{top:0}.dm.cbars::after{bottom:0}
+.dm .pip{position:absolute;right:6px;bottom:20%;width:36%;aspect-ratio:3/4;border:2px solid #d9b44a;border-radius:6px;overflow:hidden;z-index:2}
+.dm .card{position:absolute;inset:0;z-index:4;background:rgba(11,15,23,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff;font-weight:800;font-size:11px;text-align:center;padding:6px;opacity:0;animation:dmCard var(--cyc,9s) infinite}
+.dm .card i{display:block;width:22px;height:2px;background:#d9b44a}.dm .card small{color:#d9b44a;font-size:9px}
+.dm .card.end{animation-name:dmEnd}
+@keyframes dmCard{0%,22%{opacity:1}28%,100%{opacity:0}}
+@keyframes dmEnd{0%,74%{opacity:0}80%,100%{opacity:1}}
+.dm .beat{position:absolute;left:0;right:0;bottom:12%;display:flex;justify-content:center;gap:4px;z-index:4}
+.dm .beat i{width:6px;height:6px;border-radius:99px;background:#d9b44a;animation:dmBeat .8s infinite}.dm .beat i:nth-child(2){animation-delay:.2s}.dm .beat i:nth-child(3){animation-delay:.4s}.dm .beat i:nth-child(4){animation-delay:.6s}
+@keyframes dmBeat{0%,20%{transform:scale(1.8);opacity:1}40%,100%{transform:scale(1);opacity:.35}}
+.dm .split{position:absolute;inset:0;display:grid;grid-template-rows:1fr 1fr;gap:2px;background:#d9b44a}
+.dm .person{position:relative;overflow:hidden}.dm .person::before{content:'';position:absolute;left:50%;top:28%;width:28%;aspect-ratio:1;border-radius:50%;background:#e8c39e;transform:translateX(-50%)}.dm .person::after{content:'';position:absolute;left:50%;top:62%;width:60%;height:50%;border-radius:40% 40% 0 0;background:var(--shirt);transform:translateX(-50%)}
+.dm .talk{position:absolute;right:8px;top:10px;width:5px;height:5px;border-radius:99px;background:#2fbf8c;animation:dmBeat 1s infinite}
+.dm .chip{position:absolute;left:6px;top:13%;z-index:4;background:#d9b44a;color:#1b1503;font-size:8px;font-weight:800;border-radius:99px;padding:2px 6px}
+.dm .tp{position:absolute;inset:0;background:#05080d;overflow:hidden}
+.dm .tp div{position:absolute;left:0;right:0;padding:0 8px;color:#fff;font-size:10px;font-weight:700;line-height:1.5;text-align:center;animation:dmTp 8s linear infinite}
+.dm .tp::after{content:'';position:absolute;left:0;right:0;top:34%;height:1px;background:#d9b44a}
+@keyframes dmTp{0%{transform:translateY(60%)}100%{transform:translateY(-110%)}}
+.dm .list{position:absolute;inset:0;background:#131a26;padding:10px 8px;display:flex;flex-direction:column;gap:5px}
+.dm .list span{display:block;border-radius:6px;background:#1a2232;color:#c3cad6;font-size:8px;font-weight:700;padding:5px 6px;border:1.5px solid transparent}
+.dm .list span.on{border-color:#d9b44a;color:#fff;animation:dmPick 4s infinite}
+@keyframes dmPick{0%,100%{background:#1a2232}50%{background:#2e2712}}
 .askbox{position:fixed;inset:0;z-index:120;background:rgba(5,8,13,.75);display:none;align-items:center;justify-content:center;padding:24px}
 .askbox.show{display:flex}
 .askcard{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px}
@@ -498,7 +536,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 <!-- master: studio (Pro) sheet -->
 <div class="sheet-wrap" id="studioSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
-    <div class="row-between"><h3 data-i18n="studioT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('studioSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="row-between"><h3 data-i18n="studioT"></h3><div style="display:flex;gap:8px"><button class="btn btn-sm btn-soft" onclick="openStudioHelp(0)" data-i18n="shBtn"></button><button class="icon-btn" aria-label="Close" onclick="closeSheet('studioSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
     <div class="pro-only" style="display:flex;flex-direction:column;gap:14px">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
 
@@ -710,6 +748,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 <div id="adminView">
   <div class="topbar"><button class="icon-btn" aria-label="Close" onclick="closeAdmin()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="t"><span class="k" style="color:var(--info)">SUPER ADMIN</span><span class="n">ProMultiCam</span></div></div>
 </div>
+<div class="shelp" id="studioHelp" onclick="if(event.target===this)closeStudioHelp()"><div class="shcard" role="dialog" aria-modal="true" aria-labelledby="shT">
+  <div class="row-between"><span class="sec" style="color:var(--gold)" id="shStep"></span><button class="icon-btn" aria-label="Close" onclick="closeStudioHelp()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="shbody"><div class="shdemo" id="shDemo"></div><div class="shtx"><b id="shT"></b><ul id="shList"></ul></div></div>
+  <button class="btn btn-gold" id="shUse"></button>
+  <div class="shnav"><button class="btn btn-sm" id="shPrev" onclick="studioHelpGo(-1)" data-i18n="shPrev"></button><div class="dots" id="shDots"></div><button class="btn btn-sm btn-gold" id="shNext" onclick="studioHelpGo(1)"></button></div>
+</div></div>
 <div class="askbox" id="askBox" onclick="if(event.target===this)askClose()"><div class="askcard" role="dialog" aria-modal="true" aria-labelledby="askT">
   <b id="askT"></b><span id="askD"></span>
   <div class="askbtns"><button class="btn" onclick="askClose()" data-i18n="cancel"></button><button class="btn btn-danger" id="askOk"></button></div>
@@ -1222,7 +1266,34 @@ function drawOverlays(W,H){
 }
 /* ================= STUDIO (Pro): templates, story mode, teleprompter, beat switch, title cards ================= */
 let introAt=0,outroAt=0,scenes=[],sceneIx=0;
-function openStudio(){applyTier();renderScenes();$('storyBox').style.display=$('optStory').checked?'flex':'none';openSheet('studioSheet');}
+/* Studio help: short manual with animated example previews */
+const ANG=[['Kuali','radial-gradient(circle at 50% 50%,#c48a3e,#4a2f14 70%)','#f2d9a0'],['Atas','linear-gradient(160deg,#3d5a3a,#141d12)','#d9a45a'],['Sisi','linear-gradient(160deg,#5a3d22,#1b130b)','#9c6a2e']];
+function dmAngles(step,cyc){return ANG.map((a,i)=>`<div class="ang" style="--i:${i};--step:${step};--cyc:${cyc};background:${a[1]}"><div class="pan" style="width:${[70,50,60][i]}%;aspect-ratio:1;background:radial-gradient(circle,${a[2]},#2b1d12 70%)"></div><span class="lb">${esc(t('cam'))} ${i+1}</span></div>`).join('');}
+const SH=[
+  {k:'cook',demo:()=>`<div class="dm">${dmAngles('3s','9s')}<div class="pip" style="background:linear-gradient(160deg,#4a4060,#15121d)"></div><div class="card end" style="--cyc:9s"><i></i>${esc(t('shOutroDemo'))}<small>RM5.00</small></div></div>`},
+  {k:'music',demo:()=>`<div class="dm cbars">${dmAngles('0.8s','2.4s')}<div class="beat"><i></i><i></i><i></i><i></i></div></div>`},
+  {k:'pod',demo:()=>`<div class="dm"><div class="split"><div class="person" style="--shirt:#3a5f9e;background:#1d2636"><span class="talk"></span></div><div class="person" style="--shirt:#9e3a5f;background:#261d2a"></div></div><div class="card" style="--cyc:8s"><i></i>${esc(t('shPodDemo'))}<small>${esc(t('shEp'))}</small></div></div>`},
+  {k:'drama',demo:()=>`<div class="dm cbars" style="filter:contrast(1.3) brightness(.85)">${dmAngles('3s','9s')}<span class="chip">${esc(t('sceneTag2',{n:1,k:2}))}</span></div>`},
+  {k:'story',demo:()=>`<div class="dm"><div class="list"><span>1. ${esc(t('shSc1'))}</span><span class="on">2. ${esc(t('shSc2'))}</span><span>3. ${esc(t('shSc3'))}</span><span style="background:transparent;color:#d9b44a">${esc(t('takeN',{n:3}))}</span></div></div>`},
+  {k:'tp',demo:()=>`<div class="dm"><div class="tp"><div>${esc(t('shTpDemo'))}</div></div></div>`},
+  {k:'cards',demo:()=>`<div class="dm">${dmAngles('3s','9s')}<div class="card" style="--cyc:9s"><i></i>${esc(t('shTitleDemo'))}<small>${esc(t('shEp'))}</small></div><div class="card end" style="--cyc:9s"><i></i>${esc(t('outroDef'))}</div></div>`}
+];
+const SH_TPL={cook:'cook',music:'music',pod:'pod',drama:'drama'};
+let shIx=0;
+function esc(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function openStudioHelp(i){shIx=i||0;renderStudioHelp();$('studioHelp').classList.add('show');lsSet('pmc_studio_help','1');}
+function closeStudioHelp(){$('studioHelp').classList.remove('show');}
+function studioHelpGo(d){const n=shIx+d;if(n>=SH.length){closeStudioHelp();return;}if(n<0)return;shIx=n;renderStudioHelp();}
+function renderStudioHelp(){
+  const c=SH[shIx],k=c.k;
+  $('shStep').textContent=t('shStep',{n:shIx+1,m:SH.length});
+  $('shDemo').innerHTML=c.demo();$('shT').textContent=t('sh_'+k+'T');
+  const ul=$('shList');ul.innerHTML='';t('sh_'+k+'L').split('|').forEach(x=>{const li=document.createElement('li');li.textContent=x;ul.appendChild(li);});
+  const u=$('shUse');if(SH_TPL[k]){u.style.display='flex';u.textContent=t('shUse');u.onclick=()=>{closeStudioHelp();applyTpl(SH_TPL[k]);};}else u.style.display='none';
+  $('shPrev').style.visibility=shIx?'visible':'hidden';$('shNext').textContent=shIx===SH.length-1?t('shDone'):t('shNext');
+  $('shDots').innerHTML=SH.map((_,i)=>`<i class="${i===shIx?'on':''}"></i>`).join('');
+}
+function openStudio(){applyTier();if(isPro()&&!lsGet('pmc_studio_help',''))setTimeout(()=>openStudioHelp(0),300);renderScenes();$('storyBox').style.display=$('optStory').checked?'flex':'none';openSheet('studioSheet');}
 function storyOn(){return isPro()&&$('optStory').checked&&scenes.length>0;}
 function storyTag(){if(!storyOn())return '';const sc=scenes[sceneIx];return `_B${sceneIx+1}-${(sc.name||'').replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,20)}_T${sc.take}`;}
 function saveScenes(){lsSet('pmc_scenes',JSON.stringify({scenes,sceneIx}));updateSceneTag();}
@@ -1714,6 +1785,7 @@ function askClose(){$('askBox').classList.remove('show');askFn=null;}
 function armBack(){try{if(!history.state||!history.state.pmcGuard)history.pushState({pmcGuard:1},'');}catch(e){}}
 function onBack(){
   if($('askBox').classList.contains('show')){askClose();return;}
+  if($('studioHelp').classList.contains('show')){closeStudioHelp();return;}
   const sh=[...document.querySelectorAll('.sheet-wrap.show')].pop();if(sh){closeSheet(sh.id);return;}
   for(const id of ['adminView','legalView','aboutView']){const v=$(id);if(v&&v.classList.contains('show')){v.classList.remove('show');return;}}
   if($('guide').classList.contains('show')){closeGuide();return;}
