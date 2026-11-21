@@ -1,6 +1,7 @@
-name: Deploy to Firebase Hosting
+name: Deploy to Firebase
 
-# Optional. Runs only when the repo secret FIREBASE_SERVICE_ACCOUNT is set
+# Deploys the web app, database rules and Cloud Functions.
+# Runs only when the repo secret FIREBASE_SERVICE_ACCOUNT is set
 # (a Firebase service-account JSON). The project ID is read from that JSON.
 # Without the secret, GitHub Pages keeps serving the app.
 on:
@@ -17,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
-      SITE: promulticammy
+      SITE: promulticam
     steps:
       - name: Skip (no secret)
         if: env.HAS_SA != 'true'
@@ -43,13 +44,18 @@ jobs:
           echo "PID=$PID" >> "$GITHUB_ENV"
           printf '{"projects":{"default":"%s"},"targets":{"%s":{"hosting":{"promulticam":["%s"]}}}}' "$PID" "$PID" "$SITE" > .firebaserc
 
+      - name: Install functions dependencies
+        if: env.HAS_SA == 'true'
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+
       - name: Create hosting site (if missing)
         if: env.HAS_SA == 'true'
         run: npx --yes firebase-tools@latest hosting:sites:create "$SITE" --project "$PID" --non-interactive || true
 
       - name: Deploy
         if: env.HAS_SA == 'true'
-        run: npx --yes firebase-tools@latest deploy --project "$PID" --only hosting:promulticam --non-interactive --force
+        run: npx --yes firebase-tools@latest deploy --project "$PID" --only hosting:promulticam,firestore:promulticam,functions:promulticam --non-interactive --force
 
       - name: Remove credentials
         if: always()

@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// ProMultiCam — Firestore database "promulticam"
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function superPath() { return /databases/$(database)/documents/config/super; }
+    function isSuper() { return signedIn() && exists(superPath()) && get(superPath()).data.uid == request.auth.uid; }
+
+    // Super Admin: the first account to claim becomes the owner of the admin page
+    match /config/super {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'at']);
+    }
+    // Plans, prices, trial days — public read, Super Admin write
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isSuper();
+    }
+    // Customer accounts — written by Cloud Functions only
+    match /users/{uid} {
+      allow read: if isSuper() || (signedIn() && request.auth.uid == uid);
+      allow write: if false;
+    }
+    // Payments — written by Cloud Functions only
+    match /payments/{pid} {
+      allow read: if isSuper() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow write: if false;
+    }
+    // Promo codes — Super Admin only (redemption goes through Cloud Functions)
+    match /promos/{code} {
+      allow read, write: if isSuper();
+      match /uses/{uid} { allow read: if isSuper(); allow write: if false; }
+    }
+  }
+}

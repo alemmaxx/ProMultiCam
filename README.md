@@ -9,13 +9,17 @@
 ## Install (web app)
 Open the app link in Chrome → **Install App** (or menu ⋮ → *Add to Home screen*). On iPhone: Share → *Add to Home Screen*.
 
-## Pages
-- `index.html` — the app (Director / Camera)
-- `landing.html` — sales / landing page
+## Structure
+- `public/index.html` — the app (Director / Camera)
+- `public/landing.html` — sales / landing page
+- `public/admin.html` — Super Admin (customers, payments, prices, promo codes)
+- `functions/` — Cloud Functions: trial, ToyyibPay billing, promo codes
+- `firestore.rules` — database rules (database `promulticam`)
+- `index.html` (root) — redirects GitHub Pages to promulticam.web.app
 
-## Optional setup (`config.js`)
+## Optional setup (`public/config.js`)
 - **TURN relay:** `meteredApp` + `meteredApiKey` (free 20 GB/month at metered.ca/tools/openrelay)
 - **Analytics:** `ga4Id` (Google Analytics 4 measurement ID)
 
-## Firebase Hosting (optional)
-Add the repo secret `FIREBASE_SERVICE_ACCOUNT` (a Firebase service-account JSON). Every push to `main` deploys to Firebase Hosting (site `promulticammy`).
+## Deploy
+Add the repo secret `FIREBASE_SERVICE_ACCOUNT` (a Firebase service-account JSON). Every push to `main` deploys hosting (site `promulticam`), database rules and Cloud Functions.

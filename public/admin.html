@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ProMultiCam · Admin</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0f17">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--ok-soft:#123528;--bad:#ef6b5c;--bad-soft:#3a1c19;--info:#7aa7f5;--info-soft:#16233b;--f:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.95);z-index:5}
+header b{font-size:18px;margin-right:auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:10px 14px;min-height:42px;font:700 14px var(--f);background:rgba(238,240,244,.1);color:var(--ink);cursor:pointer}
+.btn-gold{background:var(--gold);color:var(--on-gold)}.btn-sm{min-height:34px;padding:6px 10px;font-size:13px}
+.btn-danger{background:var(--bad-soft);color:var(--bad)}.btn-ok{background:var(--ok-soft);color:var(--ok)}
+.input,select{width:100%;font:15px var(--f);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:12px 16px 0}
+.tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 14px;font:700 14px var(--f);cursor:pointer}
+.tabs button.on{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat span{font-size:13px;color:var(--muted)}.stat b{display:block;font-size:28px;font-weight:800}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;background:var(--card2)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:800}
+.p-pro{background:var(--gold);color:var(--on-gold)}.p-trial{background:var(--info-soft);color:var(--info)}.p-free{background:rgba(238,240,244,.1);color:var(--sub)}.p-bad{background:var(--bad-soft);color:var(--bad)}.p-ok{background:var(--ok-soft);color:var(--ok)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.muted{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000e;color:#fff;padding:10px 16px;border-radius:12px;display:none;z-index:99;max-width:90%}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header><b>ProMultiCam · Admin</b><span class="muted" id="who"></span><button class="btn btn-sm hide" id="outBtn">Log keluar</button></header>
+
+<div class="wrap" id="loginBox" style="max-width:420px">
+  <div class="card">
+    <b style="font-size:20px">Log masuk Admin</b>
+    <label>E-mel<input class="input" id="em" type="email" autocomplete="email"></label>
+    <label>Kata laluan<input class="input" id="pw" type="password" autocomplete="current-password"></label>
+    <button class="btn btn-gold" id="inBtn">Log masuk</button>
+    <button class="btn" id="gBtn">Teruskan dengan Google</button>
+    <span class="muted" id="loginMsg"></span>
+  </div>
+</div>
+
+<div class="wrap hide" id="claimBox" style="max-width:520px">
+  <div class="card">
+    <b style="font-size:20px">Tuntut Super Admin</b>
+    <span class="muted">Belum ada Super Admin untuk ProMultiCam. Akaun yang menuntut dahulu akan menjadi pemilik halaman ini. Hanya tuntut menggunakan akaun anda sendiri.</span>
+    <button class="btn btn-gold" id="claimBtn">Tuntut sebagai Super Admin</button>
+  </div>
+</div>
+
+<div class="wrap hide" id="denyBox" style="max-width:520px"><div class="card"><b>Tiada akses</b><span class="muted">Akaun ini bukan Super Admin ProMultiCam.</span></div></div>
+
+<div class="hide" id="app">
+  <div class="tabs" id="tabs">
+    <button data-t="sum" class="on">Ringkasan</button><button data-t="users">Pelanggan</button><button data-t="pays">Bayaran</button><button data-t="plans">Harga</button><button data-t="promos">Kod Promo</button>
+  </div>
+  <div class="wrap">
+    <section data-s="sum">
+      <div class="stats" id="stats"></div>
+      <p class="muted" style="margin-top:14px">Link app: <a style="color:var(--gold)" href="/" target="_blank">promulticam.web.app</a></p>
+    </section>
+    <section data-s="users" class="hide">
+      <div class="card">
+        <input class="input" id="uSearch" placeholder="Cari e-mel…">
+        <div class="tbl"><table><thead><tr><th>E-mel</th><th>Status</th><th>Tamat</th><th>Daftar</th><th>Jumlah bayar</th><th>Tindakan</th></tr></thead><tbody id="uBody"></tbody></table></div>
+      </div>
+    </section>
+    <section data-s="pays" class="hide">
+      <div class="card"><div class="tbl"><table><thead><tr><th>Tarikh</th><th>E-mel</th><th>Pakej</th><th>Jumlah</th><th>Promo</th><th>Status</th><th>Bil</th></tr></thead><tbody id="pBody"></tbody></table></div></div>
+    </section>
+    <section data-s="plans" class="hide">
+      <div class="card" style="max-width:520px">
+        <b>Harga & percubaan</b>
+        <div class="grid2">
+          <label>Bulanan (RM)<input class="input" id="prM" type="number" min="1" step="0.01"></label>
+          <label>Tahunan (RM)<input class="input" id="prY" type="number" min="1" step="0.01"></label>
+          <label>Hari percubaan Pro (akaun baru)<input class="input" id="prT" type="number" min="0" step="1"></label>
+        </div>
+        <button class="btn btn-gold" id="savePlans">Simpan</button>
+        <span class="muted">Harga dipaparkan terus kepada pelanggan dalam app. Perubahan hari percubaan hanya untuk akaun baru.</span>
+      </div>
+    </section>
+    <section data-s="promos" class="hide">
+      <div class="card" style="max-width:720px">
+        <b>Cipta kod promo</b>
+        <div class="grid2">
+          <label>Kod<input class="input" id="pcCode" placeholder="cth: RAYA20" style="text-transform:uppercase"></label>
+          <label>Jenis<select id="pcType"><option value="percent">Diskaun %</option><option value="days">Hari Pro percuma</option></select></label>
+          <label>Nilai (% atau hari)<input class="input" id="pcVal" type="number" min="1"></label>
+          <label>Had guna (0 = tanpa had)<input class="input" id="pcMax" type="number" min="0" value="0"></label>
+          <label>Tamat (pilihan)<input class="input" id="pcExp" type="date"></label>
+        </div>
+        <button class="btn btn-gold" id="pcAdd">Cipta kod</button>
+        <span class="muted">Setiap akaun hanya boleh guna satu kod yang sama sekali sahaja.</span>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="tbl"><table><thead><tr><th>Kod</th><th>Jenis</th><th>Nilai</th><th>Digunakan</th><th>Tamat</th><th>Status</th><th></th></tr></thead><tbody id="pcBody"></tbody></table></div></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const C=window.PMC_CONFIG, V=C.sdk||'10.12.2';
+const {initializeApp}=await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+const A=await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+const F=await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+const Fn=await import(`https://www.gstatic.com/firebasejs/${V}/firebase-functions.js`);
+const app=initializeApp(C.firebase),auth=A.getAuth(app),db=F.getFirestore(app,C.dbId||'promulticam'),fns=Fn.getFunctions(app,C.region);
+const call=(n,d)=>Fn.httpsCallable(fns,n)(d).then(r=>r.data);
+const $=id=>document.getElementById(id);
+const toast=(m,ms=3000)=>{const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);};
+const show=id=>['loginBox','claimBox','denyBox','app'].forEach(x=>$(x).classList.toggle('hide',x!==id));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dt=ts=>{const m=ts?.toMillis?.();return m?new Date(m).toLocaleDateString('ms-MY',{day:'2-digit',month:'short',year:'numeric'}):'—';};
+const rm=v=>'RM'+Number(v||0).toFixed(2);
+
+$('inBtn').onclick=async()=>{try{await A.signInWithEmailAndPassword(auth,$('em').value.trim(),$('pw').value);}catch(e){$('loginMsg').textContent='Log masuk gagal: '+(e.code||e.message);}};
+$('gBtn').onclick=async()=>{try{await A.signInWithPopup(auth,new A.GoogleAuthProvider());}catch(e){$('loginMsg').textContent='Log masuk gagal: '+(e.code||e.message);}};
+$('outBtn').onclick=()=>A.signOut(auth);
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('section[data-s]').forEach(s=>s.classList.toggle('hide',s.dataset.s!==b.dataset.t));});
+
+let users=[],pays=[],unsubs=[];
+A.onAuthStateChanged(auth,async u=>{
+  unsubs.forEach(f=>f());unsubs=[];
+  $('who').textContent=u?u.email:'';$('outBtn').classList.toggle('hide',!u);
+  if(!u){show('loginBox');return;}
+  const sup=await F.getDoc(F.doc(db,'config/super'));
+  if(!sup.exists()){show('claimBox');$('claimBtn').onclick=async()=>{try{await F.setDoc(F.doc(db,'config/super'),{uid:u.uid,email:u.email||'',at:F.serverTimestamp()});location.reload();}catch(e){toast('Gagal: '+e.message);}};return;}
+  if(sup.data().uid!==u.uid){show('denyBox');return;}
+  show('app');start();
+});
+
+function start(){
+  unsubs.push(F.onSnapshot(F.query(F.collection(db,'users'),F.orderBy('createdAt','desc'),F.limit(1000)),s=>{users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers();renderStats();}));
+  unsubs.push(F.onSnapshot(F.query(F.collection(db,'payments'),F.orderBy('createdAt','desc'),F.limit(500)),s=>{pays=s.docs.map(d=>({id:d.id,...d.data()}));renderPays();renderStats();}));
+  unsubs.push(F.onSnapshot(F.collection(db,'promos'),s=>renderPromos(s.docs.map(d=>({id:d.id,...d.data()})))));
+  F.getDoc(F.doc(db,'config/plans')).then(s=>{const d=s.data()||{};$('prM').value=d.monthly||'';$('prY').value=d.yearly||'';$('prT').value=d.trialDays??7;});
+}
+function status(u){const now=Date.now(),ex=u.expiry?.toMillis?.()||0;
+  if(u.status==='suspended')return['GANTUNG','p-bad'];if(ex>now)return u.plan==='trial'?['PERCUBAAN','p-trial']:['PRO','p-pro'];return['PERCUMA','p-free'];}
+function renderStats(){
+  const now=Date.now(),pro=users.filter(u=>u.status!=='suspended'&&(u.expiry?.toMillis?.()||0)>now);
+  const paid=pays.filter(p=>p.status==='paid'),month=new Date();month.setDate(1);month.setHours(0,0,0,0);
+  const mRev=paid.filter(p=>(p.paidAt?.toMillis?.()||0)>=month.getTime()).reduce((a,p)=>a+Number(p.amount||0),0);
+  const box=[['Jumlah pelanggan',users.length],['Pro aktif (berbayar)',pro.filter(u=>u.plan!=='trial').length],['Dalam percubaan',pro.filter(u=>u.plan==='trial').length],['Bayaran berjaya',paid.length],['Hasil bulan ini',rm(mRev)],['Hasil keseluruhan',rm(paid.reduce((a,p)=>a+Number(p.amount||0),0))]];
+  $('stats').innerHTML=box.map(([k,v])=>`<div class="stat"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+}
+$('uSearch').oninput=()=>renderUsers();
+function renderUsers(){
+  const q=$('uSearch').value.trim().toLowerCase();
+  $('uBody').innerHTML=users.filter(u=>!q||(u.email||'').toLowerCase().includes(q)).map(u=>{const [st,cl]=status(u);
+    return `<tr><td>${esc(u.email||u.id)}</td><td><span class="pill ${cl}">${st}</span></td><td>${dt(u.expiry)}</td><td>${dt(u.createdAt)}</td><td>${rm(u.totalPaid)}</td>
+    <td><button class="btn btn-sm" data-a="extend" data-d="30" data-u="${u.id}">+30 hari</button> <button class="btn btn-sm" data-a="extend" data-d="365" data-u="${u.id}">+1 tahun</button>
+    ${u.status==='suspended'?`<button class="btn btn-sm btn-ok" data-a="activate" data-u="${u.id}">Aktifkan</button>`:`<button class="btn btn-sm btn-danger" data-a="suspend" data-u="${u.id}">Gantung</button>`}</td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Belum ada pelanggan.</td></tr>';
+}
+$('uBody').onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;
+  if(b.dataset.a==='suspend'&&!confirm('Gantung akaun ini?'))return;
+  b.disabled=true;try{await call('pmc_adminUser',{uid:b.dataset.u,action:b.dataset.a,days:Number(b.dataset.d||0)});toast('Dikemas kini');}catch(err){toast('Gagal: '+err.message);}b.disabled=false;};
+function renderPays(){
+  const cls={paid:'p-ok',pending:'p-trial',failed:'p-bad'};
+  $('pBody').innerHTML=pays.map(p=>`<tr><td>${dt(p.createdAt)}</td><td>${esc(p.email)}</td><td>${p.plan==='yearly'?'Tahunan':'Bulanan'}</td><td>${rm(p.amount)}${p.discount?` <span class="muted">(-${p.discount}%)</span>`:''}</td><td>${esc(p.promo||'—')}</td><td><span class="pill ${cls[p.status]||'p-free'}">${esc(p.status)}</span></td><td><a style="color:var(--gold)" target="_blank" href="https://toyyibpay.com/${esc(p.billCode)}">${esc(p.billCode)}</a></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Belum ada bayaran.</td></tr>';
+}
+$('savePlans').onclick=async()=>{
+  const m=Number($('prM').value),y=Number($('prY').value),tr=Math.max(0,Math.round(Number($('prT').value||0)));
+  if(!(m>=1)||!(y>=1)){toast('Masukkan harga sekurang-kurangnya RM1');return;}
+  try{await F.setDoc(F.doc(db,'config/plans'),{monthly:m,yearly:y,trialDays:tr,updatedAt:F.serverTimestamp()},{merge:true});toast('Harga disimpan');}catch(e){toast('Gagal: '+e.message);}
+};
+$('pcAdd').onclick=async()=>{
+  const code=$('pcCode').value.trim().toUpperCase(),type=$('pcType').value,val=Number($('pcVal').value),max=Math.max(0,Math.round(Number($('pcMax').value||0)));
+  if(!/^[A-Z0-9-]{3,30}$/.test(code)){toast('Kod: 3–30 huruf/nombor');return;}
+  if(!(val>0)||(type==='percent'&&val>100)){toast('Nilai tidak sah');return;}
+  const ref=F.doc(db,'promos/'+code);if((await F.getDoc(ref)).exists()){toast('Kod sudah wujud');return;}
+  const d={type,value:val,maxUses:max,uses:0,active:true,createdAt:F.serverTimestamp()};
+  if($('pcExp').value)d.expiresAt=F.Timestamp.fromDate(new Date($('pcExp').value+'T23:59:59'));
+  try{await F.setDoc(ref,d);toast('Kod dicipta');$('pcCode').value='';$('pcVal').value='';}catch(e){toast('Gagal: '+e.message);}
+};
+function renderPromos(list){
+  list.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+  $('pcBody').innerHTML=list.map(p=>`<tr><td><b>${esc(p.id)}</b></td><td>${p.type==='days'?'Hari Pro':'Diskaun'}</td><td>${p.type==='days'?p.value+' hari':p.value+'%'}</td><td>${p.uses||0}${p.maxUses?' / '+p.maxUses:''}</td><td>${dt(p.expiresAt)}</td>
+    <td><span class="pill ${p.active===false?'p-bad':'p-ok'}">${p.active===false?'Tidak aktif':'Aktif'}</span></td>
+    <td><button class="btn btn-sm" data-c="${esc(p.id)}" data-on="${p.active===false?1:0}">${p.active===false?'Aktifkan':'Matikan'}</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Belum ada kod promo.</td></tr>';
+}
+$('pcBody').onclick=async e=>{const b=e.target.closest('button[data-c]');if(!b)return;try{await F.updateDoc(F.doc(db,'promos/'+b.dataset.c),{active:b.dataset.on==='1'});}catch(err){toast('Gagal: '+err.message);}};
+</script>
+</body>
+</html>

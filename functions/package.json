@@ -1,0 +1,11 @@
+{
+  "name": "promulticam-functions",
+  "description": "Cloud Functions for ProMultiCam (codebase: promulticam)",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0"
+  },
+  "private": true
+}
