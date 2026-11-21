@@ -311,6 +311,11 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 @media (max-height:680px){#home .hero p{display:none}}
 #home .home-body{justify-content:flex-start}
 
+.askbox{position:fixed;inset:0;z-index:120;background:rgba(5,8,13,.75);display:none;align-items:center;justify-content:center;padding:24px}
+.askbox.show{display:flex}
+.askcard{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.askcard b{font-size:18px}.askcard span{font-size:14px;color:var(--sub);line-height:1.5}
+.askbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
 .popview{position:fixed;inset:0;z-index:90;background:var(--bg);display:none;flex-direction:column}
 .popview.show{display:flex}
 .popview iframe{flex:1;border:0;width:100%;background:var(--bg)}
@@ -639,6 +644,10 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 <div id="adminView">
   <div class="topbar"><button class="icon-btn" aria-label="Close" onclick="closeAdmin()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="t"><span class="k" style="color:var(--info)">SUPER ADMIN</span><span class="n">ProMultiCam</span></div></div>
 </div>
+<div class="askbox" id="askBox" onclick="if(event.target===this)askClose()"><div class="askcard" role="dialog" aria-modal="true" aria-labelledby="askT">
+  <b id="askT"></b><span id="askD"></span>
+  <div class="askbtns"><button class="btn" onclick="askClose()" data-i18n="cancel"></button><button class="btn btn-danger" id="askOk"></button></div>
+</div></div>
 <div class="guide" id="guide"><div class="gcard">
   <div id="gArt"></div><b id="gT"></b><p id="gD"></p><div class="gdots" id="gDots"></div>
   <div class="row-between"><button class="btn btn-sm" onclick="closeGuide()" data-i18n="skip"></button><button class="btn btn-gold" id="gNext" onclick="nextGuide()"></button></div>
@@ -1459,7 +1468,7 @@ function openAdmin(tab){
 function openLegal(sec){
   const v=$('legalView');let f=v.querySelector('iframe');
   if(!f){f=document.createElement('iframe');f.title='Legal';v.appendChild(f);}
-  f.src='legal.html'+(sec?'#'+sec:'');v.classList.add('show');
+  const u='legal.html'+(sec?'#'+sec:'');if(!f.src)f.src=u;else{try{f.contentWindow.location.replace(u);}catch(e){f.src=u;}}v.classList.add('show');
 }
 function closeLegal(){$('legalView').classList.remove('show');}
 let chatUnsub=null;
@@ -1525,6 +1534,24 @@ function openAbout(){
 }
 function closeAbout(){$('aboutView').classList.remove('show');}
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data==='pmc-close'){closeAbout();closeAdmin();}});
+/* ---------- phone Back button: close what is open, ask before leaving ---------- */
+let askFn=null,exiting=false;
+function ask(title,desc,okTxt,fn){$('askT').textContent=title;$('askD').textContent=desc;$('askOk').textContent=okTxt;askFn=fn;$('askOk').onclick=()=>{const f=askFn;askClose();f&&f();};$('askBox').classList.add('show');}
+function askClose(){$('askBox').classList.remove('show');askFn=null;}
+function armBack(){try{if(!history.state||!history.state.pmcGuard)history.pushState({pmcGuard:1},'');}catch(e){}}
+function onBack(){
+  if($('askBox').classList.contains('show')){askClose();return;}
+  const sh=[...document.querySelectorAll('.sheet-wrap.show')].pop();if(sh){closeSheet(sh.id);return;}
+  for(const id of ['adminView','legalView','aboutView']){const v=$(id);if(v&&v.classList.contains('show')){v.classList.remove('show');return;}}
+  if($('guide').classList.contains('show')){closeGuide();return;}
+  const recOn=typeof recorder!=='undefined'&&recorder&&recorder.state!=='inactive';
+  if($('master').classList.contains('show')){ask(t('bkDirT'),t(recOn?'bkRecD':'bkDirD'),t('bkLeave'),()=>{if(recOn){try{stopRec();}catch(e){}setTimeout(leave,1500);}else leave();});return;}
+  if($('slavecam').classList.contains('show')){ask(t('bkCamT'),t('bkCamD'),t('bkLeave'),leave);return;}
+  if($('slave').classList.contains('show')){leave();return;}
+  ask(t('bkExitT'),t('bkExitD'),t('bkExit'),()=>{exiting=true;history.go(-2);});
+}
+window.addEventListener('popstate',()=>{if(exiting)return;armBack();onBack();});
+window.addEventListener('load',()=>setTimeout(armBack,300));
 function closeAdmin(){$('adminView').classList.remove('show');}
 function renderAcctBtn(){
   const ab=$('adminBtn');if(ab)ab.style.display=isAdmin()?'flex':'none';
