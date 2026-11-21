@@ -231,6 +231,16 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .level.show{display:block}.level.ok{border-color:#2fbf8c}
 .level span{position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:12px;font-weight:800;background:rgba(11,15,23,.8);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .cam-tools{display:flex;gap:8px;flex-wrap:wrap}
+.fmtguide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;display:none;z-index:1}
+.fmtguide.show{display:block}
+.fmtguide span{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--on-gold);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800}
+@media (orientation:landscape) and (max-height:620px){
+  .cam-top{padding:8px 12px 20px;padding-top:max(8px,env(safe-area-inset-top));flex-direction:row;align-items:center;flex-wrap:wrap}
+  .cam-bot{flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:8px;padding:16px 12px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  .cam-bot #zoomRow{flex:1 1 100%}
+  .cam-bot .g3{flex:1;min-width:0}
+  .cam-bot .g3 .btn,.cam-tools .btn{min-height:40px;padding:6px 10px}
+}
 .cam-tools .btn{background:rgba(238,240,244,.12);min-height:38px;padding:6px 12px;font-size:13px}
 .cam-tools .btn.on{background:var(--gold);color:var(--on-gold)}
 .test-row{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border-radius:12px;padding:12px}
@@ -503,6 +513,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <!-- ================= SLAVE CAMERA ================= -->
 <div id="slavecam" class="screen">
   <video id="camVideo" autoplay playsinline muted></video>
+  <div class="fmtguide" id="fmtGuide"><span id="fmtGuideTx"></span></div>
   <div class="grid3x3" id="gridOv"></div>
   <div class="level" id="levelOv"><span id="levelTxt"></span></div>
   <div class="cam-top">
@@ -812,7 +823,7 @@ async function goMaster(){
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
     renderTiles();sendLive();
   });
-  $('aspectSel').onchange=()=>{resizeStage();rotHintShown='';rotateHint();};$('qualSel').onchange=resizeStage;
+  $('aspectSel').onchange=()=>{resizeStage();rotHintShown='';rotateHint();tellCams({t:'fmt',v:$('aspectSel').value});};$('qualSel').onchange=resizeStage;
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();
@@ -848,7 +859,7 @@ function openPeer(id,isCode,onTaken){
       if(!d||!d.t)return;
       if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'&&overLimit(conn.peer)){try{conn.send({t:'full'});}catch(e){}setTimeout(()=>{try{conn.close();}catch(e){}},500);toast(t('limitCams'),4000);return;}
-      if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});}
+      if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});conn.send({t:'fmt',v:$('aspectSel').value});}
       if(d.t==='flip'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.flipManual){setFlip(s,!!d.on);renderConnList();}}
       if(d.t==='caps'){const s=sources.find(x=>x.id===conn.peer);if(s){s.caps=d;updateZoomUI();}}
       if(d.t==='stat'){const s=sources.find(x=>x.id===conn.peer);if(s){const was=s.batt;s.batt=d.batt;s.charging=d.charging;paintStat(s);if(d.batt<=15&&!d.charging&&(was==null||was>15))toast(t('battLow',{name:s.name,n:d.batt}));}}
@@ -1619,7 +1630,18 @@ async function runTest(){
 }
 
 /* ================= SLAVE ================= */
-let sUpWatch=null,sUpside=false;
+let sUpWatch=null,sUpside=false,sFmt='';
+/* Camera: show which part of the picture goes into the final video, and ask to turn the phone if needed */
+function fmtGuide(announce){
+  const g=$('fmtGuide');if(!g||!sFmt)return;
+  const W=window.innerWidth,H=window.innerHeight,a=sFmt==='l'?16/9:9/16,isL=W>H;
+  if((sFmt==='l')===isL){g.classList.remove('show');if(announce)toast(t(sFmt==='l'?'fmtOkL':'fmtOkP'),2500);return;}
+  let w,h;if(W/H>a){h=H;w=H*a;}else{w=W;h=W/a;}
+  g.style.width=Math.round(w)+'px';g.style.height=Math.round(h)+'px';
+  $('fmtGuideTx').textContent=sFmt==='l'?'16:9 YouTube':'9:16 TikTok';g.classList.add('show');
+  if(announce)toast(t(sFmt==='l'?'rotCamL':'rotCamP'),4000);
+}
+window.addEventListener('resize',()=>{clearTimeout(window._fgT);window._fgT=setTimeout(()=>fmtGuide(false),400);});
 let sPeer=null,sConn=null,sCall=null,sStream=null,sTarget=null,sVia='wifi',sFacing='environment',sTorch=false,sRetry=null,sKicked=false;
 /* in-app QR scan (camera phone scans the Director's QR) */
 let scanStream=null,scanTimer=null,scanDet=null,scanCv=null;
@@ -1811,6 +1833,7 @@ async function sConnect(){
     if(!d||!d.t)return;
     if(d.t==='welcome')sStatus(true,t('connectedTo',{name:d.name||t('dir')}));
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
+    else if(d.t==='fmt'){sFmt=d.v==='l'?'l':'p';fmtGuide(true);}
     else if(d.t==='zoom')camZoom(d.v);
     else if(d.t==='lock')setLock(!!d.on);
     else if(d.t==='rec'){if(d.on)hdStart(d.id,d.title);else hdStop();}
