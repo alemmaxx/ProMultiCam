@@ -239,6 +239,29 @@ input[type=range]{accent-color:var(--gold);width:100%}
 #adminView.show{display:flex}
 #adminView iframe{flex:1;border:0;width:100%;background:var(--bg)}
 .b-admin{background:#7aa7f5;color:#0b1a33}
+
+/* Home: fits one screen, no scrolling */
+#home.show{height:100vh;height:100dvh;overflow:hidden}
+#home .hero{padding:12px 18px 10px;padding-top:max(12px,calc(env(safe-area-inset-top) + 8px));gap:6px;flex-shrink:0}
+#home .logo{width:46px;height:46px;border-radius:12px}
+#home .logo svg{width:34px;height:34px}
+#home .tag{font-size:11px}
+#home .gold-h{font-size:clamp(30px,9vw,40px)}
+#home .hero p{font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#home .home-body{padding:0 18px max(12px,env(safe-area-inset-bottom));gap:10px;min-height:0}
+#home .input{min-height:42px;padding:9px 12px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:150px;max-height:min(340px,40vh)}
+.roles .role{flex-direction:column;align-items:flex-start;justify-content:center;padding:16px;gap:14px;height:100%}
+.roles .role .ic{width:52px;height:52px;border-radius:14px}
+.roles .role .tx b{letter-spacing:.3px}
+.roles .role .tx b{font-size:15px}.roles .role .tx span{font-size:12px;line-height:1.35}
+.tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:64px;padding:8px 4px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:700 11px var(--f);text-align:center;text-decoration:none;line-height:1.2}
+.tool svg{color:var(--sub)}
+.tool-gold{background:var(--gold2);border-color:var(--gold);color:var(--gold)}.tool-gold svg{color:var(--gold)}
+.home-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:auto}
+@media (max-height:680px){#home .hero p{display:none}}
+#home .home-body{justify-content:flex-start}
 </style>
 </head>
 <body>
@@ -250,35 +273,29 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam</h1>
     <p data-i18n="hero"></p>
-    <button class="btn btn-gold" id="installBtn" style="display:none;align-self:flex-start;margin-top:4px" onclick="doInstall()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span data-i18n="install"></span></button>
-    <span class="hint" id="iosHint" style="display:none" data-i18n="installIos"></span>
   </div>
   <div class="home-body">
     <label class="lbl"><span data-i18n="devName"></span><input class="input" id="devName" maxlength="24" data-i18n-ph="devNamePh"></label>
-    <span class="sec muted" style="margin-top:4px" data-i18n="pickRole"></span>
-    <button class="role master" onclick="goMaster()">
+    <span class="sec muted" data-i18n="pickRole"></span>
+    <div class="roles">
+      <button class="role master" onclick="goMaster()">
       <div class="ic" style="background:var(--gold)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1b1503" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#1b1503"/></svg></div>
-      <div class="tx"><b style="color:var(--gold)" data-i18n="dir"></b><span data-i18n="dirDesc"></span></div>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-    </button>
-    <button class="role" onclick="goSlave()">
+        <div class="tx"><b style="color:var(--gold)" data-i18n="dir"></b><span data-i18n="dirDesc"></span></div>
+      </button>
+      <button class="role" onclick="goSlave()">
       <div class="ic" style="background:var(--info-soft)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-      <div class="tx"><b style="color:var(--info)" data-i18n="cam"></b><span data-i18n="camDesc"></span></div>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-    </button>
-    <button class="btn btn-sm btn-gold" id="adminBtn" style="align-self:flex-start;display:none" onclick="openAdmin()">⚙ Admin</button>
-    <button class="btn btn-sm" style="align-self:flex-start" onclick="runTest()">🩺 <span data-i18n="testBtn"></span></button>
-    <button class="btn btn-sm" style="align-self:flex-start" onclick="openGuide()">📘 <span data-i18n="guide"></span></button>
-    <a class="btn btn-sm" style="align-self:flex-start" href="landing.html" data-i18n="about"></a>
-    <div class="conn-card">
-      <span class="sec" data-i18n="connWays"></span>
-      <div class="conn-grid">
-        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fbf8c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="#2fbf8c"/></svg>Wi-Fi</div>
-        
-        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20v-12M20 20V4"/></svg><span data-i18n="mobile"></span></div>
-      </div>
+        <div class="tx"><b style="color:var(--info)" data-i18n="cam"></b><span data-i18n="camDesc"></span></div>
+      </button>
     </div>
-    <span class="hint" style="text-align:center;margin-top:4px">ProMultiCam v1.0</span>
+    <div class="tools">
+      <button class="tool tool-gold" id="adminBtn" style="display:none" onclick="openAdmin()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Admin</span></button>
+      <button class="tool tool-gold" id="installBtn" style="display:none" onclick="doInstall()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span data-i18n="install"></span></button>
+      <button class="tool" onclick="runTest()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="testBtn"></span></button>
+      <button class="tool" onclick="openGuide()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span data-i18n="guide"></span></button>
+      <a class="tool" href="landing.html"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="about"></span></a>
+    </div>
+    <span class="hint" id="iosHint" style="display:none;text-align:center" data-i18n="installIos"></span>
+    <div class="home-foot"><span>📶 Wi-Fi · 📱 <span data-i18n="mobile"></span></span><span>v1.0</span></div>
   </div>
 </div>
 
@@ -539,9 +556,9 @@ function initLang(){
 }
 /* install as web app */
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').style.display='inline-flex';});
-window.addEventListener('appinstalled',()=>{track('pwa_install');$('installBtn').style.display='none';toast(t('installed'));});
-async function doInstall(){if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice;}catch(e){}deferredPrompt=null;$('installBtn').style.display='none';}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').style.display='flex';fitTools();});
+window.addEventListener('appinstalled',()=>{track('pwa_install');setTimeout(fitTools,0);$('installBtn').style.display='none';toast(t('installed'));});
+async function doInstall(){if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice;}catch(e){}deferredPrompt=null;$('installBtn').style.display='none';fitTools();}
 function initInstall(){
   const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -687,6 +704,7 @@ async function goMaster(){
   // looks
   renderLooks();
   document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.m!=='full'&&sources.filter(x=>x.stream).length<2){toast(t('need2'),3500);return;}
     mode=b.dataset.m;document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
     renderTiles();sendLive();
@@ -885,7 +903,10 @@ function getGrain(){
   for(let i=0;i<im.data.length;i+=4){const v=Math.random()*255;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=22;}
   g.putImageData(im,0,0);return grainCanvas;
 }
+let lastDraw=0;
 function draw(){
+  const busy=document.querySelector('.sheet-wrap.show')&&!(recorder&&recorder.state==='recording');
+  if(busy){const n=performance.now();if(n-lastDraw<200)return;lastDraw=n;}
   const W=stage.width,H=stage.height;
   ctx.filter='none';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
   const m=sources.find(s=>s.id===mainId),sc=sources.find(s=>s.id===secId);
@@ -943,15 +964,15 @@ function drawOverlays(W,H){
   }
   if(card){
     const {fs,fs2,pad,x,y,w:cardW,h:cardH}=card;
-    ctx.fillStyle='rgba(11,15,23,.86)';rr(x,y,cardW,cardH,Math.round(fs*0.4));ctx.fill();
-    ctx.fillStyle='#d9b44a';ctx.fillRect(x+pad,y,Math.round(cardW*0.18),Math.max(3,Math.round(S*0.006)));
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.75)';ctx.shadowBlur=Math.round(S*0.018);ctx.shadowOffsetY=Math.round(S*0.003);
     const row1=y+pad+fs*0.9;let left=x+pad,right=x+cardW-pad;
     if(price){ctx.font=`800 ${fs}px ${F}`;const pw=ctx.measureText(price).width+pad*1.2;
       const px0=title?right-pw:left;ctx.fillStyle='#d9b44a';rr(px0,y+pad-fs*0.12,pw,fs*1.3,fs*0.3);ctx.fill();
       ctx.fillStyle='#1b1503';ctx.textAlign='center';ctx.fillText(price,px0+pw/2,row1);
       if(title)right-=pw+pad*0.6;else left+=pw+pad*0.6;}
     if(title){ctx.font=`800 ${fs}px ${F}`;ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.fillText(fitText(title,right-left),left,row1);}
-    if(phone){ctx.font=`700 ${fs2}px ${F}`;ctx.fillStyle='#c3cad6';ctx.textAlign='left';ctx.fillText(fitText(t('orderVia',{p:phone}),cardW-pad*2),x+pad,y+pad+fs*1.25+fs2*1.25);}
+    if(phone){ctx.font=`800 ${fs2}px ${F}`;ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.fillText(fitText(t('orderVia',{p:phone}),cardW-pad*2),x+pad,y+pad+fs*1.25+fs2*1.25);}
+    ctx.restore();
   }else if(title){
     const fs=Math.round(S/15);ctx.font=`800 ${fs}px ${F}`;ctx.textAlign='center';
     const tt=fitText(title,W-m*4),tw=ctx.measureText(tt).width,pad=fs*0.5,ty=Math.round(H*(look.bars?0.1:0.06));
@@ -1083,11 +1104,12 @@ function initDirectorExtras(){
   $('autoSel').onchange=()=>{lastSwitch=Date.now();track('auto_switch',{sec:$('autoSel').value});};
   // logo
   setLogo(lsGet('pmc_logo',''));
+  if(logoImg&&lsGet('pmc_logo_v2','')!=='1'){const im=logoImg;im.onload=()=>{try{const d=processLogo(im,true);lsSet('pmc_logo',d);lsSet('pmc_logo_v2','1');setLogo(d);}catch(e){}};if(im.complete&&im.naturalWidth)im.onload();}
   $('logoPos').value=lsGet('pmc_logo_pos','tr');$('logoPos').onchange=()=>lsSet('pmc_logo_pos',$('logoPos').value);
   $('logoDel').onclick=()=>{lsSet('pmc_logo','');setLogo('');};
   $('logoFile').onchange=e=>{
     const f=e.target.files[0];if(!f)return;const r=new FileReader();
-    r.onload=()=>{const img=new Image();img.onload=()=>{const d=processLogo(img,$('optLogoBg').checked);lsSet('pmc_logo',d);setLogo(d);track('logo_set');toast(t('logoReady'));};img.src=r.result;};
+    r.onload=()=>{const img=new Image();img.onload=()=>{const d=processLogo(img,$('optLogoBg').checked);lsSet('pmc_logo',d);lsSet('pmc_logo_v2','1');setLogo(d);track('logo_set');toast(t('logoReady'));};img.src=r.result;};
     r.readAsDataURL(f);e.target.value='';
   };
   // recipe card fields
@@ -1221,6 +1243,7 @@ function applyTier(){
   if($('looks')&&$('looks').children.length)renderLooks();
   renderAcctBtn();
 }
+function fitTools(){const n=[...document.querySelectorAll('.tools .tool')].filter(e=>e.style.display!=='none').length;const tl=document.querySelector('.tools');if(tl)tl.style.gridTemplateColumns=`repeat(${Math.min(Math.max(n,1),5)},minmax(0,1fr))`;}
 function isAdmin(){return !!(window.PMC&&PMC.isAdmin&&PMC.isAdmin());}
 function openAdmin(){
   if(!isAdmin())return;
@@ -1229,7 +1252,8 @@ function openAdmin(){
 }
 function closeAdmin(){$('adminView').classList.remove('show');}
 function renderAcctBtn(){
-  const ab=$('adminBtn');if(ab)ab.style.display=isAdmin()?'inline-flex':'none';
+  const ab=$('adminBtn');if(ab)ab.style.display=isAdmin()?'flex':'none';
+  fitTools();
   const b=$('acctBtn');if(!b)return;
   if(!window.PMC||!PMC.ready){b.textContent='…';return;}
   if(!PMC.user){b.textContent=t('login');return;}

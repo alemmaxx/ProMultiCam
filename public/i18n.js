@@ -6,6 +6,7 @@ window.LANGS = [
 ];
 window.I18N = {
 en:{
+ need2:'Split Screen and Picture-in-Picture need at least 2 cameras. Connect another phone first.',
  orScan:'— or —', 
  scanTab:'Scan QR', scanTitle:'Scan the Director’s QR', scanDesc:'On the Director phone tap + to show the QR code, then scan it here. This camera joins instantly — works on Wi-Fi or mobile data.', scanStart:'Scan the Director’s QR', scanStop:'Stop scanning', scanNo:'In-app scanning is not supported on this browser. Use your phone camera app to scan the QR, or use the Data tab.',
  saveSet:'Save settings', settingsSaved:'Settings saved', logoBgOpt:'Remove logo background automatically (transparent PNG)', logoReady:'Logo ready (transparent PNG)',
@@ -53,6 +54,7 @@ en:{
  kicked:'The Director ended the connection', back:'Back', close:'Close', settingsBtn:'Settings'
 },
 ms:{
+ need2:'Skrin Belah dan Bingkai Kecil perlukan sekurang-kurangnya 2 kamera. Sambungkan telefon lain dahulu.',
  orScan:'— atau —', 
  scanTab:'Imbas QR', scanTitle:'Imbas QR Pengarah', scanDesc:'Di telefon Pengarah, tekan + untuk papar kod QR, kemudian imbas di sini. Kamera ini terus bersambung — melalui Wi-Fi atau data.', scanStart:'Imbas QR Pengarah', scanStop:'Henti imbas', scanNo:'Imbasan dalam app tidak disokong pada pelayar ini. Guna app kamera telefon untuk imbas QR, atau guna tab Data.',
  saveSet:'Simpan tetapan', settingsSaved:'Tetapan disimpan', logoBgOpt:'Buang latar belakang logo secara automatik (PNG telus)', logoReady:'Logo sedia (PNG telus)',
