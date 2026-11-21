@@ -303,7 +303,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       </div>
     </div>
   </div>
-  <div id="liveFeed" onclick="liveTap(event)"><div id="liveHint" data-i18n="liveHint"></div></div>
+
 </div>
 
 <!-- master: style sheet -->
@@ -360,6 +360,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
         <label class="btn btn-sm btn-soft" style="cursor:pointer"><span data-i18n="logoAdd"></span><input type="file" id="logoFile" accept="image/*" style="display:none"></label>
         <button class="btn btn-sm btn-danger" id="logoDel" data-i18n="logoRemove"></button>
       </div>
+      <label class="check"><input type="checkbox" id="optLogoBg" checked><span data-i18n="logoBgOpt"></span></label>
       <label class="lbl"><span data-i18n="logoPos"></span><select class="input" id="logoPos"><option value="tr" data-i18n="posTR"></option><option value="tl" data-i18n="posTL"></option><option value="br" data-i18n="posBR"></option><option value="bl" data-i18n="posBL"></option></select></label>
       <label class="lbl"><span data-i18n="price"></span><input class="input" id="priceTxt" maxlength="20" data-i18n-ph="pricePh"></label>
       <label class="lbl"><span data-i18n="phone"></span><input class="input" id="phoneTxt" maxlength="24" inputmode="tel" data-i18n-ph="phonePh"></label>
@@ -378,11 +379,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
     <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
-    <div class="panel" style="gap:8px;padding:12px">
-      <b style="font-size:15px" data-i18n="liveMode"></b>
-      <span class="hint" style="line-height:1.5" data-i18n="liveHelp"></span>
-      <button class="btn btn-gold" onclick="enterLive()" data-i18n="liveGo"></button>
-    </div>
+    <div style="position:sticky;bottom:0;background:var(--card);padding:10px 0 2px;margin-top:4px;border-top:1px solid var(--line)"><button class="btn btn-gold" style="width:100%" onclick="saveSettings()" data-i18n="saveSet"></button></div>
   </div>
 </div>
 
@@ -696,6 +693,7 @@ async function goMaster(){
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();
+  loadSettings();applyTier();
   resizeStage();renderTiles();
   clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
   clearInterval(statTimer);statTimer=setInterval(pollStats,3000);
@@ -924,23 +922,34 @@ function drawOverlays(W,H){
   const title=$('titleTxt').value.trim(),price=PRO?$('priceTxt').value.trim():'',phone=PRO?$('phoneTxt').value.trim():'';
   if(!PRO)drawWatermark(W,H,S,m,barH);
   const F='"Bricolage Grotesque",sans-serif';
+  const hasCard=!!(price||phone);
+  let card=null;
+  if(hasCard){
+    const fs=Math.round(S/17),fs2=Math.round(S/24),pad=Math.round(fs*0.6);
+    const cardW=W-m*2,cardH=pad*2+fs*1.25+(phone?fs2*1.7:0);
+    card={fs,fs2,pad,x:m,w:cardW,h:cardH,y:H-barH-m-cardH-Math.round(H*(H>W?0.1:0.04))};
+  }
   // logo
   if(PRO&&logoImg&&logoImg.complete&&logoImg.naturalWidth){
-    const lw=Math.round(S*0.2),lh=Math.round(lw*logoImg.naturalHeight/logoImg.naturalWidth),pos=$('logoPos').value;
-    const x=pos[1]==='l'?m:W-m-lw,y=pos[0]==='t'?m+barH+(title&&!price&&!phone?Math.round(S*0.13):0):H-m-barH-lh-(price||phone?Math.round(S*0.32):0);
-    ctx.globalAlpha=0.95;ctx.drawImage(logoImg,x,y,lw,lh);ctx.globalAlpha=1;
+    const pos=$('logoPos').value,big=Math.round(S*(hasCard&&pos[0]==='b'?0.24:0.2));
+    const ar=logoImg.naturalWidth/logoImg.naturalHeight;let lw=big,lh=Math.round(big/ar);if(lh>big*1.2){lh=Math.round(big*1.2);lw=Math.round(lh*ar);}
+    let x=pos[1]==='l'?m:W-m-lw,y;
+    if(pos[0]==='t')y=m+barH+(title&&!hasCard?Math.round(S*0.13):0);
+    else if(card){y=card.y-Math.round(S*0.025)-lh;x=pos[1]==='l'?card.x+Math.round(card.pad*0.4):card.x+card.w-lw-Math.round(card.pad*0.4);}
+    else y=H-m-barH-lh-Math.round(H*(H>W?0.1:0.04));
+    ctx.drawImage(logoImg,x,y,lw,lh);
   }
-  if(price||phone){
-    // lower-third recipe card
-    const fs=Math.round(S/17),fs2=Math.round(S/24),pad=Math.round(fs*0.6);
-    const cardW=W-m*2,cardH=pad*2+fs*1.2+(phone?fs2*1.6:0);
-    const x=m,y=H-barH-m-cardH-Math.round(H*(H>W?0.1:0.04));
+  if(card){
+    const {fs,fs2,pad,x,y,w:cardW,h:cardH}=card;
     ctx.fillStyle='rgba(11,15,23,.86)';rr(x,y,cardW,cardH,Math.round(fs*0.4));ctx.fill();
     ctx.fillStyle='#d9b44a';ctx.fillRect(x+pad,y,Math.round(cardW*0.18),Math.max(3,Math.round(S*0.006)));
-    let right=x+cardW-pad;
-    if(price){ctx.font=`800 ${fs}px ${F}`;const pw=ctx.measureText(price).width+pad;ctx.fillStyle='#d9b44a';rr(right-pw,y+pad-fs*0.15,pw,fs*1.3,fs*0.3);ctx.fill();ctx.fillStyle='#1b1503';ctx.textAlign='center';ctx.fillText(price,right-pw/2,y+pad+fs*0.85);right-=pw+pad*0.6;}
-    if(title){ctx.font=`800 ${fs}px ${F}`;ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.fillText(fitText(title,right-x-pad),x+pad,y+pad+fs*0.85);}
-    if(phone){ctx.font=`700 ${fs2}px ${F}`;ctx.fillStyle='#c3cad6';ctx.textAlign='left';ctx.fillText(fitText(t('orderVia',{p:phone}),cardW-pad*2),x+pad,y+pad+fs*1.2+fs2*1.2);}
+    const row1=y+pad+fs*0.9;let left=x+pad,right=x+cardW-pad;
+    if(price){ctx.font=`800 ${fs}px ${F}`;const pw=ctx.measureText(price).width+pad*1.2;
+      const px0=title?right-pw:left;ctx.fillStyle='#d9b44a';rr(px0,y+pad-fs*0.12,pw,fs*1.3,fs*0.3);ctx.fill();
+      ctx.fillStyle='#1b1503';ctx.textAlign='center';ctx.fillText(price,px0+pw/2,row1);
+      if(title)right-=pw+pad*0.6;else left+=pw+pad*0.6;}
+    if(title){ctx.font=`800 ${fs}px ${F}`;ctx.fillStyle='#ffffff';ctx.textAlign='left';ctx.fillText(fitText(title,right-left),left,row1);}
+    if(phone){ctx.font=`700 ${fs2}px ${F}`;ctx.fillStyle='#c3cad6';ctx.textAlign='left';ctx.fillText(fitText(t('orderVia',{p:phone}),cardW-pad*2),x+pad,y+pad+fs*1.25+fs2*1.25);}
   }else if(title){
     const fs=Math.round(S/15);ctx.font=`800 ${fs}px ${F}`;ctx.textAlign='center';
     const tt=fitText(title,W-m*4),tw=ctx.measureText(tt).width,pad=fs*0.5,ty=Math.round(H*(look.bars?0.1:0.06));
@@ -1010,28 +1019,6 @@ function stopRec(){
   $('recBtn').textContent=t('recStart');$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
   $('aspectSel').disabled=$('qualSel').disabled=false;toast(t('saving'));
 }
-/* ---------- Live mode: clean full-screen feed for TikTok screen share ---------- */
-let liveHome=null,lastTap=0,hintT=null;
-function enterLive(){
-  track('live_mode');
-  closeSheet('setSheet');
-  liveHome=stage.parentNode;$('liveFeed').insertBefore(stage,$('liveHint'));$('liveFeed').classList.add('show');
-  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}catch(e){}
-  const h=$('liveHint');h.style.opacity='1';clearTimeout(hintT);hintT=setTimeout(()=>h.style.opacity='0',4000);
-}
-function exitLive(){
-  $('liveFeed').classList.remove('show');liveHome.insertBefore(stage,liveHome.firstChild);
-  try{document.fullscreenElement&&document.exitFullscreen();}catch(e){}
-}
-function liveTap(e){
-  const now=Date.now();
-  if(now-lastTap<350){exitLive();lastTap=0;return;}
-  lastTap=now;
-  const x=e.clientX/window.innerWidth,list=sources.filter(s=>s.stream);if(!list.length)return;
-  let i=list.findIndex(s=>s.id===mainId);
-  if(x<0.35)i=(i-1+list.length)%list.length;else if(x>0.65)i=(i+1)%list.length;else return;
-  setTimeout(()=>{if(lastTap===now){mainId=list[i].id;renderTiles();sendLive();}},360);
-}
 /* ---------- signal & battery ---------- */
 function paintStat(s){
   if(!s.statEl)return;
@@ -1098,8 +1085,8 @@ function initDirectorExtras(){
   $('logoDel').onclick=()=>{lsSet('pmc_logo','');setLogo('');};
   $('logoFile').onchange=e=>{
     const f=e.target.files[0];if(!f)return;const r=new FileReader();
-    r.onload=()=>{const img=new Image();img.onload=()=>{const k=Math.min(1,400/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);const d=c.toDataURL('image/png');lsSet('pmc_logo',d);setLogo(d);track('logo_set');};img.src=r.result;};
-    r.readAsDataURL(f);
+    r.onload=()=>{const img=new Image();img.onload=()=>{const d=processLogo(img,$('optLogoBg').checked);lsSet('pmc_logo',d);setLogo(d);track('logo_set');toast(t('logoReady'));};img.src=r.result;};
+    r.readAsDataURL(f);e.target.value='';
   };
   // recipe card fields
   ['titleTxt','priceTxt','phoneTxt'].forEach(id=>{$(id).value=lsGet('pmc_'+id,'');$(id).addEventListener('input',()=>lsSet('pmc_'+id,$(id).value));});
@@ -1107,6 +1094,57 @@ function initDirectorExtras(){
   $('musicSel').onchange=()=>{$('musicFileBtn').style.display=$('musicSel').value==='custom'?'inline-flex':'none';if(previewing)startMusic(true);};
   $('musicVol').oninput=()=>{if(musicGain)musicGain.gain.value=Number($('musicVol').value)/100*0.8;};
   $('musicFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const el=$('musicEl');el.src=URL.createObjectURL(f);toast('🎵 '+f.name);};
+}
+/* logo: remove plain background (flood fill from the edges), trim, export PNG */
+function processLogo(img,removeBg){
+  const k=Math.min(1,600/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*k)),h=Math.max(1,Math.round(img.height*k));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.drawImage(img,0,0,w,h);
+  if(!removeBg)return c.toDataURL('image/png');
+  const im=g.getImageData(0,0,w,h),d=im.data;
+  const px=(x,y)=>(y*w+x)*4;
+  // already transparent around the edge? keep as is
+  const corners=[px(0,0),px(w-1,0),px(0,h-1),px(w-1,h-1)];
+  if(corners.every(i=>d[i+3]<30))return trimLogo(c,g,im);
+  // background colour = average of edge pixels that agree with the most common corner
+  let br=0,bg=0,bb=0,n=0;
+  const ref=corners.map(i=>[d[i],d[i+1],d[i+2]]).sort((A,B)=>(A[0]+A[1]+A[2])-(B[0]+B[1]+B[2]))[1];
+  const dist=(i,col)=>Math.sqrt((d[i]-col[0])**2+(d[i+1]-col[1])**2+(d[i+2]-col[2])**2);
+  for(let x=0;x<w;x++)for(const y of [0,h-1]){const i=px(x,y);if(dist(i,ref)<60){br+=d[i];bg+=d[i+1];bb+=d[i+2];n++;}}
+  for(let y=0;y<h;y++)for(const x of [0,w-1]){const i=px(x,y);if(dist(i,ref)<60){br+=d[i];bg+=d[i+1];bb+=d[i+2];n++;}}
+  if(n<(w+h)*0.5)return trimLogo(c,g,im); // edge is not a plain colour: leave the image untouched
+  const col=[br/n,bg/n,bb/n],TOL=42,SOFT=70;
+  const seen=new Uint8Array(w*h),stack=[];
+  for(let x=0;x<w;x++){stack.push(x,0,x,h-1);}for(let y=0;y<h;y++){stack.push(0,y,w-1,y);}
+  while(stack.length){
+    const y=stack.pop(),x=stack.pop();if(x<0||y<0||x>=w||y>=h)continue;const j=y*w+x;if(seen[j])continue;seen[j]=1;
+    const i=j*4,dd=dist(i,col);
+    if(dd<TOL){d[i+3]=0;stack.push(x+1,y,x-1,y,x,y+1,x,y-1);}
+    else if(dd<SOFT){d[i+3]=Math.min(d[i+3],Math.round((dd-TOL)/(SOFT-TOL)*255));}
+  }
+  g.putImageData(im,0,0);
+  return trimLogo(c,g,g.getImageData(0,0,w,h));
+}
+function trimLogo(c,g,im){
+  const w=c.width,h=c.height,d=im.data;let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(d[(y*w+x)*4+3]>16){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
+  if(x1<0)return c.toDataURL('image/png');
+  const p=2;x0=Math.max(0,x0-p);y0=Math.max(0,y0-p);x1=Math.min(w-1,x1+p);y1=Math.min(h-1,y1+p);
+  const o=document.createElement('canvas');o.width=x1-x0+1;o.height=y1-y0+1;o.getContext('2d').drawImage(c,x0,y0,o.width,o.height,0,0,o.width,o.height);
+  return o.toDataURL('image/png');
+}
+/* settings: save & restore */
+const SET_IDS={aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optCount:'c',optHD:'c',optSelf:'c',optLogoBg:'c'};
+function saveSettings(){
+  const o={};for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(e)o[id]=k==='c'?e.checked:e.value;}
+  lsSet('pmc_settings',JSON.stringify(o));
+  ['titleTxt','priceTxt','phoneTxt'].forEach(id=>lsSet('pmc_'+id,$(id).value));lsSet('pmc_logo_pos',$('logoPos').value);lsSet('pmc_selfcam',$('optSelf').checked?'1':'0');
+  closeSheet('setSheet');toast(t('settingsSaved'));track('settings_saved');
+}
+function loadSettings(){
+  let o={};try{o=JSON.parse(lsGet('pmc_settings','{}'))||{};}catch(e){}
+  for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(!e||!(id in o))continue;if(k==='c')e.checked=!!o[id];else e.value=o[id];}
+  resizeStage();if(musicGain)musicGain.gain.value=Number($('musicVol').value)/100*0.8;
+  $('musicFileBtn').style.display=$('musicSel').value==='custom'?'inline-flex':'none';
 }
 /* built-in royalty-free music, generated live (no copyrighted audio) */
 const MUSIC={
