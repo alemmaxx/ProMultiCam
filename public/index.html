@@ -1461,7 +1461,7 @@ function renderAcctBtn(){
   if(!PMC.user){b.textContent=t('login');return;}
   const p=PMC.profile,pro=isPro(),trial=!isAdmin()&&p&&p.plan==='trial'&&pro;
   b.innerHTML='';const n=document.createElement('span');n.textContent='👤';b.appendChild(n);
-  const bd=document.createElement('span');bd.className='badge '+(isAdmin()?'b-admin':trial?'b-trial':pro?'b-pro':'b-free');bd.textContent=isAdmin()?'ADMIN':trial?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');b.appendChild(bd);
+  const bd=document.createElement('span');bd.className='badge '+(isAdmin()?'b-admin':trial?'b-trial':pro?'b-pro':'b-free');bd.textContent=isAdmin()?'ADMIN':trial?t('trialN',{n:PMC.daysLeft()}):pro?t('proN',{n:PMC.daysLeft()}):t('free');b.appendChild(bd);
 }
 let acctModeV='login';
 function acctMode(m){acctModeV=m;$('tLogin').classList.toggle('on',m==='login');$('tReg').classList.toggle('on',m==='reg');$('aSubmit').textContent=m==='login'?t('login'):t('createAcct');$('aPass').autocomplete=m==='login'?'current-password':'new-password';}
@@ -1477,8 +1477,8 @@ function openAccount(){
   $('acctTitle').textContent=inn?t('myAcct'):t('login');
   if(inn){const p=PMC.profile||{},pro=isPro();$('aWho').textContent=PMC.user.email||PMC.user.displayName||'';
     const d=p.expiry?new Date(p.expiry).toLocaleDateString():'';
-    $('aPlan').textContent=p.status==='suspended'?t('suspended'):pro?(p.plan==='trial'?t('trialUntil',{d}):t('proUntil',{d})):t('freePlan');
-    const bd=$('aBadge');bd.className='badge '+(p.plan==='trial'&&pro?'b-trial':pro?'b-pro':'b-free');bd.textContent=p.plan==='trial'&&pro?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');
+    $('aPlan').textContent=p.status==='suspended'?t('suspended'):pro?(p.plan==='trial'?t('trialUntil',{d,n:PMC.daysLeft()}):t('proUntil',{d,n:PMC.daysLeft(),p:p.plan==='yearly'?t('yearly'):p.plan==='monthly'?t('monthly'):''})):t('freePlan');
+    const bd=$('aBadge');bd.className='badge '+(p.plan==='trial'&&pro?'b-trial':pro?'b-pro':'b-free');bd.textContent=p.plan==='trial'&&pro?t('trialN',{n:PMC.daysLeft()}):pro?t('proN',{n:PMC.daysLeft()}):t('free');
     $('aUpBtn').textContent=pro&&p.plan!=='trial'?t('renew'):t('upgrade');
     loadReceipts();
     const adm=isAdmin();$('aAdminBtn').style.display=adm?'flex':'none';$('aUpBtn').style.display=adm?'none':'flex';
