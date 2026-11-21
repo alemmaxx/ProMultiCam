@@ -7,7 +7,7 @@
 3. Tap a camera tile to switch angles, pick a **Visual Style**, then **Start recording**.
 
 ## Install (web app)
-Open **https://alemmaxx.github.io/ProMultiCam/** in Chrome → **Install App** (or menu ⋮ → *Add to Home screen*). On iPhone: Share → *Add to Home Screen*.
+Open the app link in Chrome → **Install App** (or menu ⋮ → *Add to Home screen*). On iPhone: Share → *Add to Home Screen*.
 
 ## Pages
 - `index.html` — the app (Director / Camera)
@@ -18,4 +18,4 @@ Open **https://alemmaxx.github.io/ProMultiCam/** in Chrome → **Install App** (
 - **Analytics:** `ga4Id` (Google Analytics 4 measurement ID)
 
 ## Firebase Hosting (optional)
-Add the repo secret `FIREBASE_SERVICE_ACCOUNT_KUKUSANMY` (same JSON as ProAttendance). Every push to `main` deploys to **https://promulticammy.web.app**.
+Add the repo secret `FIREBASE_SERVICE_ACCOUNT` (a Firebase service-account JSON). Every push to `main` deploys to Firebase Hosting (site `promulticammy`).

@@ -1,4 +1,0 @@
-{
-  "projects": { "default": "kukusanmy" },
-  "targets": { "kukusanmy": { "hosting": { "promulticam": ["promulticammy"] } } }
-}

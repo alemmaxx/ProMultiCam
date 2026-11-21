@@ -1,26 +1,27 @@
-name: Deploy ke Firebase Hosting
+name: Deploy to Firebase Hosting
 
-# Deploy automatik ke https://promulticammy.web.app setiap kali kod masuk ke "main".
-# Hanya berjalan jika secret FIREBASE_SERVICE_ACCOUNT_KUKUSANMY telah ditambah
-# (sama seperti repo ProAttendance). Tanpa secret, GitHub Pages tetap boleh digunakan.
+# Optional. Runs only when the repo secret FIREBASE_SERVICE_ACCOUNT is set
+# (a Firebase service-account JSON). The project ID is read from that JSON.
+# Without the secret, GitHub Pages keeps serving the app.
 on:
   push:
     branches: [main]
   workflow_dispatch: {}
 
 concurrency:
-  group: deploy-promulticam
+  group: deploy-hosting
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KUKUSANMY != '' }}
+      HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+      SITE: promulticammy
     steps:
-      - name: Langkau (tiada secret)
+      - name: Skip (no secret)
         if: env.HAS_SA != 'true'
-        run: echo "Secret FIREBASE_SERVICE_ACCOUNT_KUKUSANMY belum ditambah - deploy dilangkau."
+        run: echo "FIREBASE_SERVICE_ACCOUNT not set - skipping deploy."
 
       - uses: actions/checkout@v4
         if: env.HAS_SA == 'true'
@@ -30,22 +31,26 @@ jobs:
         with:
           node-version: 22
 
-      - name: Kunci akses Firebase
+      - name: Credentials and project
         if: env.HAS_SA == 'true'
         env:
-          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KUKUSANMY }}
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+          PID=$(jq -r .project_id "$RUNNER_TEMP/sa.json")
+          echo "::add-mask::$PID"
+          echo "PID=$PID" >> "$GITHUB_ENV"
+          printf '{"projects":{"default":"%s"},"targets":{"%s":{"hosting":{"promulticam":["%s"]}}}}' "$PID" "$PID" "$SITE" > .firebaserc
 
-      - name: Cipta laman hosting (jika belum ada)
+      - name: Create hosting site (if missing)
         if: env.HAS_SA == 'true'
-        run: npx --yes firebase-tools@latest hosting:sites:create promulticammy --project kukusanmy --non-interactive || true
+        run: npx --yes firebase-tools@latest hosting:sites:create "$SITE" --project "$PID" --non-interactive || true
 
       - name: Deploy
         if: env.HAS_SA == 'true'
-        run: npx --yes firebase-tools@latest deploy --project kukusanmy --only hosting:promulticam --non-interactive --force
+        run: npx --yes firebase-tools@latest deploy --project "$PID" --only hosting:promulticam --non-interactive --force
 
-      - name: Padam kunci
+      - name: Remove credentials
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"
