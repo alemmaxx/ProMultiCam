@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>ProMultiCam</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" sizes="64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0b0f17">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <script src="config.js"></script>
@@ -53,7 +55,7 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 
 /* HOME */
 .hero{padding:52px 22px 22px;padding-top:max(52px,calc(env(safe-area-inset-top) + 32px));background:radial-gradient(120% 80% at 85% 10%,#1c2f52 0%,transparent 60%),radial-gradient(90% 70% at 0% 100%,#2a2210 0%,transparent 60%),var(--bg);display:flex;flex-direction:column;gap:10px}
-.logo{width:60px;height:60px;border-radius:16px;background:var(--card);border:1px solid var(--gold);display:grid;place-items:center}
+.logo{width:64px;height:64px;border-radius:16px;background:var(--card);display:grid;place-items:center}
 .tag{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.4px}
 .gold-h{margin:0;font-size:46px;font-weight:800;letter-spacing:-1.5px;line-height:1;background-image:linear-gradient(180deg,#fffbe9 0%,#f3dc8e 42%,#c99a2e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{margin:0;font-size:14px;color:var(--sub);line-height:1.5}
@@ -195,6 +197,21 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .gdots{display:flex;gap:6px;justify-content:center}.gdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.gdots i.on{background:var(--gold);width:22px;border-radius:4px}
 .subsec{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
 .logo-prev{width:52px;height:52px;border-radius:10px;background:var(--card2) center/contain no-repeat;border:1px solid var(--line);flex-shrink:0}
+
+.vu{display:inline-flex;gap:2px;align-items:flex-end;height:14px;margin-left:6px;vertical-align:middle}
+.vu i{width:3px;border-radius:1px;background:#3b4558;height:4px;transition:height .08s}
+.grid3x3{position:absolute;inset:0;pointer-events:none;display:none;background-image:linear-gradient(to right,transparent calc(33.33% - 1px),rgba(255,255,255,.35) calc(33.33% - 1px),rgba(255,255,255,.35) 33.33%,transparent 33.33%,transparent calc(66.66% - 1px),rgba(255,255,255,.35) calc(66.66% - 1px),rgba(255,255,255,.35) 66.66%,transparent 66.66%),linear-gradient(to bottom,transparent calc(33.33% - 1px),rgba(255,255,255,.35) calc(33.33% - 1px),rgba(255,255,255,.35) 33.33%,transparent 33.33%,transparent calc(66.66% - 1px),rgba(255,255,255,.35) calc(66.66% - 1px),rgba(255,255,255,.35) 66.66%,transparent 66.66%)}
+.grid3x3.show{display:block}
+.level{position:absolute;left:50%;top:50%;width:120px;height:0;border-top:3px solid #ef6b5c;transform:translate(-50%,-50%);pointer-events:none;display:none}
+.level.show{display:block}.level.ok{border-color:#2fbf8c}
+.level span{position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:12px;font-weight:800;background:rgba(11,15,23,.8);border-radius:6px;padding:1px 6px;white-space:nowrap}
+.cam-tools{display:flex;gap:8px;flex-wrap:wrap}
+.cam-tools .btn{background:rgba(238,240,244,.12);min-height:38px;padding:6px 12px;font-size:13px}
+.cam-tools .btn.on{background:var(--gold);color:var(--on-gold)}
+.test-row{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border-radius:12px;padding:12px}
+.test-row .ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;flex-shrink:0}
+.test-row .tx{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.test-row .tx b{font-size:14px}.test-row .tx span{color:var(--sub)}
 </style>
 </head>
 <body>
@@ -202,7 +219,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <!-- ================= HOME ================= -->
 <div id="home" class="screen show">
   <div class="hero">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="14" height="10" rx="2"/><path d="M16 11l6-3v8l-6-3"/></svg></div><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:170px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#7aa7f5" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c3cad6" stroke-width="5" fill="#131a26"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#d9b44a"/><circle cx="61" cy="61" r="7" fill="#1b1503"/><circle cx="61" cy="61" r="3" fill="#ef6b5c"/></svg></div><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:170px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select></div>
     <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam</h1>
     <p data-i18n="hero"></p>
@@ -222,6 +239,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <div class="tx"><b style="color:var(--info)" data-i18n="cam"></b><span data-i18n="camDesc"></span></div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
+    <button class="btn btn-sm" style="align-self:flex-start" onclick="runTest()">🩺 <span data-i18n="testBtn"></span></button>
     <button class="btn btn-sm" style="align-self:flex-start" onclick="openGuide()">📘 <span data-i18n="guide"></span></button>
     <a class="btn btn-sm" style="align-self:flex-start" href="landing.html" data-i18n="about"></a>
     <div class="conn-card">
@@ -242,7 +260,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div class="countdown" id="countdown"></div>
     <div class="ov-top">
       <button class="icon-btn" aria-label="Back" onclick="leave()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <div class="t" style="display:flex;flex-direction:column;min-width:0;flex:1"><span class="n" id="mName" style="font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Studio</span><span id="camCount" style="font-size:11px;font-weight:700;color:var(--ok)"></span></div>
+      <div class="t" style="display:flex;flex-direction:column;min-width:0;flex:1"><span class="n" id="mName" style="font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Studio</span><span style="display:flex;align-items:center"><span id="camCount" style="font-size:11px;font-weight:700;color:var(--ok)"></span><span class="vu" id="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></span></div>
       <button class="icon-btn" aria-label="Recordings" onclick="openSheet('filesSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></button>
       <button class="icon-btn" aria-label="Style" onclick="openSheet('styleSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/><path d="M12 21a2.5 2.5 0 0 1 0-5h1.5a2.5 2.5 0 0 0 2.5-2.5"/></svg></button>
       <button class="icon-btn" aria-label="Settings" onclick="openSheet('setSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
@@ -328,6 +346,8 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="hint" style="line-height:1.5" data-i18n="musicNote"></span>
     </div>
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
+    <label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label>
+    <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
     <label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label>
     <div class="panel" style="gap:8px;padding:12px">
@@ -388,6 +408,8 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <!-- ================= SLAVE CAMERA ================= -->
 <div id="slavecam" class="screen">
   <video id="camVideo" autoplay playsinline muted></video>
+  <div class="grid3x3" id="gridOv"></div>
+  <div class="level" id="levelOv"><span id="levelTxt"></span></div>
   <div class="cam-top">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span class="st"><span class="dot" id="camDot"></span><span id="camStatus"></span></span>
@@ -402,6 +424,10 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <input type="range" id="camZoom" min="1" max="5" step="0.1" value="1" style="flex:1">
       <span id="camZoomVal" style="font-size:13px;font-weight:700;color:var(--gold);min-width:36px">1.0×</span>
     </div>
+    <div class="cam-tools">
+      <button class="btn on" id="gridBtn" onclick="toggleGrid()" data-i18n="gridLbl"></button>
+      <button class="btn" id="lockBtn" onclick="toggleLock()" data-i18n="lockLbl"></button>
+    </div>
     <div class="g3">
       <button class="btn" onclick="camFlip()" data-i18n="flip"></button>
       <button class="btn" id="torchBtn" onclick="camTorch()" data-i18n="torch"></button>
@@ -411,6 +437,12 @@ input[type=range]{accent-color:var(--gold);width:100%}
   </div>
 </div>
 
+<div class="sheet-wrap" id="testSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet">
+    <div class="row-between"><h3 data-i18n="testT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('testSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="testList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
 <div class="guide" id="guide"><div class="gcard">
   <div id="gArt"></div><b id="gT"></b><p id="gD"></p><div class="gdots" id="gDots"></div>
   <div class="row-between"><button class="btn btn-sm" onclick="closeGuide()" data-i18n="skip"></button><button class="btn btn-gold" id="gNext" onclick="nextGuide()"></button></div>
@@ -694,6 +726,7 @@ function renderConnList(){
     const chipCls=s.via==='data'?'chip-gold':s.via==='local'?'chip-info':'chip-ok';
     d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?t('live'):t('loading')}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
     d.querySelector('b').textContent=s.name;
+    if(!s.local&&s.caps&&s.caps.lock){const lk=document.createElement('button');lk.className='btn btn-sm'+(s.locked?' btn-gold':'');lk.textContent=s.locked?'🔒':'🔓';lk.setAttribute('aria-label',t('lockLbl'));lk.onclick=()=>{s.locked=!s.locked;try{s.conn.send({t:'lock',on:s.locked});}catch(e){}renderConnList();};d.appendChild(lk);}
     if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
     box.appendChild(d);
   });
@@ -726,11 +759,24 @@ function refreshAudio(){
   else if(sel.options.length>1)sel.value=sel.options[1].value;
   applyAudio();
 }
-let micGain=null,musicGain=null,previewGain=null;
+let micGain=null,musicGain=null,previewGain=null,hpf=null,comp=null,analyser=null;
+const vuBuf=new Uint8Array(512);
+function vuLoop(){
+  if(analyser){analyser.getByteTimeDomainData(vuBuf);let sum=0;for(let i=0;i<vuBuf.length;i++){const v=(vuBuf[i]-128)/128;sum+=v*v;}
+    const lvl=Math.min(1,Math.sqrt(sum/vuBuf.length)*4);const bars=$('vu').children;
+    for(let i=0;i<bars.length;i++){const on=lvl>i/bars.length;bars[i].style.height=on?(4+i*2)+'px':'4px';bars[i].style.background=on?(i>=5?'#ef6b5c':i>=4?'#d9b44a':'#2fbf8c'):'#3b4558';}}
+  requestAnimationFrame(vuLoop);
+}
 function ensureAudio(){
   if(actx)return;
   actx=new(window.AudioContext||window.webkitAudioContext)();adest=actx.createMediaStreamDestination();
   micGain=actx.createGain();micGain.connect(adest);
+  hpf=actx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=110;hpf.Q.value=0.7;
+  comp=actx.createDynamicsCompressor();comp.threshold.value=-24;comp.knee.value=20;comp.ratio.value=3;comp.attack.value=0.005;comp.release.value=0.2;
+  hpf.connect(comp);comp.connect(micGain);
+  analyser=actx.createAnalyser();analyser.fftSize=512;micGain.connect(analyser);
+  $('optNoise').onchange=()=>applyAudio();
+  requestAnimationFrame(vuLoop);
   musicGain=actx.createGain();musicGain.gain.value=Number($('musicVol').value)/100*0.8;musicGain.connect(adest);
   previewGain=actx.createGain();previewGain.gain.value=0;musicGain.connect(previewGain);previewGain.connect(actx.destination);
 }
@@ -738,12 +784,13 @@ function applyAudio(){
   if(!actx)return;
   if(aNode){try{aNode.disconnect();}catch(e){}aNode=null;}
   const s=sources.find(x=>x.id===$('audioSel').value);
-  if(s&&s.stream&&s.stream.getAudioTracks().length){aNode=actx.createMediaStreamSource(new MediaStream(s.stream.getAudioTracks()));aNode.connect(micGain);}
+  if(s&&s.stream&&s.stream.getAudioTracks().length){aNode=actx.createMediaStreamSource(new MediaStream(s.stream.getAudioTracks()));aNode.connect($('optNoise').checked?hpf:micGain);}
 }
 function resizeStage(){
   const q=Number($('qualSel').value),portrait=$('aspectSel').value==='p';
   const long=q===1080?1920:1280;stage.width=portrait?q:long;stage.height=portrait?long:q;
 }
+let fadePrev=null,fadeCur=null,fadeAt=0;
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
@@ -772,7 +819,11 @@ function draw(){
     if(H>W){drawCover(m.video,0,0,W,H/2,dz(m));drawCover(sc.video,0,H/2,W,H/2,dz(sc));ctx.filter='none';ctx.fillStyle='#d9b44a';ctx.fillRect(0,H/2-2,W,4);}
     else{drawCover(m.video,0,0,W/2,H,dz(m));drawCover(sc.video,W/2,0,W/2,H,dz(sc));ctx.filter='none';ctx.fillStyle='#d9b44a';ctx.fillRect(W/2-2,0,4,H);}
   }else{
-    drawCover(m.video,0,0,W,H,dz(m));
+    if(mainId!==fadeCur){fadePrev=fadeCur;fadeCur=mainId;fadeAt=performance.now();}
+    const fp=$('optFade').checked&&fadePrev?Math.min(1,(performance.now()-fadeAt)/350):1;
+    const pv=fp<1?sources.find(x=>x.id===fadePrev):null;
+    if(pv&&pv.stream){drawCover(pv.video,0,0,W,H,dz(pv));ctx.globalAlpha=fp;drawCover(m.video,0,0,W,H,dz(m));ctx.globalAlpha=1;}
+    else drawCover(m.video,0,0,W,H,dz(m));
     if(mode==='pip'&&sc&&sc.stream){
       const pw=Math.round(Math.min(W,H)*0.36),ph=Math.round(pw*(H>W?4/3:3/4));
       const px=W-pw-Math.round(W*0.04),py=H-ph-Math.round(H*0.12);
@@ -1037,6 +1088,42 @@ function closeGuide(){$('guide').classList.remove('show');lsSet('pmc_guided','1'
 (function(){const id=(window.PMC_CONFIG||{}).ga4Id;if(!id)return;const sc=document.createElement('script');sc.async=true;sc.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(id);document.head.appendChild(sc);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config',id,{anonymize_ip:true});})();
 function track(ev,params){try{if(window.gtag)gtag('event',ev,params||{});}catch(e){}}
 
+/* ---------- device readiness test ---------- */
+async function runTest(){
+  openSheet('testSheet');const box=$('testList');box.innerHTML='';
+  const row=(ok,title,detail)=>{const d=document.createElement('div');d.className='test-row';
+    const c=ok===true?['#123528','#2fbf8c','✓']:ok===false?['#3a1c19','#ef6b5c','✕']:['#2e2712','#d9b44a','!'];
+    d.innerHTML=`<span class="ic" style="background:${c[0]};color:${c[1]}">${c[2]}</span><div class="tx"><b></b><span></span></div>`;
+    d.querySelector('b').textContent=title;d.querySelector('.tx span').textContent=detail;box.appendChild(d);};
+  const wait=document.createElement('div');wait.className='scan';wait.innerHTML='<span class="spin"></span>'+t('testing');box.appendChild(wait);
+  // camera + mic
+  let st=null;try{st=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1920},height:{ideal:1080}},audio:true});}catch(e){}
+  if(st){const s=st.getVideoTracks()[0].getSettings();row(true,t('tCam'),`${s.width||'?'}×${s.height||'?'} · ${Math.round(s.frameRate||0)} fps`);
+    row(st.getAudioTracks().length>0,t('tMic'),st.getAudioTracks().length?t('tOk'):t('tMicNo'));st.getTracks().forEach(x=>x.stop());}
+  else row(false,t('tCam'),t('tCamNo'));
+  // recording
+  const mime=pickMime();row(!!mime,t('tRec'),mime?mime.split(';')[0]:t('tRecNo'));
+  // storage
+  let root=null;try{root=await recRoot();}catch(e){}
+  let est=null;try{est=await navigator.storage.estimate();}catch(e){}
+  const freeGB=est&&est.quota?(est.quota-(est.usage||0))/1073741824:null;
+  row(root?(freeGB==null||freeGB>2?true:null):null,t('tStore'),(root?t('tSafe'):t('tMem'))+(freeGB!=null?' · '+t('tFree',{gb:freeGB.toFixed(1)}):''));
+  // network
+  const nc=navigator.connection||{};const type=nc.type||'',eff=nc.effectiveType||'',dl=nc.downlink;
+  row(navigator.onLine?(eff==='4g'||!eff?true:null):false,t('tNet'),navigator.onLine?[type==='wifi'?'Wi-Fi':type==='cellular'?t('mobile'):'',eff?eff.toUpperCase():'',dl?dl+' Mbps':''].filter(Boolean).join(' · ')||t('tOk'):t('noNet'));
+  // signalling server
+  await iceReady;
+  const sig=await new Promise(res=>{let done=false;try{const p=new Peer(peerOpts);const to=setTimeout(()=>{if(!done){done=true;try{p.destroy();}catch(e){}res(false);}},8000);p.on('open',()=>{if(!done){done=true;clearTimeout(to);p.destroy();res(true);}});p.on('error',()=>{if(!done){done=true;clearTimeout(to);try{p.destroy();}catch(e){}res(false);}});}catch(e){res(false);}});
+  row(sig,t('tSig'),sig?t('tOk'):t('tSigNo'));
+  const turn=(peerOpts.config.iceServers||[]).some(x=>String(x.urls).includes('turn'));
+  row(turn?true:null,t('tTurn'),turn?t('tOk'):t('tTurnNo'));
+  // battery
+  try{if(navigator.getBattery){const b=await navigator.getBattery();const lv=Math.round(b.level*100);row(b.charging||lv>40?true:null,t('tBatt'),lv+'%'+(b.charging?' ⚡':'')+(b.charging||lv>40?'':' · '+t('tBattLow')));}}catch(e){}
+  wait.remove();
+  const tip=document.createElement('div');tip.className='hint';tip.style.lineHeight='1.5';tip.textContent=t('tTip');box.appendChild(tip);
+  track('device_test',{sig,cam:!!st});
+}
+
 /* ================= SLAVE ================= */
 let sPeer=null,sConn=null,sCall=null,sStream=null,sTarget=null,sVia='wifi',sFacing='environment',sTorch=false,sRetry=null,sKicked=false;
 function selTab(name){
@@ -1104,7 +1191,8 @@ function camCaps(){
   $('zoomRow').style.display=zoom?'flex':'none';
   if(zoom){const z=$('camZoom');z.min=zoom.min;z.max=Math.min(zoom.max,10);z.step=zoom.step;z.value=zoom.min;$('camZoomVal').textContent=Number(zoom.min).toFixed(1)+'×';}
   $('torchBtn').disabled=!c.torch;
-  return{zoom,torch:!!c.torch};
+  $('lockBtn').style.display=lockSupported()?'inline-flex':'none';
+  return{zoom,torch:!!c.torch,lock:lockSupported()};
 }
 async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
 async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
@@ -1115,9 +1203,51 @@ async function camFlip(){
     $('camVideo').style.transform=sFacing==='user'?'scaleX(-1)':'';
     if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(!s.track)continue;const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];if(nt)await s.replaceTrack(nt);}
     if(hdRec&&hdRec.state!=='inactive'){hdRec.stop();setTimeout(()=>hdStart(),300);}
+    sLocked=false;$('lockBtn').classList.remove('on');tuneSender();
     old.getTracks().forEach(tr=>tr.stop());
     sSend({t:'caps',...camCaps()});
   }catch(e){toast(t('flipFail'));}
+}
+/* ---------- camera quality: bitrate, lock, grid, level ---------- */
+let sLocked=false,gridOn=true;
+function tuneSender(){
+  const go=async()=>{
+    const pc=sCall&&sCall.peerConnection;if(!pc)return;
+    const vt=sStream&&sStream.getVideoTracks()[0];if(vt)try{vt.contentHint='detail';}catch(e){}
+    for(const snd of pc.getSenders()){
+      if(!snd.track||snd.track.kind!=='video')continue;
+      try{const prm=snd.getParameters();if(!prm.encodings||!prm.encodings.length)prm.encodings=[{}];
+        prm.encodings[0].maxBitrate=sVia==='data'?2500000:6000000;prm.encodings[0].maxFramerate=30;prm.encodings[0].scaleResolutionDownBy=1;
+        prm.degradationPreference='maintain-resolution';await snd.setParameters(prm);}catch(e){}
+    }
+  };
+  setTimeout(go,1500);setTimeout(go,5000);
+}
+function lockSupported(){const tr=sStream&&sStream.getVideoTracks()[0];let c={};try{c=tr.getCapabilities?tr.getCapabilities():{};}catch(e){}return !!((c.exposureMode&&c.exposureMode.includes('manual'))||(c.whiteBalanceMode&&c.whiteBalanceMode.includes('manual')));}
+async function setLock(on){
+  const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;
+  let c={};try{c=tr.getCapabilities?tr.getCapabilities():{};}catch(e){}
+  const adv={};
+  if(c.exposureMode)adv.exposureMode=on&&c.exposureMode.includes('manual')?'manual':'continuous';
+  if(c.whiteBalanceMode)adv.whiteBalanceMode=on&&c.whiteBalanceMode.includes('manual')?'manual':'continuous';
+  if(on){const st=tr.getSettings?tr.getSettings():{};if(st.exposureTime&&c.exposureTime)adv.exposureTime=st.exposureTime;if(st.colorTemperature&&c.colorTemperature)adv.colorTemperature=st.colorTemperature;}
+  try{await tr.applyConstraints({advanced:[adv]});sLocked=on;$('lockBtn').classList.toggle('on',on);toast(on?t('locked'):t('unlocked'));}catch(e){toast(t('lockFail'));}
+}
+function toggleLock(){if(!lockSupported()){toast(t('lockFail'));return;}setLock(!sLocked);}
+function toggleGrid(){gridOn=!gridOn;$('gridBtn').classList.toggle('on',gridOn);$('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);}
+function onTilt(e){
+  if(e.gamma==null)return;
+  const portrait=window.innerHeight>=window.innerWidth;let roll=portrait?e.gamma:e.beta;
+  if(!portrait&&(screen.orientation&&screen.orientation.angle===270))roll=-roll;
+  roll=Math.max(-45,Math.min(45,roll||0));
+  const lv=$('levelOv');lv.style.transform=`translate(-50%,-50%) rotate(${-roll}deg)`;lv.classList.toggle('ok',Math.abs(roll)<2);
+  $('levelTxt').textContent=Math.abs(roll)<2?'✓ '+t('level'):Math.round(Math.abs(roll))+'°';
+}
+function startTilt(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',onTilt);}).catch(()=>{});}
+    else window.addEventListener('deviceorientation',onTilt);
+  }catch(e){}
 }
 let hdRec=null,hdId='',hdPart=0;
 function hdStart(id){
@@ -1148,6 +1278,7 @@ async function startSlaveCam(target,via){
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
   camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);
+  $('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);startTilt();
   sConnect();
 }
 async function sConnect(){
@@ -1157,6 +1288,7 @@ async function sConnect(){
   sConn.on('open',()=>{
     sConn.send({t:'hello',name:camLabel(),via:sVia});
     sCall=p.call(sTarget,sStream,{metadata:{name:camLabel(),via:sVia}});
+    tuneSender();
     sCall.on('close',()=>sLost());
     sendBattery();
     sSend({t:'caps',...camCaps()});
@@ -1166,6 +1298,7 @@ async function sConnect(){
     if(d.t==='welcome')sStatus(true,t('connectedTo',{name:d.name||t('dir')}));
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
     else if(d.t==='zoom')camZoom(d.v);
+    else if(d.t==='lock')setLock(!!d.on);
     else if(d.t==='rec'){if(d.on)hdStart(d.id);else hdStop();}
     else if(d.t==='pause'){try{hdRec&&hdRec.state==='recording'&&hdRec.pause();}catch(e){}}
     else if(d.t==='resume'){try{hdRec&&hdRec.state==='paused'&&hdRec.resume();}catch(e){}}
