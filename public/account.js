@@ -21,7 +21,6 @@ try {
   const db = F.getFirestore(app, C.dbId || 'promulticam');
   const fns = Fn.getFunctions(app, C.region || 'asia-southeast1');
   const call = (name, data) => Fn.httpsCallable(fns, name)(data || {}).then(r => r.data);
-  try { await A.setPersistence(auth, A.browserLocalPersistence); } catch (e) { /* ignore */ }
 
   Object.assign(PMC, {
     login: (email, pw) => A.signInWithEmailAndPassword(auth, email, pw),
