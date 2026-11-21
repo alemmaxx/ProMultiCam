@@ -171,6 +171,10 @@ document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dat
 let saved=null;try{saved=localStorage.getItem('pmc_lang');}catch(e){}
 setLang(saved==='ms'||(!saved&&(navigator.language||'').toLowerCase().startsWith('ms'))?'ms':(saved?'en':'ms'));
 document.getElementById('yr').textContent=new Date().getFullYear();
+if(new URLSearchParams(location.search).get('embed')){
+  document.querySelector('header').style.display='none';
+  document.querySelectorAll('a[href="index.html"]').forEach(a=>a.addEventListener('click',ev=>{ev.preventDefault();parent.postMessage('pmc-close',location.origin);}));
+}
 </script>
 </body>
 </html>
