@@ -99,7 +99,21 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 .bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:7px}.bars i:nth-child(3){height:10px}
 .tile-empty{grid-column:1/-1;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:16px;font-size:13px;color:var(--sub);line-height:1.5;text-align:center}
 .hint{font-size:12px;color:var(--muted)}
-.m-foot{padding:10px 16px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+.m-foot{padding:10px 16px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:8px}
+.m-foot .side{width:56px;min-height:56px;border:0;border-radius:12px;background:var(--soft2);color:var(--ink);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 10px var(--f)}
+.m-foot.rec .side{display:flex}
+#recBtn{flex:1}
+.countdown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,13,.55);font-size:96px;font-weight:800;color:var(--gold)}
+.countdown.show{display:flex}
+.recbadge.paused{background:var(--gold);color:var(--on-gold);animation:none}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink);line-height:1.4}
+.check input{width:20px;height:20px;accent-color:var(--gold);flex-shrink:0;margin-top:1px}
+#liveFeed{position:fixed;inset:0;background:#000;z-index:80;display:none;align-items:center;justify-content:center}
+#liveFeed.show{display:flex}
+#liveFeed canvas{max-width:100vw;max-height:100vh}
+#liveHint{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(11,15,23,.85);color:#eef0f4;border-radius:12px;padding:10px 14px;font-size:13px;text-align:center;max-width:90%;transition:opacity .6s}
+.hdbadge{display:none;align-self:flex-start;background:var(--bad);color:#1a0705;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800}
+.hdbadge.show{display:block}
 #recBtn{width:100%;min-height:56px;border:0;border-radius:12px;background:var(--gold);color:var(--on-gold);font:800 17px var(--f);letter-spacing:.3px}
 #recBtn.recording{background:var(--bad);color:#1a0705}
 .sheet-wrap{position:fixed;inset:0;background:rgba(5,8,13,.72);display:none;flex-direction:column;justify-content:flex-end;z-index:50}
@@ -191,7 +205,8 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div class="stage-box">
       <canvas id="stage" width="720" height="1280"></canvas>
       <div class="tl"><span id="lblAngle" style="color:var(--gold)">Menunggu kamera</span><span id="lblLook">Standard</span></div>
-      <div class="recbadge" id="recBadge">● REC <span id="recTime">00:00</span></div>
+      <div class="recbadge" id="recBadge"><span id="recLbl">● REC</span> <span id="recTime">00:00</span></div>
+      <div class="countdown" id="countdown"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
       <span class="sec" data-i18n="looks"></span>
@@ -214,7 +229,12 @@ input[type=range]{accent-color:var(--gold);width:100%}
     </div>
     <div class="files" id="files" style="display:none;flex-direction:column;gap:6px"></div>
   </div>
-  <div class="m-foot"><button id="recBtn" onclick="toggleRec()"></button></div>
+  <div class="m-foot" id="mFoot">
+    <button class="side" id="pauseBtn" onclick="togglePause()"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span id="pauseLbl" data-i18n="pause"></span></button>
+    <button id="recBtn" onclick="toggleRec()"></button>
+    <button class="side" onclick="addMark()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg><span data-i18n="mark"></span></button>
+  </div>
+  <div id="liveFeed" onclick="liveTap(event)"><div id="liveHint" data-i18n="liveHint"></div></div>
 </div>
 
 <!-- master: connections sheet -->
@@ -236,6 +256,13 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <label class="lbl"><span data-i18n="quality"></span><select class="input" id="qualSel"><option value="720" data-i18n="q720"></option><option value="1080" data-i18n="q1080"></option></select></label>
     <label class="lbl"><span data-i18n="audio"></span><select class="input" id="audioSel"><option value="none">-</option></select></label>
     <label class="lbl"><span data-i18n="title"></span><input class="input" id="titleTxt" maxlength="40" data-i18n-ph="titlePh"></label>
+    <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
+    <label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label>
+    <div class="panel" style="gap:8px;padding:12px">
+      <b style="font-size:15px" data-i18n="liveMode"></b>
+      <span class="hint" style="line-height:1.5" data-i18n="liveHelp"></span>
+      <button class="btn btn-gold" onclick="enterLive()" data-i18n="liveGo"></button>
+    </div>
   </div>
 </div>
 
@@ -281,6 +308,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
       <label class="lbl"><span data-i18n="label"></span><input class="input" id="camLabel" maxlength="20" data-i18n-ph="labelPh"></label>
       <span class="hint" data-i18n="labelHint"></span>
+      <div class="files" id="sfiles" style="display:none;flex-direction:column;gap:6px;margin-top:8px"></div>
     </div>
   </div>
 </div>
@@ -294,6 +322,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <span class="chip chip-ok" id="camVia">Wi-Fi</span>
     </div>
     <span class="onair" id="onAir" data-i18n="onAir"></span>
+    <span class="hdbadge" id="hdBadge" data-i18n="hdOn"></span>
   </div>
   <div class="cam-bot">
     <div id="zoomRow" style="display:none;align-items:center;gap:10px">
@@ -403,16 +432,17 @@ async function savedBlob(dir,type){
 }
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 function mimeOf(name){return name.endsWith('.mp4')?'video/mp4':'video/webm';}
-async function listSaved(){
-  const box=$('files');if(!box)return;
+async function listSaved(boxId){
+  const box=$(boxId||($('slave').classList.contains('show')?'sfiles':'files'));if(!box)return;
   const root=await recRoot();if(!root){return;}
   const items=[];
   for await(const [name,h] of root.entries()){
     if(h.kind!=='directory')continue;
     let size=0,done=false,count=0;
-    for await(const [k,f] of h.entries()){if(k==='_done')done=true;else if(f.kind==='file'){count++;try{size+=(await f.getFile()).size;}catch(e){}}}
+    let marks=null;
+    for await(const [k,f] of h.entries()){if(k==='_done')done=true;else if(k==='_markers.txt'){try{marks=await (await f.getFile()).text();}catch(e){}}else if(f.kind==='file'&&k[0]!=='_'){count++;try{size+=(await f.getFile()).size;}catch(e){}}}
     if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
-    items.push({name,h,size,done});
+    items.push({name,h,size,done,marks});
   }
   items.sort((a,b)=>a.name<b.name?1:-1);
   box.innerHTML='';box.style.display=items.length?'flex':'none';
@@ -422,11 +452,13 @@ async function listSaved(){
     const d=document.createElement('div');d.className='item';
     d.innerHTML='<span class="dot ok"></span><div class="tx"><b></b><span></span></div>';
     d.querySelector('b').textContent=it.name.replace(/^ProMultiCam_/,'');
-    d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(it.done?'':' · '+t('recovered'));
+    const mc=it.marks?it.marks.trim().split('\n').filter(Boolean).length-1:0;
+    d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(mc>0?' · '+t('markers',{n:mc}):'')+(it.done?'':' · '+t('recovered'));
     if(!it.done)d.querySelector('.dot').style.background='var(--gold)';
     const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('download');
     dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));downloadBlob(b,it.name);};
     d.appendChild(dl);
+    if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');d.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
       sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};d.appendChild(sh);}
     const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
@@ -672,30 +704,87 @@ function draw(){
     ctx.fillStyle='#1b1503';ctx.fillText(title,W/2,ty+fs*1.15);
   }
 }
+let recId='',pausedAt=0,pausedTotal=0,marks=[],counting=false;
+function recElapsed(){return Math.floor(((pausedAt||Date.now())-recStart-pausedTotal)/1000);}
+function fmt(sec){return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');}
+function tellCams(o){sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send(o);}catch(e){}});}
 async function toggleRec(){
-  if(recorder&&recorder.state==='recording'){stopRec();return;}
+  if(counting)return;
+  if(recorder&&recorder.state!=='inactive'){stopRec();return;}
   if(!sources.some(s=>s.stream)){toast(t('needCam'));return;}
+  if($('optCount').checked){
+    counting=true;const cd=$('countdown');cd.classList.add('show');
+    for(let i=3;i>0;i--){cd.textContent=i;try{navigator.vibrate&&navigator.vibrate(60);}catch(e){}await new Promise(r=>setTimeout(r,1000));}
+    cd.classList.remove('show');counting=false;
+  }
   const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm';
   actx=new(window.AudioContext||window.webkitAudioContext)();adest=actx.createMediaStreamDestination();
   if(actx.state==='suspended')await actx.resume();
   applyAudio();
-  const out=stage.captureStream(30);adest.stream.getAudioTracks().forEach(t=>out.addTrack(t));
+  const out=stage.captureStream(30);adest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
   const bps=stage.width*stage.height>=1900000?8000000:4500000;
   try{recorder=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:bps,audioBitsPerSecond:128000}:{});}
   catch(e){toast(t('noRec'));return;}
-  const sv=saver=new Saver(`ProMultiCam_${stamp()}.${ext}`);
+  recId=stamp();marks=[];pausedAt=0;pausedTotal=0;
+  const sv=saver=new Saver(`ProMultiCam_${recId}.${ext}`);
   recorder.ondataavailable=e=>sv.push(e.data);
-  recorder.onstop=async()=>{const r=await sv.finish(recorder.mimeType||mime||'video/webm');toast(t('saved',{w:r.where}),4000);listSaved();try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;};
+  recorder.onstop=async()=>{
+    if(marks.length&&sv.dir){try{const fh=await sv.dir.getFileHandle('_markers.txt',{create:true});const w=await fh.createWritable();await w.write('ProMultiCam markers · '+recId+'\n'+marks.map((m,i)=>`${i+1}. ${fmt(m.t)}  ${m.angle}`).join('\n')+'\n');await w.close();}catch(e){}}
+    const r=await sv.finish(recorder.mimeType||mime||'video/webm');toast(t('saved',{w:r.where}),4000);listSaved('files');
+    try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;
+  };
   recorder.start(3000);recStart=Date.now();
-  $('recBtn').textContent=t('recStop')+'  ·  00:00';$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
+  if($('optHD').checked)tellCams({t:'rec',on:true,id:recId});
+  $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
-  recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000),tm=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;},500);
+  const tick=()=>{const tm=fmt(recElapsed());$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;};
+  tick();recTimer=setInterval(tick,500);
+}
+function togglePause(){
+  if(!recorder||recorder.state==='inactive')return;
+  if(recorder.state==='recording'){
+    recorder.pause();pausedAt=Date.now();tellCams({t:'pause'});
+    $('recLbl').textContent='II '+t('paused');$('recBadge').classList.add('paused');$('pauseLbl').textContent=t('resume');
+  }else{
+    recorder.resume();pausedTotal+=Date.now()-pausedAt;pausedAt=0;tellCams({t:'resume'});
+    $('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
+  }
+}
+function addMark(){
+  if(!recorder||recorder.state==='inactive')return;
+  const m=sources.find(x=>x.id===mainId);const sec=recElapsed();
+  marks.push({t:sec,angle:m?m.name:''});
+  try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}
+  toast(t('marked',{tm:fmt(sec)}));
 }
 function stopRec(){
   if(recorder&&recorder.state!=='inactive')recorder.stop();
+  tellCams({t:'rec',on:false});
   clearInterval(recTimer);
+  $('mFoot').classList.remove('rec');$('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
   $('recBtn').textContent=t('recStart');$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
   $('aspectSel').disabled=$('qualSel').disabled=false;toast(t('saving'));
+}
+/* ---------- Live mode: clean full-screen feed for TikTok screen share ---------- */
+let liveHome=null,lastTap=0,hintT=null;
+function enterLive(){
+  closeSheet('setSheet');
+  liveHome=stage.parentNode;$('liveFeed').insertBefore(stage,$('liveHint'));$('liveFeed').classList.add('show');
+  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}catch(e){}
+  const h=$('liveHint');h.style.opacity='1';clearTimeout(hintT);hintT=setTimeout(()=>h.style.opacity='0',4000);
+}
+function exitLive(){
+  $('liveFeed').classList.remove('show');liveHome.insertBefore(stage,liveHome.firstChild);
+  try{document.fullscreenElement&&document.exitFullscreen();}catch(e){}
+}
+function liveTap(e){
+  const now=Date.now();
+  if(now-lastTap<350){exitLive();lastTap=0;return;}
+  lastTap=now;
+  const x=e.clientX/window.innerWidth,list=sources.filter(s=>s.stream);if(!list.length)return;
+  let i=list.findIndex(s=>s.id===mainId);
+  if(x<0.35)i=(i-1+list.length)%list.length;else if(x>0.65)i=(i+1)%list.length;else return;
+  setTimeout(()=>{if(lastTap===now){mainId=list[i].id;renderTiles();sendLive();}},360);
 }
 /* ---------- signal & battery ---------- */
 function paintStat(s){
@@ -736,6 +825,7 @@ function goSlave(){
     if(b.dataset.t==='wifi')scanMasters();
   });
   scanMasters();
+  listSaved('sfiles');
 }
 function camLabel(){const v=($('camLabel').value||'').trim();try{localStorage.setItem('pmc_label',v);}catch(e){}return v||getName();}
 async function ensurePeer(){
@@ -794,17 +884,31 @@ function camCaps(){
   return{zoom,torch:!!c.torch};
 }
 async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
-async function camTorch(){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;sTorch=!sTorch;try{await t.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
+async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
 async function camFlip(){
   sFacing=sFacing==='environment'?'user':'environment';
   try{
     const ns=await getCam(),old=sStream;sStream=ns;$('camVideo').srcObject=ns;
     $('camVideo').style.transform=sFacing==='user'?'scaleX(-1)':'';
     if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(!s.track)continue;const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];if(nt)await s.replaceTrack(nt);}
-    old.getTracks().forEach(t=>t.stop());
+    if(hdRec&&hdRec.state!=='inactive'){hdRec.stop();setTimeout(()=>hdStart(),300);}
+    old.getTracks().forEach(tr=>tr.stop());
     sSend({t:'caps',...camCaps()});
   }catch(e){toast(t('flipFail'));}
 }
+let hdRec=null,hdId='',hdPart=0;
+function hdStart(id){
+  if(hdRec&&hdRec.state!=='inactive')return;
+  if(id){hdId=id;hdPart=0;}
+  const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm';
+  const lab=camLabel().replace(/[^\p{L}\p{N}_-]+/gu,'_');
+  const sv=new Saver(`ProMultiCam_${hdId}_${lab}${hdPart?'_'+(hdPart+1):''}.${ext}`);hdPart++;
+  try{hdRec=new MediaRecorder(sStream,mime?{mimeType:mime,videoBitsPerSecond:10000000,audioBitsPerSecond:128000}:{});}catch(e){return;}
+  hdRec.ondataavailable=e=>sv.push(e.data);
+  hdRec.onstop=async()=>{const r=await sv.finish(hdRec.mimeType||mime||'video/webm');toast(t('hdSaved',{w:r.where}),4000);};
+  hdRec.start(3000);$('hdBadge').classList.add('show');
+}
+function hdStop(){if(hdRec&&hdRec.state!=='inactive')hdRec.stop();$('hdBadge').classList.remove('show');}
 let battObj=null;
 async function sendBattery(){
   try{
@@ -839,6 +943,9 @@ async function sConnect(){
     if(d.t==='welcome')sStatus(true,t('connectedTo',{name:d.name||t('dir')}));
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
     else if(d.t==='zoom')camZoom(d.v);
+    else if(d.t==='rec'){if(d.on)hdStart(d.id);else hdStop();}
+    else if(d.t==='pause'){try{hdRec&&hdRec.state==='recording'&&hdRec.pause();}catch(e){}}
+    else if(d.t==='resume'){try{hdRec&&hdRec.state==='paused'&&hdRec.resume();}catch(e){}}
     else if(d.t==='kick'){sKicked=true;toast(t('kicked'));setTimeout(leave,1500);}
   });
   sConn.on('close',()=>sLost());

@@ -6,6 +6,7 @@ window.LANGS = [
 ];
 window.I18N = {
 en:{
+ pause:'Pause', resume:'Resume', paused:'PAUSED', mark:'Mark', marked:'📍 Marked at {tm}', markers:'{n} marks', countdownOpt:'3-second countdown before recording', hdOpt:'HD recording on every angle (each camera phone also saves its own full-quality copy for editing later)', hdOn:'● HD REC', hdSaved:'HD copy saved: {w}', liveMode:'Live Mode', liveHelp:'For TikTok LIVE: start a screen-share LIVE (Mobile Gaming) in TikTok, come back here and tap Start Live Mode. Viewers see only the clean video.', liveGo:'Start Live Mode', liveHint:'Tap left / right to switch angle · double-tap to exit',
  savedRecs:'Saved recordings', download:'Download', del:'Delete', recovered:'recovered', weak:'{name}: weak signal', battLow:'{name}: low battery ({n}%)',
  tag:'A MULTI-CAMERA STUDIO IN YOUR POCKET',
  hero:'Create studio-quality cooking videos with several phones. Switch camera angles live, with a single tap.',
@@ -44,6 +45,7 @@ en:{
  kicked:'The Director ended the connection', back:'Back', close:'Close', settingsBtn:'Settings'
 },
 ms:{
+ pause:'Jeda', resume:'Sambung', paused:'DIJEDA', mark:'Tanda', marked:'📍 Ditanda pada {tm}', markers:'{n} tanda', countdownOpt:'Kira detik 3 saat sebelum merakam', hdOpt:'Rakaman HD setiap sudut (setiap telefon kamera turut simpan salinan kualiti penuh untuk diedit kemudian)', hdOn:'● RAKAM HD', hdSaved:'Salinan HD disimpan: {w}', liveMode:'Mod Live', liveHelp:'Untuk TikTok LIVE: mulakan LIVE kongsi skrin (Mobile Gaming) dalam TikTok, kembali ke sini dan tekan Mula Mod Live. Penonton hanya nampak video yang bersih.', liveGo:'Mula Mod Live', liveHint:'Ketik kiri / kanan untuk tukar sudut · ketik dua kali untuk keluar',
  savedRecs:'Rakaman tersimpan', download:'Muat turun', del:'Padam', recovered:'dipulihkan', weak:'{name}: isyarat lemah', battLow:'{name}: bateri rendah ({n}%)',
  tag:'STUDIO MULTI-KAMERA DALAM POKET ANDA',
  hero:'Hasilkan video masakan bertaraf studio dengan beberapa telefon. Tukar sudut kamera secara langsung, dengan satu sentuhan.',
@@ -82,6 +84,7 @@ ms:{
  kicked:'Pengarah telah memutuskan sambungan', back:'Kembali', close:'Tutup', settingsBtn:'Tetapan'
 },
 id:{
+ pause:'Jeda', resume:'Lanjut', paused:'DIJEDA', mark:'Tanda', marked:'📍 Ditandai di {tm}', markers:'{n} tanda', countdownOpt:'Hitung mundur 3 detik sebelum merekam', hdOpt:'Rekaman HD tiap sudut (tiap ponsel kamera juga menyimpan salinan kualitas penuh)', hdOn:'● REKAM HD', hdSaved:'Salinan HD disimpan: {w}', liveMode:'Mode Live', liveHelp:'Untuk TikTok LIVE: mulai LIVE berbagi layar (Mobile Gaming) di TikTok, kembali ke sini lalu ketuk Mulai Mode Live.', liveGo:'Mulai Mode Live', liveHint:'Ketuk kiri / kanan untuk ganti sudut · ketuk dua kali untuk keluar',
  savedRecs:'Rekaman tersimpan', download:'Unduh', del:'Hapus', recovered:'dipulihkan', weak:'{name}: sinyal lemah', battLow:'{name}: baterai lemah ({n}%)',
  installed:'Aplikasi terpasang', camInUse:'Kamera ponsel ini sudah dipakai', noRec:'Perangkat ini tidak mendukung perekaman video', flipFail:'Tidak bisa mengganti kamera', torchFail:'Senter tidak didukung',
  tag:'STUDIO MULTI-KAMERA DI SAKU ANDA', hero:'Buat video masak berkualitas studio dengan beberapa ponsel. Ganti sudut kamera secara langsung, cukup satu sentuhan.',
@@ -108,6 +111,7 @@ id:{
  allowCam:'Izinkan akses kamera', allowCamMic:'Izinkan akses kamera dan mikrofon', needCam:'Hubungkan minimal satu kamera dulu', saving:'Menyimpan video Anda…', saved:'✅ Video disimpan: {w}', videoSaved:'Video tersimpan', share:'Bagikan', kicked:'Sutradara memutuskan koneksi', back:'Kembali', close:'Tutup', settingsBtn:'Pengaturan'
 },
 zh:{
+ pause:'暂停', resume:'继续', paused:'已暂停', mark:'标记', marked:'📍 已在 {tm} 标记', markers:'{n} 个标记', countdownOpt:'录制前 3 秒倒计时', hdOpt:'每个机位高清录制（各摄像机手机同时保存原画质副本，便于后期剪辑）', hdOn:'● 高清录制', hdSaved:'高清副本已保存：{w}', liveMode:'直播模式', liveHelp:'用于 TikTok 直播：在 TikTok 开启屏幕共享直播（手游直播），回到这里点“开始直播模式”，观众只看到干净画面。', liveGo:'开始直播模式', liveHint:'点左 / 右切换机位 · 双击退出',
  savedRecs:'已保存的录像', download:'下载', del:'删除', recovered:'已恢复', weak:'{name}：信号弱', battLow:'{name}：电量低（{n}%）',
  installed:'应用已安装', camInUse:'本机摄像头已在使用', noRec:'此设备不支持视频录制', flipFail:'无法切换摄像头', torchFail:'不支持闪光灯',
  tag:'口袋里的多机位工作室', hero:'用几部手机拍出影棚级烹饪视频。一键实时切换机位。',
@@ -134,6 +138,7 @@ zh:{
  allowCam:'请允许使用摄像头', allowCamMic:'请允许使用摄像头和麦克风', needCam:'请先连接至少一个机位', saving:'正在保存视频…', saved:'✅ 视频已保存：{w}', videoSaved:'视频已保存', share:'分享', kicked:'导演已断开连接', back:'返回', close:'关闭', settingsBtn:'设置'
 },
 es:{
+ pause:'Pausa', resume:'Reanudar', paused:'EN PAUSA', mark:'Marcar', marked:'📍 Marcado en {tm}', markers:'{n} marcas', countdownOpt:'Cuenta atrás de 3 segundos', hdOpt:'Grabación HD de cada ángulo (cada teléfono cámara guarda también su copia en calidad completa)', hdOn:'● GRABANDO HD', hdSaved:'Copia HD guardada: {w}', liveMode:'Modo Live', liveHelp:'Para TikTok LIVE: inicia un LIVE de pantalla compartida (Mobile Gaming) en TikTok, vuelve aquí y toca Iniciar modo Live.', liveGo:'Iniciar modo Live', liveHint:'Toca izquierda / derecha para cambiar de ángulo · doble toque para salir',
  savedRecs:'Grabaciones guardadas', download:'Descargar', del:'Eliminar', recovered:'recuperada', weak:'{name}: señal débil', battLow:'{name}: batería baja ({n}%)',
  installed:'App instalada', camInUse:'La cámara de este teléfono ya está en uso', noRec:'Este dispositivo no admite grabación de video', flipFail:'No se pudo cambiar la cámara', torchFail:'Linterna no compatible',
  tag:'UN ESTUDIO MULTICÁMARA EN TU BOLSILLO', hero:'Crea videos de cocina con calidad de estudio usando varios teléfonos. Cambia de ángulo en directo con un toque.',
@@ -160,6 +165,7 @@ es:{
  allowCam:'Permite el acceso a la cámara', allowCamMic:'Permite el acceso a cámara y micrófono', needCam:'Conecta al menos una cámara', saving:'Guardando tu video…', saved:'✅ Video guardado: {w}', videoSaved:'Video guardado', share:'Compartir', kicked:'El Director cerró la conexión', back:'Atrás', close:'Cerrar', settingsBtn:'Ajustes'
 },
 pt:{
+ pause:'Pausar', resume:'Retomar', paused:'PAUSADO', mark:'Marcar', marked:'📍 Marcado em {tm}', markers:'{n} marcas', countdownOpt:'Contagem regressiva de 3 segundos', hdOpt:'Gravação HD em cada ângulo (cada celular câmera também salva sua cópia em qualidade total)', hdOn:'● GRAVANDO HD', hdSaved:'Cópia HD salva: {w}', liveMode:'Modo Live', liveHelp:'Para TikTok LIVE: inicie uma LIVE de compartilhamento de tela (Mobile Gaming) no TikTok, volte aqui e toque em Iniciar modo Live.', liveGo:'Iniciar modo Live', liveHint:'Toque à esquerda / direita para trocar o ângulo · toque duplo para sair',
  savedRecs:'Gravações salvas', download:'Baixar', del:'Excluir', recovered:'recuperada', weak:'{name}: sinal fraco', battLow:'{name}: bateria fraca ({n}%)',
  installed:'App instalado', camInUse:'A câmera deste celular já está em uso', noRec:'Este dispositivo não suporta gravação de vídeo', flipFail:'Não foi possível trocar a câmera', torchFail:'Lanterna não suportada',
  tag:'UM ESTÚDIO MULTICÂMERA NO SEU BOLSO', hero:'Crie vídeos de culinária com qualidade de estúdio usando vários celulares. Troque de ângulo ao vivo com um toque.',
@@ -186,6 +192,7 @@ pt:{
  allowCam:'Permita o acesso à câmera', allowCamMic:'Permita o acesso à câmera e ao microfone', needCam:'Conecte pelo menos uma câmera', saving:'Salvando seu vídeo…', saved:'✅ Vídeo salvo: {w}', videoSaved:'Vídeo salvo', share:'Compartilhar', kicked:'O Diretor encerrou a conexão', back:'Voltar', close:'Fechar', settingsBtn:'Configurações'
 },
 fr:{
+ pause:'Pause', resume:'Reprendre', paused:'EN PAUSE', mark:'Repère', marked:'📍 Repère à {tm}', markers:'{n} repères', countdownOpt:'Compte à rebours de 3 secondes', hdOpt:'Enregistrement HD de chaque angle (chaque téléphone caméra garde aussi sa copie en pleine qualité)', hdOn:'● ENREG. HD', hdSaved:'Copie HD enregistrée : {w}', liveMode:'Mode Live', liveHelp:'Pour TikTok LIVE : lancez un LIVE en partage d’écran (Mobile Gaming) dans TikTok, revenez ici et touchez Démarrer le mode Live.', liveGo:'Démarrer le mode Live', liveHint:'Touchez à gauche / droite pour changer d’angle · double-touchez pour quitter',
  savedRecs:'Enregistrements', download:'Télécharger', del:'Supprimer', recovered:'récupéré', weak:'{name} : signal faible', battLow:'{name} : batterie faible ({n} %)',
  installed:'Application installée', camInUse:'La caméra de ce téléphone est déjà utilisée', noRec:'Cet appareil ne prend pas en charge l’enregistrement vidéo', flipFail:'Impossible de changer de caméra', torchFail:'Lampe non prise en charge',
  tag:'UN STUDIO MULTICAMÉRA DANS VOTRE POCHE', hero:'Créez des vidéos culinaires de qualité studio avec plusieurs téléphones. Changez d’angle en direct, d’un seul geste.',
@@ -212,6 +219,7 @@ fr:{
  allowCam:'Autorisez l’accès à la caméra', allowCamMic:'Autorisez l’accès à la caméra et au micro', needCam:'Connectez au moins une caméra', saving:'Enregistrement de votre vidéo…', saved:'✅ Vidéo enregistrée : {w}', videoSaved:'Vidéo enregistrée', share:'Partager', kicked:'Le réalisateur a mis fin à la connexion', back:'Retour', close:'Fermer', settingsBtn:'Réglages'
 },
 ar:{
+ pause:'إيقاف مؤقت', resume:'استئناف', paused:'متوقف مؤقتاً', mark:'علامة', marked:'📍 علامة عند {tm}', markers:'{n} علامات', countdownOpt:'عدّ تنازلي 3 ثوانٍ قبل التسجيل', hdOpt:'تسجيل HD لكل زاوية (كل هاتف كاميرا يحفظ نسخة بجودة كاملة)', hdOn:'● تسجيل HD', hdSaved:'تم حفظ نسخة HD: {w}', liveMode:'وضع البث', liveHelp:'لبث TikTok المباشر: ابدأ بثاً بمشاركة الشاشة في TikTok، ثم عد إلى هنا واضغط بدء وضع البث.', liveGo:'بدء وضع البث', liveHint:'المس يساراً / يميناً لتبديل الزاوية · المس مرتين للخروج',
  savedRecs:'التسجيلات المحفوظة', download:'تنزيل', del:'حذف', recovered:'مُستعاد', weak:'{name}: إشارة ضعيفة', battLow:'{name}: بطارية منخفضة ({n}%)',
  installed:'تم تثبيت التطبيق', camInUse:'كاميرا هذا الهاتف قيد الاستخدام', noRec:'هذا الجهاز لا يدعم تسجيل الفيديو', flipFail:'تعذّر تبديل الكاميرا', torchFail:'الفلاش غير مدعوم',
  tag:'استوديو متعدد الكاميرات في جيبك', hero:'اصنع فيديوهات طبخ بجودة الاستوديو باستخدام عدة هواتف. بدّل زوايا التصوير مباشرةً بلمسة واحدة.',
@@ -238,6 +246,7 @@ ar:{
  allowCam:'يرجى السماح بالوصول إلى الكاميرا', allowCamMic:'يرجى السماح بالوصول إلى الكاميرا والميكروفون', needCam:'اربط كاميرا واحدة على الأقل', saving:'جارٍ حفظ الفيديو…', saved:'✅ تم حفظ الفيديو: {w}', videoSaved:'تم حفظ الفيديو', share:'مشاركة', kicked:'أنهى المخرج الاتصال', back:'رجوع', close:'إغلاق', settingsBtn:'الإعدادات'
 },
 hi:{
+ pause:'रोकें', resume:'फिर शुरू', paused:'रुका हुआ', mark:'मार्क', marked:'📍 {tm} पर मार्क किया', markers:'{n} मार्क', countdownOpt:'रिकॉर्डिंग से पहले 3 सेकंड काउंटडाउन', hdOpt:'हर एंगल पर HD रिकॉर्डिंग (हर कैमरा फ़ोन फ़ुल-क्वालिटी कॉपी भी सेव करता है)', hdOn:'● HD रिकॉर्ड', hdSaved:'HD कॉपी सेव हुई: {w}', liveMode:'लाइव मोड', liveHelp:'TikTok LIVE के लिए: TikTok में स्क्रीन-शेयर LIVE शुरू करें, यहाँ लौटें और लाइव मोड शुरू करें दबाएँ।', liveGo:'लाइव मोड शुरू करें', liveHint:'एंगल बदलने के लिए बाएँ / दाएँ टैप करें · बाहर निकलने के लिए डबल-टैप',
  savedRecs:'सेव रिकॉर्डिंग', download:'डाउनलोड', del:'हटाएँ', recovered:'रिकवर', weak:'{name}: कमज़ोर सिग्नल', battLow:'{name}: बैटरी कम ({n}%)',
  installed:'ऐप इंस्टॉल हो गया', camInUse:'इस फ़ोन का कैमरा पहले से उपयोग में है', noRec:'यह डिवाइस वीडियो रिकॉर्डिंग सपोर्ट नहीं करता', flipFail:'कैमरा बदल नहीं सका', torchFail:'फ़्लैशलाइट सपोर्ट नहीं है',
  tag:'आपकी जेब में मल्टी-कैमरा स्टूडियो', hero:'कई फ़ोन से स्टूडियो-क्वालिटी कुकिंग वीडियो बनाएँ। एक टैप में लाइव कैमरा एंगल बदलें।',
@@ -264,6 +273,7 @@ hi:{
  allowCam:'कृपया कैमरा एक्सेस दें', allowCamMic:'कृपया कैमरा और माइक्रोफ़ोन एक्सेस दें', needCam:'पहले कम से कम एक कैमरा जोड़ें', saving:'आपका वीडियो सेव हो रहा है…', saved:'✅ वीडियो सेव हुआ: {w}', videoSaved:'वीडियो सेव हुआ', share:'शेयर', kicked:'डायरेक्टर ने कनेक्शन बंद किया', back:'वापस', close:'बंद करें', settingsBtn:'सेटिंग'
 },
 th:{
+ pause:'หยุดชั่วคราว', resume:'ทำต่อ', paused:'หยุดชั่วคราว', mark:'ทำเครื่องหมาย', marked:'📍 ทำเครื่องหมายที่ {tm}', markers:'{n} เครื่องหมาย', countdownOpt:'นับถอยหลัง 3 วินาทีก่อนบันทึก', hdOpt:'บันทึก HD ทุกมุม (โทรศัพท์กล้องแต่ละเครื่องเก็บสำเนาคุณภาพเต็มไว้ด้วย)', hdOn:'● บันทึก HD', hdSaved:'บันทึกสำเนา HD แล้ว: {w}', liveMode:'โหมดไลฟ์', liveHelp:'สำหรับ TikTok LIVE: เริ่มไลฟ์แบบแชร์หน้าจอใน TikTok แล้วกลับมาที่นี่และแตะเริ่มโหมดไลฟ์', liveGo:'เริ่มโหมดไลฟ์', liveHint:'แตะซ้าย / ขวาเพื่อสลับมุม · แตะสองครั้งเพื่อออก',
  savedRecs:'วิดีโอที่บันทึกไว้', download:'ดาวน์โหลด', del:'ลบ', recovered:'กู้คืนแล้ว', weak:'{name}: สัญญาณอ่อน', battLow:'{name}: แบตเตอรี่ต่ำ ({n}%)',
  installed:'ติดตั้งแอปแล้ว', camInUse:'กล้องของเครื่องนี้ถูกใช้อยู่แล้ว', noRec:'อุปกรณ์นี้ไม่รองรับการบันทึกวิดีโอ', flipFail:'สลับกล้องไม่ได้', torchFail:'ไม่รองรับไฟฉาย',
  tag:'สตูดิโอหลายกล้องในกระเป๋าของคุณ', hero:'สร้างวิดีโอทำอาหารระดับสตูดิโอด้วยโทรศัพท์หลายเครื่อง สลับมุมกล้องแบบสดได้ในแตะเดียว',
@@ -290,6 +300,7 @@ th:{
  allowCam:'โปรดอนุญาตการเข้าถึงกล้อง', allowCamMic:'โปรดอนุญาตการเข้าถึงกล้องและไมโครโฟน', needCam:'เชื่อมต่ออย่างน้อยหนึ่งกล้องก่อน', saving:'กำลังบันทึกวิดีโอ…', saved:'✅ บันทึกวิดีโอแล้ว: {w}', videoSaved:'บันทึกวิดีโอแล้ว', share:'แชร์', kicked:'ผู้กำกับตัดการเชื่อมต่อ', back:'กลับ', close:'ปิด', settingsBtn:'ตั้งค่า'
 },
 vi:{
+ pause:'Tạm dừng', resume:'Tiếp tục', paused:'ĐÃ TẠM DỪNG', mark:'Đánh dấu', marked:'📍 Đã đánh dấu tại {tm}', markers:'{n} dấu', countdownOpt:'Đếm ngược 3 giây trước khi ghi', hdOpt:'Ghi HD mọi góc (mỗi điện thoại máy quay cũng lưu bản chất lượng đầy đủ)', hdOn:'● GHI HD', hdSaved:'Đã lưu bản HD: {w}', liveMode:'Chế độ Live', liveHelp:'Cho TikTok LIVE: bắt đầu LIVE chia sẻ màn hình trong TikTok, quay lại đây và chạm Bắt đầu chế độ Live.', liveGo:'Bắt đầu chế độ Live', liveHint:'Chạm trái / phải để đổi góc · chạm hai lần để thoát',
  savedRecs:'Bản ghi đã lưu', download:'Tải xuống', del:'Xóa', recovered:'đã khôi phục', weak:'{name}: tín hiệu yếu', battLow:'{name}: pin yếu ({n}%)',
  installed:'Đã cài ứng dụng', camInUse:'Camera của máy này đang được dùng', noRec:'Thiết bị không hỗ trợ ghi video', flipFail:'Không thể đổi camera', torchFail:'Không hỗ trợ đèn pin',
  tag:'STUDIO NHIỀU MÁY QUAY TRONG TÚI BẠN', hero:'Tạo video nấu ăn chất lượng studio bằng nhiều điện thoại. Chuyển góc máy trực tiếp chỉ với một chạm.',
@@ -316,6 +327,7 @@ vi:{
  allowCam:'Vui lòng cho phép truy cập camera', allowCamMic:'Vui lòng cho phép truy cập camera và micro', needCam:'Hãy kết nối ít nhất một máy quay', saving:'Đang lưu video…', saved:'✅ Đã lưu video: {w}', videoSaved:'Đã lưu video', share:'Chia sẻ', kicked:'Đạo diễn đã ngắt kết nối', back:'Quay lại', close:'Đóng', settingsBtn:'Cài đặt'
 },
 ja:{
+ pause:'一時停止', resume:'再開', paused:'一時停止中', mark:'マーク', marked:'📍 {tm} にマーク', markers:'{n} 個のマーク', countdownOpt:'録画前に3秒カウントダウン', hdOpt:'全アングルHD録画（各カメラ端末にも高画質コピーを保存）', hdOn:'● HD録画中', hdSaved:'HDコピーを保存：{w}', liveMode:'ライブモード', liveHelp:'TikTok LIVE の場合：TikTok で画面共有ライブ（モバイルゲーム）を開始し、ここに戻って「ライブモード開始」をタップ。', liveGo:'ライブモード開始', liveHint:'左右タップでアングル切替 · ダブルタップで終了',
  savedRecs:'保存済みの録画', download:'ダウンロード', del:'削除', recovered:'復元済み', weak:'{name}：電波が弱い', battLow:'{name}：バッテリー残量低下（{n}%）',
  installed:'アプリをインストールしました', camInUse:'このスマホのカメラは使用中です', noRec:'この端末は動画録画に対応していません', flipFail:'カメラを切り替えられません', torchFail:'ライトに対応していません',
  tag:'ポケットの中のマルチカメラスタジオ', hero:'複数のスマホでスタジオ品質の料理動画を。ワンタップでカメラアングルをライブ切替。',
