@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>ProMultiCam · Studio multi-kamera dalam poket anda</title>
+<title>ProMultiCam</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0b0f17">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<script src="i18n.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 :root{
@@ -142,30 +143,32 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <!-- ================= HOME ================= -->
 <div id="home" class="screen show">
   <div class="hero">
-    <div class="logo"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="14" height="10" rx="2"/><path d="M16 11l6-3v8l-6-3"/></svg></div>
-    <span class="tag">STUDIO MULTI-KAMERA DALAM POKET ANDA</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="14" height="10" rx="2"/><path d="M16 11l6-3v8l-6-3"/></svg></div><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:170px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select></div>
+    <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam</h1>
-    <p>Hasilkan video masakan bertaraf studio dengan beberapa telefon. Tukar sudut kamera secara langsung, dengan satu sentuhan.</p>
+    <p data-i18n="hero"></p>
+    <button class="btn btn-gold" id="installBtn" style="display:none;align-self:flex-start;margin-top:4px" onclick="doInstall()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span data-i18n="install"></span></button>
+    <span class="hint" id="iosHint" style="display:none" data-i18n="installIos"></span>
   </div>
   <div class="home-body">
-    <label class="lbl">Nama peranti anda<input class="input" id="devName" maxlength="24" placeholder="cth: Dapur Alim"></label>
-    <span class="sec muted" style="margin-top:4px">Pilih peranan telefon ini</span>
+    <label class="lbl"><span data-i18n="devName"></span><input class="input" id="devName" maxlength="24" data-i18n-ph="devNamePh"></label>
+    <span class="sec muted" style="margin-top:4px" data-i18n="pickRole"></span>
     <button class="role master" onclick="goMaster()">
       <div class="ic" style="background:var(--gold)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1b1503" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#1b1503"/></svg></div>
-      <div class="tx"><b style="color:var(--gold)">MASTER STUDIO</b><span>Kawal semua sudut dan rakam video akhir anda.</span></div>
+      <div class="tx"><b style="color:var(--gold)" data-i18n="dir"></b><span data-i18n="dirDesc"></span></div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
     <button class="role" onclick="goSlave()">
       <div class="ic" style="background:var(--info-soft)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-      <div class="tx"><b style="color:var(--info)">SLAVE · KAMERA SUDUT</b><span>Jadikan telefon ini kamera tambahan. Tanpa setup rumit.</span></div>
+      <div class="tx"><b style="color:var(--info)" data-i18n="cam"></b><span data-i18n="camDesc"></span></div>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#98a2b3" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
     <div class="conn-card">
-      <span class="sec">Sambung dengan cara anda</span>
+      <span class="sec" data-i18n="connWays"></span>
       <div class="conn-grid">
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2fbf8c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="#2fbf8c"/></svg>Wi-Fi</div>
         <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>Bluetooth</div>
-        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20v-12M20 20V4"/></svg>Data mudah alih</div>
+        <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20v-12M20 20V4"/></svg><span data-i18n="mobile"></span></div>
       </div>
     </div>
   </div>
@@ -175,7 +178,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <div id="master" class="screen">
   <div class="topbar">
     <button class="icon-btn" aria-label="Kembali" onclick="leave()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <div class="t"><span class="k" style="color:var(--gold)">MASTER STUDIO</span><span class="n" id="mName">Studio</span></div>
+    <div class="t"><span class="k" style="color:var(--gold)" data-i18n="dir"></span><span class="n" id="mName">Studio</span></div>
     <span class="chip chip-ok" id="camCount">0 kamera aktif</span>
     <button class="icon-btn" aria-label="Tetapan" onclick="openSheet('setSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
   </div>
@@ -186,48 +189,48 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <div class="recbadge" id="recBadge">● REC <span id="recTime">00:00</span></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
-      <span class="sec">Gaya Visual</span>
+      <span class="sec" data-i18n="looks"></span>
       <div class="looks" id="looks"></div>
     </div>
     <div class="seg" id="modeSeg">
-      <button data-m="full" class="on">Penuh</button>
-      <button data-m="split">Skrin Belah</button>
-      <button data-m="pip">Bingkai Kecil</button>
+      <button data-m="full" class="on" data-i18n="mFull"></button>
+      <button data-m="split" data-i18n="mSplit"></button>
+      <button data-m="pip" data-i18n="mPip"></button>
     </div>
     <div class="row-between">
-      <span class="sec">Kamera Sudut</span>
-      <button class="btn btn-sm btn-soft" onclick="openSheet('connSheet')">Urus sambungan</button>
+      <span class="sec" data-i18n="angles"></span>
+      <button class="btn btn-sm btn-soft" onclick="openSheet('connSheet')" data-i18n="manage"></button>
     </div>
     <div class="tiles" id="tiles"></div>
     <span class="hint" id="tileHint">Sentuh mana-mana sudut untuk menukar paparan, walaupun semasa merakam.</span>
     <div class="row-between" style="gap:10px">
-      <span class="hint">Zoom sudut utama</span>
+      <span class="hint" data-i18n="zoomMain"></span>
       <input type="range" id="zoom" min="1" max="4" step="0.1" value="1" style="flex:1">
     </div>
     <div class="files" id="files" style="display:none;flex-direction:column;gap:6px"></div>
   </div>
-  <div class="m-foot"><button id="recBtn" onclick="toggleRec()">●  MULA RAKAM</button></div>
+  <div class="m-foot"><button id="recBtn" onclick="toggleRec()"></button></div>
 </div>
 
 <!-- master: connections sheet -->
 <div class="sheet-wrap" id="connSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
-    <div class="row-between"><h3>Kamera aktif</h3><button class="icon-btn" aria-label="Tutup" onclick="closeSheet('connSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="codebox"><div><div class="hint">Kod Studio (untuk sambungan data mudah alih)</div><big id="roomCode">------</big></div></div>
+    <div class="row-between"><h3 data-i18n="liveCams"></h3><button class="icon-btn" aria-label="Tutup" onclick="closeSheet('connSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="codebox"><div><div class="hint" data-i18n="code"></div><big id="roomCode">------</big></div></div>
     <div id="connList" style="display:flex;flex-direction:column;gap:8px"></div>
-    <button class="btn" id="localBtn" onclick="addLocalCam()">+ Guna kamera telefon ini juga</button>
-    <span class="hint" style="line-height:1.5">Kamera dalam Wi-Fi yang sama akan menemui studio ini secara automatik. Wi-Fi memberi paparan paling lancar; data mudah alih sesuai untuk kamera di luar jangkauan Wi-Fi.</span>
+    <button class="btn" id="localBtn" onclick="addLocalCam()" data-i18n="useLocal"></button>
+    <span class="hint" style="line-height:1.5" data-i18n="connHint"></span>
   </div>
 </div>
 
 <!-- master: settings sheet -->
 <div class="sheet-wrap" id="setSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
-    <div class="row-between"><h3>Tetapan rakaman</h3><button class="icon-btn" aria-label="Tutup" onclick="closeSheet('setSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <label class="lbl">Format video<select class="input" id="aspectSel"><option value="p">Menegak 9:16 · TikTok, Reels, Shorts</option><option value="l">Melintang 16:9 · YouTube</option></select></label>
-    <label class="lbl">Kualiti<select class="input" id="qualSel"><option value="720">HD 720p · ringan & lancar</option><option value="1080">Full HD 1080p · paling tajam</option></select></label>
-    <label class="lbl">Sumber audio<select class="input" id="audioSel"><option value="none">Tanpa audio</option></select></label>
-    <label class="lbl">Tajuk pada video (pilihan)<input class="input" id="titleTxt" maxlength="40" placeholder="cth: Nasi Lemak Sambal Sotong"></label>
+    <div class="row-between"><h3 data-i18n="settings"></h3><button class="icon-btn" aria-label="Tutup" onclick="closeSheet('setSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <label class="lbl"><span data-i18n="format"></span><select class="input" id="aspectSel"><option value="p" data-i18n="fmtP"></option><option value="l" data-i18n="fmtL"></option></select></label>
+    <label class="lbl"><span data-i18n="quality"></span><select class="input" id="qualSel"><option value="720" data-i18n="q720"></option><option value="1080" data-i18n="q1080"></option></select></label>
+    <label class="lbl"><span data-i18n="audio"></span><select class="input" id="audioSel"><option value="none">-</option></select></label>
+    <label class="lbl"><span data-i18n="title"></span><input class="input" id="titleTxt" maxlength="40" data-i18n-ph="titlePh"></label>
   </div>
 </div>
 
@@ -235,44 +238,44 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <div id="slave" class="screen">
   <div class="topbar">
     <button class="icon-btn" aria-label="Kembali" onclick="leave()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <div class="t"><span class="k" style="color:var(--info)">SLAVE · KAMERA SUDUT</span><span class="n">Sambung ke Master Studio</span></div>
+    <div class="t"><span class="k" style="color:var(--info)" data-i18n="cam"></span><span class="n" data-i18n="connectTo"></span></div>
   </div>
   <div class="s-body">
     <div style="display:flex;flex-direction:column;gap:6px">
-      <span class="sec muted">Kaedah sambungan</span>
+      <span class="sec muted" data-i18n="method"></span>
       <div class="tabs" id="tabs">
         <button data-t="wifi" class="on">Wi-Fi</button>
         <button data-t="bt">Bluetooth</button>
-        <button data-t="data">Data</button>
+        <button data-t="data" data-i18n="data"></button>
       </div>
     </div>
 
     <div id="tab-wifi" style="display:flex;flex-direction:column;gap:10px">
-      <div class="scan" id="scanMsg"><span class="spin"></span>Mengimbas Master Studio dalam rangkaian Wi-Fi anda…</div>
+      <div class="scan" id="scanMsg"></div>
       <div id="masterList" style="display:flex;flex-direction:column;gap:8px"></div>
-      <button class="btn btn-sm" onclick="scanMasters()" style="align-self:flex-start">↻ Imbas semula</button>
-      <span class="hint" style="line-height:1.5">Tiada router? Sambungkan telefon ini ke hotspot telefon Master untuk sambungan Wi-Fi terus.</span>
+      <button class="btn btn-sm" onclick="scanMasters()" style="align-self:flex-start" data-i18n="rescan"></button>
+      <span class="hint" style="line-height:1.5" data-i18n="noRouter"></span>
     </div>
 
     <div id="tab-bt" class="panel" style="display:none;align-items:center;text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:var(--info-soft);display:grid;place-items:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7aa7f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg></div>
-      <b style="font-size:16px">Pasangan Pantas Bluetooth</b>
-      <span class="chip chip-gold">SEGERA HADIR</span>
-      <span style="font-size:13px;color:var(--sub);line-height:1.5">Dekatkan telefon dengan Master dan sambungan dibuat secara automatik. Ciri ini akan tersedia dalam kemas kini akan datang. Buat masa ini, gunakan Wi-Fi atau Data.</span>
+      <b style="font-size:16px" data-i18n="btTitle"></b>
+      <span class="chip chip-gold" data-i18n="soon"></span>
+      <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="btDesc"></span>
     </div>
 
     <div id="tab-data" class="panel" style="display:none">
-      <b style="font-size:16px">Sambung dari mana-mana</b>
-      <span style="font-size:13px;color:var(--sub);line-height:1.5">Guna data mudah alih 4G/5G. Masukkan Kod Studio 6 digit yang dipaparkan pada telefon Master (Urus sambungan).</span>
+      <b style="font-size:16px" data-i18n="dataTitle"></b>
+      <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="dataDesc"></span>
       <div style="display:flex;gap:8px">
-        <input class="input" id="joinCode" inputmode="numeric" maxlength="6" placeholder="Kod Studio" style="flex:1;min-width:0">
-        <button class="btn btn-gold" onclick="joinByCode()">Sertai</button>
+        <input class="input" id="joinCode" inputmode="numeric" maxlength="6" data-i18n-ph="codePh" style="flex:1;min-width:0">
+        <button class="btn btn-gold" onclick="joinByCode()" data-i18n="join"></button>
       </div>
     </div>
 
     <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
-      <label class="lbl">Label sudut kamera ini<input class="input" id="camLabel" maxlength="20" placeholder="cth: Kuali, Pandangan Luas, Sisi"></label>
-      <span class="hint">Label ini akan dipaparkan pada skrin Master.</span>
+      <label class="lbl"><span data-i18n="label"></span><input class="input" id="camLabel" maxlength="20" data-i18n-ph="labelPh"></label>
+      <span class="hint" data-i18n="labelHint"></span>
     </div>
   </div>
 </div>
@@ -282,23 +285,23 @@ input[type=range]{accent-color:var(--gold);width:100%}
   <video id="camVideo" autoplay playsinline muted></video>
   <div class="cam-top">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <span class="st"><span class="dot" id="camDot"></span><span id="camStatus">Menyambung…</span></span>
+      <span class="st"><span class="dot" id="camDot"></span><span id="camStatus"></span></span>
       <span class="chip chip-ok" id="camVia">Wi-Fi</span>
     </div>
-    <span class="onair" id="onAir">● SEDANG KE UDARA</span>
+    <span class="onair" id="onAir" data-i18n="onAir"></span>
   </div>
   <div class="cam-bot">
     <div id="zoomRow" style="display:none;align-items:center;gap:10px">
-      <span style="font-size:13px;font-weight:700;color:var(--sub)">Zoom</span>
+      <span style="font-size:13px;font-weight:700;color:var(--sub)" data-i18n="zoom"></span>
       <input type="range" id="camZoom" min="1" max="5" step="0.1" value="1" style="flex:1">
       <span id="camZoomVal" style="font-size:13px;font-weight:700;color:var(--gold);min-width:36px">1.0×</span>
     </div>
     <div class="g3">
-      <button class="btn" onclick="camFlip()">Depan / Belakang</button>
-      <button class="btn" id="torchBtn" onclick="camTorch()">Lampu Suluh</button>
-      <button class="btn btn-danger" onclick="leave()">Putuskan</button>
+      <button class="btn" onclick="camFlip()" data-i18n="flip"></button>
+      <button class="btn" id="torchBtn" onclick="camTorch()" data-i18n="torch"></button>
+      <button class="btn btn-danger" onclick="leave()" data-i18n="disconnect"></button>
     </div>
-    <span class="hint" style="text-align:center;line-height:1.5"><span id="camAngleLbl">Sudut</span> · Kamera ini dikawal oleh Master Studio.<br>Video akhir disimpan terus pada telefon Master.</span>
+    <span class="hint" style="text-align:center;line-height:1.5"><span id="camAngleLbl"></span><br><span data-i18n="savedLine"></span></span>
   </div>
 </div>
 
@@ -307,6 +310,35 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <script>
 /* ================= COMMON ================= */
 const PFX='pmc2-';
+let LANG='en';
+function t(k,v){let s=(I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s;}
+function applyI18n(){
+  document.documentElement.lang=LANG;document.documentElement.dir=LANG==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(e=>{e.textContent=t(e.dataset.i18n);});
+  document.querySelectorAll('[data-i18n-ph]').forEach(e=>e.placeholder=t(e.dataset.i18nPh));
+  if(!recorder||recorder.state!=='recording')$('recBtn').textContent=t('recStart');
+  if(typeof renderLooks==='function'&&$('looks').children.length)renderLooks();
+  if($('master').classList.contains('show')){renderTiles();renderConnList();refreshAudio();}
+  if($('slavecam').classList.contains('show'))$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
+}
+function initLang(){
+  let saved=null;try{saved=localStorage.getItem('pmc_lang');}catch(e){}
+  const codes=LANGS.map(l=>l[0]);
+  const nav=(navigator.language||'en').toLowerCase().slice(0,2);
+  LANG=saved&&codes.includes(saved)?saved:(codes.includes(nav)?nav:'en');
+  const sel=$('langSel');LANGS.forEach(([c,n])=>{const o=document.createElement('option');o.value=c;o.textContent=n;sel.appendChild(o);});
+  sel.value=LANG;sel.onchange=()=>{LANG=sel.value;try{localStorage.setItem('pmc_lang',LANG);}catch(e){}applyI18n();};
+}
+/* install as web app */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').style.display='inline-flex';});
+window.addEventListener('appinstalled',()=>{$('installBtn').style.display='none';toast(t('installed'));});
+async function doInstall(){if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice;}catch(e){}deferredPrompt=null;$('installBtn').style.display='none';}
+function initInstall(){
+  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(!standalone&&ios)$('iosHint').style.display='block';
+}
 const LAN_SLOTS=5;
 const $=id=>document.getElementById(id);
 function toast(t,ms=2600){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);}
@@ -320,7 +352,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 const peerOpts={debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}};
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;}
 function pickMime(){for(const m of['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']){try{if(MediaRecorder.isTypeSupported(m))return m;}catch(e){}}return '';}
-function getName(){const v=($('devName').value||'').trim();return v||'Studio Saya';}
+function getName(){const v=($('devName').value||'').trim();return v||'ProMultiCam Studio';}
 try{$('devName').value=localStorage.getItem('pmc_name')||'';$('camLabel').value=localStorage.getItem('pmc_label')||'';}catch(e){}
 function saveName(){try{localStorage.setItem('pmc_name',$('devName').value.trim());}catch(e){}}
 
@@ -372,14 +404,18 @@ let look=LOOKS[0];
 let peers=[], roomCode='', sources=[], mainId=null, secId=null, mode='full';
 let recorder=null, saver=null, recStart=0, recTimer=null, drawTimer=null, actx=null, adest=null, aNode=null, localStream=null;
 const stage=$('stage'), ctx=stage.getContext('2d');
+function renderLooks(){
+  const lb=$('looks');lb.innerHTML='';
+  LOOKS.forEach(l=>{const b=document.createElement('button');b.textContent=t('l_'+l.id);b.className=l.id===look.id?'on':'';b.onclick=()=>{look=l;[...lb.children].forEach(x=>x.classList.toggle('on',x===b));$('lblLook').textContent=t('l_'+l.id);};lb.appendChild(b);});
+  $('lblLook').textContent=t('l_'+look.id);
+}
 
 function newCode(){return String(Math.floor(100000+Math.random()*900000));}
 async function goMaster(){
   saveName();show('master');keepAwake();
   $('mName').textContent=getName();
   // looks
-  const lb=$('looks');lb.innerHTML='';
-  LOOKS.forEach(l=>{const b=document.createElement('button');b.textContent=l.name;b.className=l.id===look.id?'on':'';b.onclick=()=>{look=l;[...lb.children].forEach(x=>x.classList.toggle('on',x===b));$('lblLook').textContent=l.name;};lb.appendChild(b);});
+  renderLooks();
   document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
     mode=b.dataset.m;document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
@@ -427,10 +463,10 @@ function openPeer(id,isCode,onTaken){
 function getSrc(id,name){
   let s=sources.find(x=>x.id===id);
   if(!s){
-    s={id,name:name||('Kamera '+(sources.length+1)),zoom:1,caps:null,stream:null,via:'wifi',video:document.createElement('video')};
+    s={id,name:name||(t('cam')+' '+(sources.length+1)),zoom:1,caps:null,stream:null,via:'wifi',video:document.createElement('video')};
     s.video.muted=true;s.video.playsInline=true;s.video.autoplay=true;s.video.setAttribute('playsinline','');
     sources.push(s);if(!mainId)mainId=id;
-    toast('📷 '+s.name+' telah bersambung');
+    toast(t('joined',{name:s.name}));
   }else if(name)s.name=name;
   renderTiles();
   return s;
@@ -438,31 +474,31 @@ function getSrc(id,name){
 function setStream(s,st){s.stream=st;s.video.srcObject=st;s.video.play().catch(()=>{});renderTiles();refreshAudio();updateZoomUI();}
 function removeSrc(id){
   const i=sources.findIndex(x=>x.id===id);if(i<0)return;
-  const s=sources[i];sources.splice(i,1);toast(s.name+' terputus');
+  const s=sources[i];sources.splice(i,1);toast(t('left',{name:s.name}));
   if(mainId===id)mainId=sources[0]?sources[0].id:null;
   if(secId===id)secId=null;
   renderTiles();renderConnList();refreshAudio();sendLive();
 }
-function viaLabel(v){return v==='data'?'Data':v==='local'?'Telefon ini':'Wi-Fi';}
+function viaLabel(v){return v==='data'?t('data'):v==='local'?t('thisPhone'):'Wi-Fi';}
 function renderTiles(){
   const box=$('tiles');box.innerHTML='';
-  $('camCount').textContent=sources.length+' kamera aktif';
-  if(!sources.length){box.innerHTML='<div class="tile-empty">Belum ada kamera sudut. Di telefon lain, buka ProMultiCam dan pilih <b>SLAVE · KAMERA SUDUT</b>. Telefon dalam Wi-Fi yang sama akan menemui studio ini secara automatik.</div>';updateLabels();return;}
+  $('camCount').textContent=t('camsLive',{n:sources.length});
+  if(!sources.length){box.innerHTML='<div class="tile-empty">'+t('empty')+'</div>';updateLabels();return;}
   sources.forEach(s=>{
     const b=document.createElement('button');
     b.className='tile'+(s.id===mainId?' main':'')+(mode!=='full'&&s.id===secId?' sec2':'');
     b.setAttribute('aria-label','Paparkan '+s.name);
     b.appendChild(s.video);s.video.play().catch(()=>{});
-    const l=document.createElement('span');l.className='lb';l.textContent=s.name+' · '+viaLabel(s.via)+(s.stream?'':' (memuat…)');b.appendChild(l);
-    if(s.id===mainId){const n=document.createElement('span');n.className='nb';n.textContent='UTAMA';b.appendChild(n);}
-    else if(mode!=='full'&&s.id===secId){const n=document.createElement('span');n.className='nb b';n.textContent='KEDUA';b.appendChild(n);}
+    const l=document.createElement('span');l.className='lb';l.textContent=s.name+' · '+viaLabel(s.via)+(s.stream?'':' …');b.appendChild(l);
+    if(s.id===mainId){const n=document.createElement('span');n.className='nb';n.textContent=t('bMain');b.appendChild(n);}
+    else if(mode!=='full'&&s.id===secId){const n=document.createElement('span');n.className='nb b';n.textContent=t('bSec');b.appendChild(n);}
     b.onclick=()=>pick(s.id);
     box.appendChild(b);
   });
-  $('tileHint').textContent=mode==='full'?'Sentuh mana-mana sudut untuk menukar paparan, walaupun semasa merakam.':'Sentuh sudut lain untuk paparan kedua. Sentuh sudut utama untuk tukar kedudukan.';
+  $('tileHint').textContent=mode==='full'?t('hintFull'):t('hintSplit');
   updateLabels();updateZoomUI();
 }
-function updateLabels(){const m=sources.find(s=>s.id===mainId);$('lblAngle').textContent=m?m.name:'Menunggu kamera';}
+function updateLabels(){const m=sources.find(s=>s.id===mainId);$('lblAngle').textContent=m?m.name:t('waiting');}
 function pick(id){
   if(mode==='full')mainId=id;
   else if(id===mainId){if(secId)[mainId,secId]=[secId,mainId];}
@@ -472,13 +508,13 @@ function pick(id){
 function sendLive(){sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
 function renderConnList(){
   const box=$('connList');if(!box)return;box.innerHTML='';
-  if(!sources.length){box.innerHTML='<div class="hint">Belum ada kamera bersambung.</div>';return;}
+  if(!sources.length){box.innerHTML='<div class="hint">'+t('noCams')+'</div>';return;}
   sources.forEach(s=>{
     const d=document.createElement('div');d.className='item';
     const chipCls=s.via==='data'?'chip-gold':s.via==='local'?'chip-info':'chip-ok';
-    d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?'Paparan langsung aktif':'Sedang memuat paparan…'}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
+    d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?t('live'):t('loading')}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
     d.querySelector('b').textContent=s.name;
-    if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent='Putus';x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
+    if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
     box.appendChild(d);
   });
 }
@@ -494,18 +530,18 @@ function setZoom(v){
   else if(s.caps&&s.caps.zoom&&s.conn){try{s.conn.send({t:'zoom',v});}catch(e){}}
 }
 async function addLocalCam(){
-  if(localStream){toast('Kamera telefon ini sudah digunakan');return;}
+  if(localStream){toast(t('camInUse'));return;}
   try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:{echoCancellation:true,noiseSuppression:true}});}
-  catch(e){toast('Sila benarkan akses kamera');return;}
-  const s=getSrc('local','Telefon Master');s.local=true;s.via='local';
+  catch(e){toast(t('allowCam'));return;}
+  const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const t=localStream.getVideoTracks()[0];let c={};try{c=t.getCapabilities?t.getCapabilities():{};}catch(e){}
   s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null};if(s.caps.zoom)s.zoom=c.zoom.min;
   setStream(s,localStream);$('localBtn').disabled=true;renderConnList();
 }
 function refreshAudio(){
   const sel=$('audioSel');const cur=sel.value;
-  sel.innerHTML='<option value="none">Tanpa audio</option>';
-  sources.forEach(s=>{if(s.stream&&s.stream.getAudioTracks().length){const o=document.createElement('option');o.value=s.id;o.textContent='Mikrofon · '+s.name;sel.appendChild(o);}});
+  sel.innerHTML='<option value="none">'+t('noAudio')+'</option>';
+  sources.forEach(s=>{if(s.stream&&s.stream.getAudioTracks().length){const o=document.createElement('option');o.value=s.id;o.textContent=t('mic',{name:s.name});sel.appendChild(o);}});
   if([...sel.options].some(o=>o.value===cur)&&(cur!=='none'||sel._user))sel.value=cur;
   else if(sel.options.length>1)sel.value=sel.options[1].value;
   applyAudio();
@@ -541,7 +577,7 @@ function draw(){
   const m=sources.find(s=>s.id===mainId),sc=sources.find(s=>s.id===secId);
   if(!m||!m.stream){
     ctx.fillStyle='#98a2b3';ctx.font=`600 ${Math.round(Math.min(W,H)/18)}px "Bricolage Grotesque",sans-serif`;ctx.textAlign='center';
-    ctx.fillText('Menunggu kamera sudut…',W/2,H/2);return;
+    ctx.fillText(t('waitingCanvas'),W/2,H/2);return;
   }
   ctx.filter=look.f;
   if(mode==='split'&&sc&&sc.stream){
@@ -572,7 +608,7 @@ function draw(){
 }
 async function toggleRec(){
   if(recorder&&recorder.state==='recording'){stopRec();return;}
-  if(!sources.some(s=>s.stream)){toast('Sambungkan sekurang-kurangnya satu kamera sudut dahulu');return;}
+  if(!sources.some(s=>s.stream)){toast(t('needCam'));return;}
   const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm';
   actx=new(window.AudioContext||window.webkitAudioContext)();adest=actx.createMediaStreamDestination();
   if(actx.state==='suspended')await actx.resume();
@@ -580,28 +616,28 @@ async function toggleRec(){
   const out=stage.captureStream(30);adest.stream.getAudioTracks().forEach(t=>out.addTrack(t));
   const bps=stage.width*stage.height>=1900000?8000000:4500000;
   try{recorder=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:bps,audioBitsPerSecond:128000}:{});}
-  catch(e){toast('Peranti ini tidak menyokong rakaman video');return;}
+  catch(e){toast(t('noRec'));return;}
   const sv=saver=new Saver(`ProMultiCam_${stamp()}.${ext}`);
   recorder.ondataavailable=e=>sv.push(e.data);
   recorder.onstop=async()=>{const r=await sv.finish(recorder.mimeType||mime||'video/webm');addFile(r,sv.name);try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;};
   recorder.start(3000);recStart=Date.now();
-  $('recBtn').textContent='■  HENTIKAN RAKAMAN  ·  00:00';$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
+  $('recBtn').textContent=t('recStop')+'  ·  00:00';$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
-  recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000),t=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');$('recTime').textContent=t;$('recBtn').textContent='■  HENTIKAN RAKAMAN  ·  '+t;},500);
+  recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000),tm=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;},500);
 }
 function stopRec(){
   if(recorder&&recorder.state!=='inactive')recorder.stop();
   clearInterval(recTimer);
-  $('recBtn').textContent='●  MULA RAKAM';$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
-  $('aspectSel').disabled=$('qualSel').disabled=false;toast('Sedang menyimpan video anda…');
+  $('recBtn').textContent=t('recStart');$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
+  $('aspectSel').disabled=$('qualSel').disabled=false;toast(t('saving'));
 }
 function addFile(r,name){
   const box=$('files');box.style.display='flex';
   const d=document.createElement('div');d.className='item';
-  d.innerHTML='<span class="dot ok"></span><div class="tx"><b>Video siap disimpan</b><span></span></div>';
+  d.innerHTML='<span class="dot ok"></span><div class="tx"><b>'+t('videoSaved')+'</b><span></span></div>';
   d.querySelector('.tx span').textContent=r.where;
-  if(r.url&&r.blob&&navigator.canShare){const f=new File([r.blob],name,{type:r.blob.type});if(navigator.canShare({files:[f]})){const b=document.createElement('button');b.className='btn btn-sm btn-gold';b.textContent='Kongsi';b.onclick=()=>navigator.share({files:[f]}).catch(()=>{});d.appendChild(b);}}
-  box.prepend(d);toast('✅ Video disimpan: '+r.where,4000);
+  if(r.url&&r.blob&&navigator.canShare){const f=new File([r.blob],name,{type:r.blob.type});if(navigator.canShare({files:[f]})){const b=document.createElement('button');b.className='btn btn-sm btn-gold';b.textContent=t('share');b.onclick=()=>navigator.share({files:[f]}).catch(()=>{});d.appendChild(b);}}
+  box.prepend(d);toast(t('saved',{w:r.where}),4000);
 }
 
 /* ================= SLAVE ================= */
@@ -628,9 +664,9 @@ function ensurePeer(){
 }
 async function scanMasters(){
   const list=$('masterList');list.innerHTML='';
-  $('scanMsg').innerHTML='<span class="spin"></span>Mengimbas Master Studio dalam rangkaian Wi-Fi anda…';
+  $('scanMsg').innerHTML='<span class="spin"></span>'+t('scanning');
   const key=await lanKey();
-  if(!key){$('scanMsg').textContent='Tiada sambungan internet. Pastikan Wi-Fi telefon ini aktif.';return;}
+  if(!key){$('scanMsg').textContent=t('noNet');return;}
   const p=await ensurePeer();let found=0;
   const jobs=[];
   for(let n=1;n<=LAN_SLOTS;n++){
@@ -644,19 +680,19 @@ async function scanMasters(){
     }));
   }
   await Promise.all(jobs);
-  $('scanMsg').innerHTML=found?`<span class="dot ok"></span>${found} Master Studio ditemui`:'Tiada Master Studio ditemui. Pastikan telefon Master dibuka dan berada dalam Wi-Fi yang sama, atau guna tab Data.';
+  $('scanMsg').innerHTML=found?'<span class="dot ok"></span>'+t('found',{n:found}):t('notFound');
 }
 function addMasterItem(id,info){
   const b=document.createElement('button');b.className='master-item';
-  b.innerHTML='<div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#d9b44a"/></svg></div><div class="tx"><b></b><span></span></div><span class="go">Sertai</span>';
-  b.querySelector('b').textContent=info.name||'Master Studio';
-  b.querySelector('.tx span').textContent=(info.cams||0)+' kamera telah bersambung';
+  b.innerHTML='<div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#d9b44a"/></svg></div><div class="tx"><b></b><span></span></div><span class="go"></span>';
+  b.querySelector('b').textContent=info.name||t('dir');b.querySelector('.go').textContent=t('join');
+  b.querySelector('.tx span').textContent=t('camsJoined',{n:info.cams||0});
   b.onclick=()=>startSlaveCam(id,'wifi');
   $('masterList').appendChild(b);
 }
 function joinByCode(){
   const c=$('joinCode').value.replace(/\D/g,'');
-  if(c.length!==6){toast('Masukkan Kod Studio 6 digit');return;}
+  if(c.length!==6){toast(t('enterCode'));return;}
   startSlaveCam(PFX+'code-'+c,'data');
 }
 async function getCam(){
@@ -671,7 +707,7 @@ function camCaps(){
   return{zoom,torch:!!c.torch};
 }
 async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
-async function camTorch(){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;sTorch=!sTorch;try{await t.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast('Lampu suluh tidak disokong');}}
+async function camTorch(){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;sTorch=!sTorch;try{await t.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
 async function camFlip(){
   sFacing=sFacing==='environment'?'user':'environment';
   try{
@@ -680,21 +716,21 @@ async function camFlip(){
     if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(!s.track)continue;const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];if(nt)await s.replaceTrack(nt);}
     old.getTracks().forEach(t=>t.stop());
     sSend({t:'caps',...camCaps()});
-  }catch(e){toast('Tidak dapat menukar kamera');}
+  }catch(e){toast(t('flipFail'));}
 }
 function sSend(o){try{if(sConn&&sConn.open)sConn.send(o);}catch(e){}}
 function sStatus(ok,t){$('camDot').classList.toggle('ok',ok);$('camStatus').textContent=t;}
 async function startSlaveCam(target,via){
-  if(!sStream){try{sStream=await getCam();}catch(e){toast('Sila benarkan akses kamera dan mikrofon');return;}}
+  if(!sStream){try{sStream=await getCam();}catch(e){toast(t('allowCamMic'));return;}}
   sTarget=target;sVia=via;sKicked=false;
   show('slavecam');keepAwake();
-  $('camVideo').srcObject=sStream;$('camAngleLbl').textContent='Sudut: '+camLabel();
-  $('camVia').textContent=via==='data'?'Data':'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
+  $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
+  $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
   camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);
   sConnect();
 }
 async function sConnect(){
-  clearTimeout(sRetry);sStatus(false,'Menyambung ke Master Studio…');
+  clearTimeout(sRetry);sStatus(false,t('connecting'));
   const p=await ensurePeer();
   sConn=p.connect(sTarget,{reliable:true});
   sConn.on('open',()=>{
@@ -705,21 +741,22 @@ async function sConnect(){
   });
   sConn.on('data',d=>{
     if(!d||!d.t)return;
-    if(d.t==='welcome')sStatus(true,'Bersambung · '+(d.name||'Master Studio'));
+    if(d.t==='welcome')sStatus(true,t('connectedTo',{name:d.name||t('dir')}));
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
     else if(d.t==='zoom')camZoom(d.v);
-    else if(d.t==='kick'){sKicked=true;toast('Master telah memutuskan sambungan');setTimeout(leave,1500);}
+    else if(d.t==='kick'){sKicked=true;toast(t('kicked'));setTimeout(leave,1500);}
   });
   sConn.on('close',()=>sLost());
   sConn.on('error',()=>sLost());
 }
 function sLost(){
   if(sKicked)return;
-  $('onAir').classList.remove('show');sStatus(false,'Sambungan terputus. Menyambung semula…');
+  $('onAir').classList.remove('show');sStatus(false,t('lost'));
   clearTimeout(sRetry);sRetry=setTimeout(sConnect,3000);
 }
 
-if('serviceWorker' in navigator&&!Cap)navigator.serviceWorker.register('sw.js').catch(()=>{});
+initLang();applyI18n();initInstall();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
