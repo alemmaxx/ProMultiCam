@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ProMultiCam · Privasi, Terma & Bayaran Balik</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<script src="config.js"></script>
 <meta name="theme-color" content="#0b0f17">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
@@ -76,7 +77,7 @@ body.ms [data-l="ms"],body.en [data-l="en"]{display:block}
   <h2>3. Polisi Bayaran Balik</h2>
   <ul>
     <li><b>Semua bayaran langganan adalah muktamad dan tidak boleh dikembalikan</b>, termasuk atas sebab perubahan fikiran atau penggunaan yang tidak lengkap.</li>
-    <li>Sebelum membayar, anda dikehendaki menyemak <b>keperluan peranti</b> di bawah dan digalakkan menggunakan <b>Semak peranti</b> serta <b>percubaan Pro 7 hari</b>.</li>
+    <li>Sebelum membayar, anda dikehendaki menyemak <b>keperluan peranti</b> di bawah dan digalakkan menggunakan <b>Semak peranti</b> serta <b class="td-wrap">percubaan Pro <span class="td">7</span> hari</b>.</li>
     <li>Jika anda menghadapi masalah akses selepas membayar, hubungi kami melalui butang <b>Sokongan</b>. Kami akan membantu menyelesaikan masalah tersebut, termasuk melanjutkan tempoh langganan jika gangguan berpunca daripada pihak kami.</li>
     <li><b>Caj berganda atau caj tersilap</b> akan dipulangkan sepenuhnya selepas disahkan.</li>
     <li>Polisi ini tidak menjejaskan hak anda di bawah undang-undang perlindungan pengguna yang terpakai.</li>
@@ -128,7 +129,7 @@ body.ms [data-l="ms"],body.en [data-l="en"]{display:block}
   <h2>3. Refund Policy</h2>
   <ul>
     <li><b>All subscription payments are final and non-refundable</b>, including for a change of mind or partial use.</li>
-    <li>Before paying, you must check the <b>device requirements</b> below, and we encourage you to use <b>Device check</b> and the <b>7-day Pro trial</b>.</li>
+    <li>Before paying, you must check the <b>device requirements</b> below, and we encourage you to use <b>Device check</b> and the <b class="td-wrap"><span class="td">7</span>-day Pro trial</b>.</li>
     <li>If you have access problems after paying, contact us through the <b>Support</b> button. We will help resolve the issue, including extending your subscription if the disruption was caused by us.</li>
     <li><b>Duplicate or mistaken charges</b> are refunded in full once verified.</li>
     <li>This policy does not affect your rights under applicable consumer protection law.</li>
@@ -149,6 +150,11 @@ const setL=l=>{document.body.className=l;document.documentElement.lang=l;documen
 document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setL(b.dataset.x));
 let s=null;try{s=localStorage.getItem('pmc_lang');}catch(e){}setL(s==='en'?'en':'ms');
 const want=location.hash.replace('#','');if(want){const id=document.body.className==='en'&&!want.endsWith('-en')?want+'-en':want;setTimeout(()=>{const e=document.getElementById(id);if(e)e.scrollIntoView();},50);}
+</script>
+<script>
+(function(){try{const c=window.PMC_CONFIG||{};const u=`https://firestore.googleapis.com/v1/projects/${c.firebase.projectId}/databases/${c.dbId||'promulticam'}/documents/config/plans?key=${c.firebase.apiKey}`;
+fetch(u).then(r=>r.json()).then(j=>{const f=j.fields&&j.fields.trialDays;const n=f?Number(f.integerValue??f.doubleValue):NaN;if(!Number.isFinite(n))return;window.PMC_TRIAL=n;
+  document.querySelectorAll('.td').forEach(e=>e.textContent=n);document.querySelectorAll('.td-wrap').forEach(e=>e.style.display=n>0?'':'none');window.dispatchEvent(new Event('pmc-trial'));}).catch(()=>{});}catch(e){}})();
 </script>
 </body>
 </html>

@@ -32,7 +32,7 @@ async function requireSuper(req) {
 }
 async function plansCfg() { return (await db.doc('config/plans').get()).data() || {}; }
 
-// ---------------------------------------------------------------- Account + 7-day trial
+// ---------------------------------------------------------------- Account + free trial (length set in Admin)
 exports.pmc_initUser = onCall({ region: REGION }, async (req) => {
   const a = requireAuth(req);
   const ref = db.doc(`users/${a.uid}`);
@@ -43,13 +43,21 @@ exports.pmc_initUser = onCall({ region: REGION }, async (req) => {
   }
   return db.runTransaction(async (t) => {
     const s = await t.get(ref);
-    if (s.exists) {
-      t.update(ref, { lastSeen: FieldValue.serverTimestamp() });
-      const d = s.data();
-      return { expiry: d.expiry?.toMillis?.() || 0, plan: d.plan || 'free', status: d.status || 'active' };
-    }
     const cfg = (await t.get(db.doc('config/plans'))).data() || {};
-    const days = Number.isFinite(Number(cfg.trialDays)) ? Number(cfg.trialDays) : DEFAULT_TRIAL_DAYS;
+    const days = Number.isFinite(Number(cfg.trialDays)) ? Math.max(0, Number(cfg.trialDays)) : DEFAULT_TRIAL_DAYS;
+    if (s.exists) {
+      const d = s.data();
+      const upd = { lastSeen: FieldValue.serverTimestamp() };
+      let expiry = d.expiry?.toMillis?.() || 0, plan = d.plan || 'free';
+      // Accounts still on the free trial follow the current trial length set by the admin
+      if (plan === 'trial' && d.createdAt?.toMillis) {
+        expiry = d.createdAt.toMillis() + days * 86400000;
+        upd.expiry = Timestamp.fromMillis(expiry);
+        if (days === 0) { plan = 'free'; upd.plan = 'free'; }
+      }
+      t.update(ref, upd);
+      return { expiry, plan, status: d.status || 'active' };
+    }
     const exp = new Date(Date.now() + days * 86400000);
     t.set(ref, {
       email: a.token.email || '', name: clean(a.token.name || '', 60), provider: a.token.firebase?.sign_in_provider || '',

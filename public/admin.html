@@ -172,7 +172,7 @@ function start(){
   startSupport();
   F.getDoc(F.doc(db,'config/plans')).then(s=>{const d=s.data()||{};$('prM').value=d.monthly||'';$('prY').value=d.yearly||'';$('prT').value=d.trialDays??7;});
 }
-const PLAN_LBL={admin:'Admin',trial:'Percubaan 7 hari',monthly:'Bulanan',yearly:'Tahunan',promo:'Kod promo',free:'Percuma'};
+const PLAN_LBL={admin:'Admin',trial:'Percubaan',monthly:'Bulanan',yearly:'Tahunan',promo:'Kod promo',free:'Percuma'};
 function status(u){const now=Date.now(),ex=u.expiry?.toMillis?.()||0;
   if(u.plan==='admin')return['ADMIN','p-ok'];
   if(u.status==='suspended')return['GANTUNG','p-bad'];if(ex>now)return u.plan==='trial'?['PERCUBAAN','p-trial']:['PRO','p-pro'];return['PERCUMA','p-free'];}

@@ -551,7 +551,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="planCards"></div>
     <label class="lbl"><span data-i18n="promo"></span><input class="input" id="pPromo" style="text-transform:uppercase" data-i18n-ph="promoPh"></label>
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
-    <div class="req"><b data-i18n="reqT"></b><ul><li data-i18n="req1"></li><li data-i18n="req2"></li><li data-i18n="req3"></li><li data-i18n="req4"></li></ul></div>
+    <div class="req"><b data-i18n="reqT"></b><ul><li data-i18n="req1"></li><li data-i18n="req2"></li><li data-i18n="req3"></li><li id="req4"></li></ul></div>
     <label class="check"><input type="checkbox" id="reqOk"><span data-i18n="reqAgree"></span></label>
     <button class="btn btn-gold" id="payBtn" onclick="startPay()" data-i18n="payNow"></button>
     <span class="hint" style="line-height:1.5" data-i18n="payNote"></span>
@@ -1490,6 +1490,7 @@ function openPro(){
     b.onclick=()=>{payPlan=id;[...box.children].forEach(x=>x.classList.toggle('on',x===b));};box.appendChild(b);
   });
   $('payBtn').disabled=!(pl.monthly||pl.yearly);
+  const td=Number.isFinite(Number(pl.trialDays))?Number(pl.trialDays):7;$('req4').textContent=td>0?t('req4',{n:td}):t('req4b');
   try{$('pPhone').value=lsGet('pmc_payphone','');}catch(e){}
   openSheet('proSheet');track('view_pricing');
 }
