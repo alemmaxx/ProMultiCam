@@ -36,11 +36,19 @@ try {
     createBill: (plan, promo, phone) => call('pmc_createBill', { plan, promo, phone }),
     checkPayment: (id) => call('pmc_checkPayment', { id }),
     redeem: (code) => call('pmc_redeemPromo', { code }),
-    call
+    call,
+    listPayments: async () => {
+      if (!auth.currentUser) return [];
+      const q = F.query(F.collection(db, 'payments'), F.where('uid', '==', auth.currentUser.uid));
+      const s = await F.getDocs(q);
+      return s.docs.map(d => ({ id: d.id, ...d.data(), created: d.data().createdAt?.toMillis?.() || 0, paid: d.data().paidAt?.toMillis?.() || 0, until: d.data().newExpiry?.toMillis?.() || 0 }))
+        .sort((x, y) => y.created - x.created);
+    }
   });
   A.getRedirectResult(auth).catch(() => {});
 
   F.onSnapshot(F.doc(db, 'config/plans'), s => { PMC.plans = s.data() || {}; ev(); }, () => {});
+  F.onSnapshot(F.doc(db, 'config/support'), s => { PMC.support = s.data() || {}; ev(); }, () => {});
 
   let unsubUser = null;
   A.onAuthStateChanged(auth, async (u) => {

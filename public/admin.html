@@ -69,7 +69,7 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
 
 <div class="hide" id="app">
   <div class="tabs" id="tabs">
-    <button data-t="sum" class="on"><i>📊</i>Ringkasan</button><button data-t="users"><i>👥</i>Pelanggan</button><button data-t="pays"><i>💳</i>Bayaran</button><button data-t="plans"><i>🏷️</i>Harga</button><button data-t="promos"><i>🎟️</i>Kod Promo</button>
+    <button data-t="sum" class="on"><i>📊</i>Ringkasan</button><button data-t="users"><i>👥</i>Pelanggan</button><button data-t="pays"><i>💳</i>Bayaran</button><button data-t="plans"><i>🏷️</i>Harga & Sokongan</button><button data-t="promos"><i>🎟️</i>Kod Promo</button>
   </div>
   <div class="wrap">
     <section data-s="sum">
@@ -95,6 +95,15 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
         </div>
         <button class="btn btn-gold" id="savePlans">Simpan</button>
         <span class="muted">Harga dipaparkan terus kepada pelanggan dalam app. Perubahan hari percubaan hanya untuk akaun baru.</span>
+      </div>
+      <div class="card" style="max-width:520px;margin-top:12px">
+        <b>Hubungi sokongan</b>
+        <div class="grid2">
+          <label>No. WhatsApp sokongan<input class="input" id="spWa" inputmode="tel" placeholder="cth: 0123456789"></label>
+          <label>E-mel sokongan<input class="input" id="spEm" type="email" placeholder="cth: sokongan@domain.com"></label>
+        </div>
+        <button class="btn btn-gold" id="saveSupport">Simpan</button>
+        <span class="muted">Butang <b>Hubungi kami</b> dalam app akan buka WhatsApp (diutamakan) atau e-mel ini.</span>
       </div>
     </section>
     <section data-s="promos" class="hide">
@@ -150,6 +159,7 @@ function start(){
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'users'),F.orderBy('createdAt','desc'),F.limit(1000)),s=>{users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers();renderStats();}));
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'payments'),F.orderBy('createdAt','desc'),F.limit(500)),s=>{pays=s.docs.map(d=>({id:d.id,...d.data()}));renderPays();renderStats();}));
   unsubs.push(F.onSnapshot(F.collection(db,'promos'),s=>renderPromos(s.docs.map(d=>({id:d.id,...d.data()})))));
+  F.getDoc(F.doc(db,'config/support')).then(s=>{const d=s.data()||{};$('spWa').value=d.whatsapp||'';$('spEm').value=d.email||'';});
   F.getDoc(F.doc(db,'config/plans')).then(s=>{const d=s.data()||{};$('prM').value=d.monthly||'';$('prY').value=d.yearly||'';$('prT').value=d.trialDays??7;});
 }
 const PLAN_LBL={admin:'Admin',trial:'Percubaan 7 hari',monthly:'Bulanan',yearly:'Tahunan',promo:'Kod promo',free:'Percuma'};
@@ -179,6 +189,7 @@ $('savePlans').onclick=async()=>{
   if(!(m>=1)||!(y>=1)){toast('Masukkan harga sekurang-kurangnya RM1');return;}
   try{await F.setDoc(F.doc(db,'config/plans'),{monthly:m,yearly:y,trialDays:tr,updatedAt:F.serverTimestamp()},{merge:true});toast('Harga disimpan');}catch(e){toast('Gagal: '+e.message);}
 };
+$('saveSupport').onclick=async()=>{try{await F.setDoc(F.doc(db,'config/support'),{whatsapp:$('spWa').value.trim(),email:$('spEm').value.trim(),updatedAt:F.serverTimestamp()},{merge:true});toast('Disimpan');}catch(e){toast('Gagal: '+e.message);}};
 $('pcAdd').onclick=async()=>{
   const code=$('pcCode').value.trim().toUpperCase(),type=$('pcType').value,val=Number($('pcVal').value),max=Math.max(0,Math.round(Number($('pcMax').value||0)));
   if(!/^[A-Z0-9-]{3,30}$/.test(code)){toast('Kod: 3–30 huruf/nombor');return;}

@@ -6,6 +6,7 @@ window.LANGS = [
 ];
 window.I18N = {
 en:{
+ receipts:'Receipts', receipt:'Receipt', paid:'PAID', noReceipts:'No payments yet.', savePdf:'Print / Save as PDF', rNo:'Reference', rDate:'Date', rPlan:'Plan', rPrice:'Price', rDisc:'Discount', rTotal:'Total paid', rUntil:'Pro active until', rMethod:'Payment', contact:'Contact us', legal:'Privacy & Terms', agreeTerms:'By paying you agree to the Terms & Refund Policy', contactMsg:'Hi ProMultiCam, I need help. Account: {e}', noContact:'Support contact is not set yet. Please try again later.', renewSoon:'⏳ Pro ends in {n} day(s) — tap to extend', trialEnds:'⏳ Pro trial ends in {n} day(s) — tap to upgrade', renewExpired:'⚠ Pro has ended — tap to renew',
  need2:'Split Screen and Picture-in-Picture need at least 2 cameras. Connect another phone first.',
  orScan:'— or —', 
  scanTab:'Scan QR', scanTitle:'Scan the Director’s QR', scanDesc:'On the Director phone tap + to show the QR code, then scan it here. This camera joins instantly — works on Wi-Fi or mobile data.', scanStart:'Scan the Director’s QR', scanStop:'Stop scanning', scanNo:'In-app scanning is not supported on this browser. Use your phone camera app to scan the QR, or use the Data tab.',
@@ -54,6 +55,7 @@ en:{
  kicked:'The Director ended the connection', back:'Back', close:'Close', settingsBtn:'Settings'
 },
 ms:{
+ receipts:'Resit', receipt:'Resit', paid:'DIBAYAR', noReceipts:'Belum ada bayaran.', savePdf:'Cetak / Simpan PDF', rNo:'No. rujukan', rDate:'Tarikh', rPlan:'Pakej', rPrice:'Harga', rDisc:'Diskaun', rTotal:'Jumlah dibayar', rUntil:'Pro aktif sehingga', rMethod:'Bayaran', contact:'Hubungi kami', legal:'Privasi & Terma', agreeTerms:'Dengan membayar, anda bersetuju dengan Terma & Polisi Bayaran Balik', contactMsg:'Hai ProMultiCam, saya perlukan bantuan. Akaun: {e}', noContact:'Hubungan sokongan belum ditetapkan. Sila cuba lagi nanti.', renewSoon:'⏳ Pro tamat dalam {n} hari — tekan untuk lanjutkan', trialEnds:'⏳ Percubaan Pro tamat dalam {n} hari — tekan untuk naik taraf', renewExpired:'⚠ Pro telah tamat — tekan untuk sambung semula',
  need2:'Skrin Belah dan Bingkai Kecil perlukan sekurang-kurangnya 2 kamera. Sambungkan telefon lain dahulu.',
  orScan:'— atau —', 
  scanTab:'Imbas QR', scanTitle:'Imbas QR Pengarah', scanDesc:'Di telefon Pengarah, tekan + untuk papar kod QR, kemudian imbas di sini. Kamera ini terus bersambung — melalui Wi-Fi atau data.', scanStart:'Imbas QR Pengarah', scanStop:'Henti imbas', scanNo:'Imbasan dalam app tidak disokong pada pelayar ini. Guna app kamera telefon untuk imbas QR, atau guna tab Data.',

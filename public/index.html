@@ -270,6 +270,10 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .popview{position:fixed;inset:0;z-index:90;background:var(--bg);display:none;flex-direction:column}
 .popview.show{display:flex}
 .popview iframe{flex:1;border:0;width:100%;background:var(--bg)}
+
+.renew-bar{border:0;border-radius:10px;background:var(--gold);color:var(--on-gold);font:800 13px var(--f);padding:8px 12px;text-align:left;min-height:38px}
+.rc-row{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rc-row span:first-child{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -278,6 +282,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 <div id="home" class="screen show">
   <div class="hero">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#7aa7f5" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c3cad6" stroke-width="5" fill="#131a26"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#d9b44a"/><circle cx="61" cy="61" r="7" fill="#1b1503"/><circle cx="61" cy="61" r="3" fill="#ef6b5c"/></svg></div><div style="display:flex;gap:6px;align-items:center"><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:130px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select><button class="acct-btn" id="acctBtn" onclick="openAccount()"></button></div></div>
+    <button class="renew-bar" id="renewBar" style="display:none" onclick="openPro()"></button>
     <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam <span class="ver">v1.0</span></h1>
     <p data-i18n="hero"></p>
@@ -512,6 +517,11 @@ input[type=range]{accent-color:var(--gold);width:100%}
       <div class="subsec"><span class="sec" data-i18n="promo"></span>
         <div style="display:flex;gap:8px"><input class="input" id="aPromo" style="flex:1;min-width:0;text-transform:uppercase" data-i18n-ph="promoPh"><button class="btn" onclick="redeemPromo()" data-i18n="redeem"></button></div>
       </div>
+      <div class="subsec"><span class="sec" data-i18n="receipts"></span><div id="rcptList" style="display:flex;flex-direction:column;gap:6px"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn" onclick="openContact()" data-i18n="contact"></button>
+        <button class="btn" onclick="openLegal()" data-i18n="legal"></button>
+      </div>
       <button class="btn btn-danger" onclick="PMC.logout&&PMC.logout()" data-i18n="logout"></button>
     </div>
   </div>
@@ -525,7 +535,18 @@ input[type=range]{accent-color:var(--gold);width:100%}
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
     <button class="btn btn-gold" id="payBtn" onclick="startPay()" data-i18n="payNow"></button>
     <span class="hint" style="line-height:1.5" data-i18n="payNote"></span>
+    <button class="btn btn-sm" style="background:none;color:var(--gold);align-self:center" onclick="openLegal('terms')" data-i18n="agreeTerms"></button>
   </div>
+</div>
+<div class="sheet-wrap" id="rcptSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet">
+    <div class="row-between"><h3 data-i18n="receipt"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('rcptSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="rcptBody" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn btn-gold" onclick="printReceipt()" data-i18n="savePdf"></button>
+  </div>
+</div>
+<div id="legalView" class="popview">
+  <div class="topbar"><button class="icon-btn" aria-label="Close" onclick="closeLegal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="t"><span class="k" style="color:var(--gold)">PROMULTICAM</span><span class="n" data-i18n="legal"></span></div></div>
 </div>
 <div id="aboutView" class="popview">
   <div class="topbar"><button class="icon-btn" aria-label="Close" onclick="closeAbout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="t"><span class="k" style="color:var(--gold)">PROMULTICAM</span><span class="n" data-i18n="about"></span></div></div>
@@ -652,7 +673,7 @@ async function listSaved(boxId){
   items.forEach(it=>{
     const d=document.createElement('div');d.className='item';
     d.innerHTML='<span class="dot ok"></span><div class="tx"><b></b><span></span></div>';
-    d.querySelector('b').textContent=it.name.replace(/^ProMultiCam_/,'');
+    d.querySelector('b').textContent=it.name;
     const mc=it.marks?it.marks.trim().split('\n').filter(Boolean).length-1:0;
     d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(mc>0?' · '+t('markers',{n:mc}):'')+(it.done?'':' · '+t('recovered'));
     if(!it.done)d.querySelector('.dot').style.background='var(--gold)';
@@ -990,6 +1011,7 @@ function drawOverlays(W,H){
     ctx.fillStyle='#1b1503';ctx.fillText(tt,W/2,ty+fs*1.15);
   }
 }
+function fileBase(){const tt=($('titleTxt').value||'').trim().replace(/[^\p{L}\p{N}_-]+/gu,'_').replace(/^_+|_+$/g,'').slice(0,40);return tt||'ProMultiCam';}
 let recId='',pausedAt=0,pausedTotal=0,marks=[],counting=false;
 function recElapsed(){return Math.floor(((pausedAt||Date.now())-recStart-pausedTotal)/1000);}
 function fmt(sec){return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');}
@@ -1011,7 +1033,7 @@ async function toggleRec(){
   try{recorder=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:bps,audioBitsPerSecond:128000}:{});}
   catch(e){toast(t('noRec'));return;}
   recId=stamp();marks=[];pausedAt=0;pausedTotal=0;
-  const sv=saver=new Saver(`ProMultiCam_${recId}.${ext}`);
+  const sv=saver=new Saver(`${fileBase()}_${recId}.${ext}`);
   recorder.ondataavailable=e=>sv.push(e.data);
   recorder.onstop=async()=>{
     if(marks.length&&sv.dir){try{const fh=await sv.dir.getFileHandle('_markers.txt',{create:true});const w=await fh.createWritable();await w.write('ProMultiCam markers · '+recId+'\n'+marks.map((m,i)=>`${i+1}. ${fmt(m.t)}  ${m.angle}`).join('\n')+'\n');await w.close();}catch(e){}}
@@ -1020,7 +1042,7 @@ async function toggleRec(){
   recorder.start(3000);recStart=Date.now();
   previewing=false;previewGain.gain.value=0;$('musicPrev').textContent=t('mPreview');startMusic(false);
   track('rec_start',{cams:sources.length,look:look.id,music:$('musicSel').value});
-  if($('optHD').checked&&isPro())tellCams({t:'rec',on:true,id:recId});
+  if($('optHD').checked&&isPro())tellCams({t:'rec',on:true,id:recId,title:fileBase()});
   $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
   const tick=()=>{const tm=fmt(recElapsed());$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;};
@@ -1260,6 +1282,58 @@ function openAdmin(){
   const v=$('adminView');if(!v.querySelector('iframe')){const f=document.createElement('iframe');f.src='admin.html?embed=1';f.title='Admin';v.appendChild(f);}
   v.classList.add('show');track('open_admin');
 }
+function openLegal(sec){
+  const v=$('legalView');let f=v.querySelector('iframe');
+  if(!f){f=document.createElement('iframe');f.title='Legal';v.appendChild(f);}
+  f.src='legal.html'+(sec?'#'+sec:'');v.classList.add('show');
+}
+function closeLegal(){$('legalView').classList.remove('show');}
+function openContact(){
+  const sp=(window.PMC&&PMC.support)||{},em=(PMC.user&&PMC.user.email)||'';
+  const msg=encodeURIComponent(t('contactMsg',{e:em}));
+  const wa=String(sp.whatsapp||'').replace(/\D/g,'');
+  if(wa){window.open('https://wa.me/'+(wa.startsWith('0')?'6'+wa:wa)+'?text='+msg,'_blank');return;}
+  if(sp.email){location.href='mailto:'+sp.email+'?subject='+encodeURIComponent('ProMultiCam')+'&body='+msg;return;}
+  toast(t('noContact'),4000);
+}
+let rcpts=[],rcptCur=null;
+async function loadReceipts(){
+  const box=$('rcptList');if(!box)return;box.innerHTML='<span class="hint">…</span>';
+  try{rcpts=(await PMC.listPayments()).filter(x=>x.status==='paid');}catch(e){rcpts=[];}
+  box.innerHTML='';
+  if(!rcpts.length){box.innerHTML='<span class="hint">'+t('noReceipts')+'</span>';return;}
+  rcpts.forEach(x=>{const b=document.createElement('button');b.className='item';b.style.cssText='width:100%;text-align:left;color:var(--ink);border:0;font-family:var(--f)';
+    b.innerHTML='<div class="tx"><b></b><span></span></div><span class="badge b-pro"></span>';
+    b.querySelector('b').textContent=(x.plan==='yearly'?t('yearly'):t('monthly'))+' · '+money(x.amount);
+    b.querySelector('.tx span').textContent=new Date(x.paid||x.created).toLocaleDateString();b.querySelector('.badge').textContent=t('paid');
+    b.onclick=()=>openReceipt(x);box.appendChild(b);});
+}
+function rcptRows(x){
+  const d=v=>v?new Date(v).toLocaleString():'—';
+  return [[t('rNo'),x.refNo||x.billCode||x.id],[t('rDate'),d(x.paid||x.created)],[t('email'),x.email||''],[t('rPlan'),'ProMultiCam Pro · '+(x.plan==='yearly'?t('yearly'):t('monthly'))],
+    [t('rPrice'),money(x.listPrice||x.amount)],...(x.discount?[[t('rDisc'),x.discount+'%'+(x.promo?' ('+x.promo+')':'')]]:[]),[t('rTotal'),money(x.amount)],[t('rUntil'),x.until?new Date(x.until).toLocaleDateString():'—'],[t('rMethod'),'ToyyibPay · '+(x.billCode||'')]];
+}
+function openReceipt(x){
+  rcptCur=x;const b=$('rcptBody');b.innerHTML='';
+  rcptRows(x).forEach(([k,v])=>{const r=document.createElement('div');r.className='rc-row';r.innerHTML='<span></span><b></b>';r.children[0].textContent=k;r.children[1].textContent=v;b.appendChild(r);});
+  openSheet('rcptSheet');
+}
+function printReceipt(){
+  if(!rcptCur)return;const esc=v=>String(v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const rows=rcptRows(rcptCur).map(([k,v])=>`<tr><td>${esc(k)}</td><td><b>${esc(v)}</b></td></tr>`).join('');
+  const w=window.open('','_blank');if(!w){toast(t('eGeneric'));return;}
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(t('receipt'))}</title><style>body{font-family:system-ui,sans-serif;max-width:560px;margin:32px auto;padding:0 16px;color:#111}h1{font-size:22px;margin:0}p{color:#555}table{width:100%;border-collapse:collapse;margin-top:16px}td{padding:10px 0;border-bottom:1px solid #ddd;font-size:14px}td:last-child{text-align:right}</style></head><body><h1>ProMultiCam</h1><p>${esc(t('receipt'))}</p><table>${rows}</table><p style="margin-top:24px;font-size:12px">promulticam.web.app</p><script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+function renderRenew(){
+  const bar=$('renewBar');if(!bar)return;
+  const p=window.PMC&&PMC.profile;
+  if(!PMC.user||!p||isAdmin()||p.plan==='free'){bar.style.display='none';return;}
+  const dl=PMC.daysLeft(),exp=(p.expiry||0)<Date.now();
+  if(exp&&(p.plan==='monthly'||p.plan==='yearly'||p.plan==='trial'||p.plan==='promo')&&Date.now()-(p.expiry||0)<14*86400000){bar.textContent=t('renewExpired');bar.style.display='block';}
+  else if(!exp&&dl<=3){bar.textContent=p.plan==='trial'?t('trialEnds',{n:dl}):t('renewSoon',{n:dl});bar.style.display='block';}
+  else bar.style.display='none';
+}
 function openAbout(){
   const v=$('aboutView');if(!v.querySelector('iframe')){const f=document.createElement('iframe');f.src='landing.html?embed=1';f.title='About';v.appendChild(f);}
   v.classList.add('show');track('open_about');
@@ -1294,6 +1368,7 @@ function openAccount(){
     $('aPlan').textContent=p.status==='suspended'?t('suspended'):pro?(p.plan==='trial'?t('trialUntil',{d}):t('proUntil',{d})):t('freePlan');
     const bd=$('aBadge');bd.className='badge '+(p.plan==='trial'&&pro?'b-trial':pro?'b-pro':'b-free');bd.textContent=p.plan==='trial'&&pro?t('trialN',{n:PMC.daysLeft()}):pro?'PRO':t('free');
     $('aUpBtn').textContent=pro&&p.plan!=='trial'?t('renew'):t('upgrade');
+    loadReceipts();
     const adm=isAdmin();$('aAdminBtn').style.display=adm?'flex':'none';$('aUpBtn').style.display=adm?'none':'flex';
     if(adm){$('aPlan').textContent=t('adminFull');bd.className='badge b-admin';bd.textContent='ADMIN';}}
   else acctMode(acctModeV);
@@ -1357,7 +1432,7 @@ function drawWatermark(W,H,S,m,barH){
 }
 let authFirst=true;
 window.addEventListener('pmc-auth',()=>{
-  applyTier();
+  applyTier();renderRenew();
   if($('acctSheet').classList.contains('show')&&PMC.user&&$('acctOut').style.display!=='none')closeSheet('acctSheet');
   if(authFirst&&PMC.ready){authFirst=false;if(PMC.user)checkReturn();}
   if(PMC.user&&new URLSearchParams(location.search).get('pay'))checkReturn();
@@ -1540,12 +1615,14 @@ function startTilt(){
   }catch(e){}
 }
 let hdRec=null,hdId='',hdPart=0;
-function hdStart(id){
+let hdTitle='';
+function hdStart(id,title){
+  if(title)hdTitle=String(title).replace(/[^\p{L}\p{N}_-]+/gu,'_').replace(/^_+|_+$/g,'').slice(0,40);
   if(hdRec&&hdRec.state!=='inactive')return;
   if(id){hdId=id;hdPart=0;}
   const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm';
   const lab=camLabel().replace(/[^\p{L}\p{N}_-]+/gu,'_');
-  const sv=new Saver(`ProMultiCam_${hdId}_${lab}${hdPart?'_'+(hdPart+1):''}.${ext}`);hdPart++;
+  const sv=new Saver(`${hdTitle||'ProMultiCam'}_${hdId}_${lab}${hdPart?'_'+(hdPart+1):''}.${ext}`);hdPart++;
   try{hdRec=new MediaRecorder(sStream,mime?{mimeType:mime,videoBitsPerSecond:10000000,audioBitsPerSecond:128000}:{});}catch(e){return;}
   hdRec.ondataavailable=e=>sv.push(e.data);
   hdRec.onstop=async()=>{const r=await sv.finish(hdRec.mimeType||mime||'video/webm');toast(t('hdSaved',{w:r.where}),4000);};
@@ -1590,7 +1667,7 @@ async function sConnect(){
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
     else if(d.t==='zoom')camZoom(d.v);
     else if(d.t==='lock')setLock(!!d.on);
-    else if(d.t==='rec'){if(d.on)hdStart(d.id);else hdStop();}
+    else if(d.t==='rec'){if(d.on)hdStart(d.id,d.title);else hdStop();}
     else if(d.t==='pause'){try{hdRec&&hdRec.state==='recording'&&hdRec.pause();}catch(e){}}
     else if(d.t==='resume'){try{hdRec&&hdRec.state==='paused'&&hdRec.resume();}catch(e){}}
     else if(d.t==='full'){sKicked=true;toast(t('studioFull'),5000);setTimeout(leave,4000);}
