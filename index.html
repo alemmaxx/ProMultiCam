@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>ProMultiCam</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0f172a">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#f1f5f9;--mut:#94a3b8;--acc:#f97316;--ok:#22c55e;--bad:#ef4444}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;border:0;border-radius:12px;padding:12px 14px;background:var(--card);color:var(--txt);cursor:pointer}
+button.pri{background:var(--acc);color:#fff;font-weight:700}
+button.on{background:var(--acc);color:#fff}
+button:disabled{opacity:.4}
+input,select{font:inherit;background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%}
+.screen{display:none;min-height:100%}
+.screen.show{display:flex;flex-direction:column}
+.small{font-size:13px;color:var(--mut)}
+/* home */
+#home{align-items:center;justify-content:center;padding:24px;gap:18px;text-align:center}
+.logo{width:96px;height:96px;border-radius:24px}
+h1{margin:0;font-size:28px}
+.pill{display:inline-block;background:var(--acc);color:#fff;border-radius:99px;padding:3px 12px;font-size:12px;font-weight:700}
+.homecard{background:var(--card);border-radius:18px;padding:18px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;text-align:left}
+.homecard b{font-size:17px}
+/* camera */
+#cam{position:fixed;inset:0;background:#000}
+#camVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camtop{position:absolute;top:0;left:0;right:0;padding:12px;padding-top:max(12px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;background:linear-gradient(#000a,#0000)}
+.status{padding:6px 10px;border-radius:99px;background:#0008;font-size:13px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-right:6px}
+.dot.ok{background:var(--ok)}
+.recbadge{display:none;background:var(--bad);color:#fff;border-radius:99px;padding:6px 10px;font-size:13px;font-weight:700}
+.recbadge.show{display:inline-block;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.4}}
+.cambot{position:absolute;left:0;right:0;bottom:0;padding:12px;padding-bottom:max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;background:linear-gradient(#0000,#000c)}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+input[type=range]{padding:0;border:0;background:none;accent-color:var(--acc)}
+/* director */
+#dir{padding:10px;gap:10px;padding-top:max(10px,env(safe-area-inset-top))}
+.code{background:var(--card);border-radius:14px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.code big{font-size:26px;letter-spacing:4px;color:var(--acc);font-weight:800}
+#stage{width:100%;background:#000;border-radius:14px;display:block;margin:0 auto}
+.stagewrap{position:relative}
+.stagewrap .recbadge{position:absolute;top:10px;left:10px}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.thumb{position:relative;flex:0 0 31%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;background:#000;border:3px solid transparent}
+.thumb.main{border-color:var(--acc)}
+.thumb.sec{border-color:#38bdf8}
+.thumb video{width:100%;height:100%;object-fit:cover}
+.thumb span{position:absolute;left:0;right:0;bottom:0;background:#000a;font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb .tag{position:absolute;top:4px;right:4px;left:auto;bottom:auto;border-radius:6px;padding:1px 6px;font-weight:700}
+.empty{color:var(--mut);font-size:13px;padding:14px;text-align:center;flex:1;background:var(--card);border-radius:12px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px 6px;font-size:14px}
+.panel{background:var(--card);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.panel label{font-size:13px;color:var(--mut)}
+#recBtn{font-size:18px;padding:16px}
+#recBtn.recording{background:var(--bad)}
+.files a{display:block;color:var(--acc);padding:6px 0;font-size:14px;word-break:break-all}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000d;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:99;display:none;max-width:90%}
+</style>
+</head>
+<body>
+
+<!-- ================= HOME ================= -->
+<div id="home" class="screen show">
+  <img class="logo" src="icon-192.png" alt="">
+  <h1>ProMultiCam</h1>
+  <div class="small">Rakam video masak dari banyak sudut, guna beberapa telefon.</div>
+
+  <div class="homecard">
+    <b>🎬 Telefon Pengarah</b>
+    <div class="small">Telefon ini pilih angle dan rakam video siap.</div>
+    <button class="pri" onclick="startDirector()">Mula sebagai Pengarah</button>
+  </div>
+
+  <div class="homecard">
+    <b>📷 Telefon Kamera</b>
+    <input id="joinCode" inputmode="numeric" maxlength="6" placeholder="Kod bilik (6 nombor)">
+    <input id="camName" maxlength="20" placeholder="Nama angle (cth: Kuali, Jauh, Sisi)">
+    <button class="pri" onclick="startCamera()">Sambung sebagai Kamera</button>
+  </div>
+  <div class="small">Semua telefon perlu internet. Paling lancar kalau guna Wi-Fi yang sama.</div>
+</div>
+
+<!-- ================= CAMERA ================= -->
+<div id="cam" class="screen">
+  <video id="camVideo" autoplay playsinline muted></video>
+  <div class="camtop">
+    <div class="status"><span id="camDot" class="dot"></span><span id="camStatus">Menyambung…</span></div>
+    <div id="camLive" class="status" style="display:none">🔴 Sedang dipilih</div>
+    <div style="flex:1"></div>
+    <div id="camRec" class="recbadge">● REC</div>
+  </div>
+  <div class="cambot">
+    <div class="row" id="zoomRow" style="display:none">
+      <span class="small" style="flex:0 0 auto">Zoom</span>
+      <input type="range" id="camZoom" min="1" max="5" step="0.1" value="1">
+    </div>
+    <div class="row">
+      <button onclick="camFlip()">🔄 Tukar kamera</button>
+      <button id="torchBtn" onclick="camTorch()" style="display:none">🔦 Lampu</button>
+      <button onclick="location.reload()">✖ Keluar</button>
+    </div>
+    <div class="small" style="text-align:center">Kod: <b id="camCodeLbl"></b> · Angle: <b id="camNameLbl"></b> · Biarkan skrin terbuka</div>
+  </div>
+</div>
+
+<!-- ================= DIRECTOR ================= -->
+<div id="dir" class="screen">
+  <div class="code">
+    <div><div class="small">Kod bilik (masukkan di telefon kamera)</div><big id="roomCode">------</big></div>
+    <button onclick="addLocalCam()" id="localBtn">📱 + Kamera telefon ini</button>
+  </div>
+
+  <div class="stagewrap">
+    <canvas id="stage" width="720" height="1280"></canvas>
+    <div id="dirRec" class="recbadge">● REC <span id="recTime">00:00</span></div>
+  </div>
+
+  <div class="thumbs" id="thumbs"><div class="empty" id="emptyMsg">Belum ada kamera. Buka app di telefon lain → "Sambung sebagai Kamera" → masukkan kod di atas.</div></div>
+  <div class="small">Tekan gambar kecil = angle utama (oren). Mod Split/PiP: tekan sekali lagi pada angle lain = angle kedua (biru).</div>
+
+  <div class="seg" id="modeSeg">
+    <button data-m="full" class="on">Penuh</button>
+    <button data-m="split">Split</button>
+    <button data-m="pip">PiP</button>
+  </div>
+
+  <div class="panel">
+    <div class="row"><label style="flex:0 0 auto">Zoom angle utama</label><input type="range" id="dirZoom" min="1" max="4" step="0.1" value="1"></div>
+    <div class="row">
+      <div><label>Bentuk video</label>
+        <select id="aspectSel"><option value="p">Menegak 9:16 (TikTok)</option><option value="l">Melintang 16:9 (YouTube)</option></select></div>
+      <div><label>Kualiti</label>
+        <select id="qualSel"><option value="720">720p (ringan)</option><option value="1080">1080p (tajam)</option></select></div>
+    </div>
+    <div><label>Sumber suara</label><select id="audioSel"><option value="none">Tiada suara</option></select></div>
+    <div><label>Tajuk atas video (pilihan)</label><input id="titleTxt" maxlength="40" placeholder="cth: Nasi Lemak Sambal Sotong"></div>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--txt)"><input type="checkbox" id="camLocalRec" style="width:auto" checked> Setiap telefon kamera simpan rakaman kualiti penuh juga (untuk edit kemudian)</label>
+  </div>
+
+  <button id="recBtn" class="pri" onclick="toggleRec()">● Mula Rakam</button>
+
+  <div class="panel files" id="filesPanel" style="display:none"><b>Rakaman</b><div id="files"></div></div>
+  <div style="height:20px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ common ============ */
+const PREFIX = 'promulticam-v1-';
+const $ = id => document.getElementById(id);
+function toast(t, ms=2500){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms);}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));$(id).classList.add('show');}
+let wakeLock=null;
+async function keepAwake(){try{if('wakeLock' in navigator){wakeLock=await navigator.wakeLock.request('screen');}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&wakeLock!==null)keepAwake();});
+const peerOpts = {debug:0, config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}};
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;}
+function pickMime(){
+  const list=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  for(const m of list){try{if(MediaRecorder.isTypeSupported(m))return m;}catch(e){}}
+  return '';
+}
+
+/* ---- file saver: APK (Capacitor) writes chunks to Documents/ProMultiCam; browser downloads at end ---- */
+const Cap = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? window.Capacitor : null;
+function blobToB64(b){return new Promise(r=>{const f=new FileReader();f.onloadend=()=>r(String(f.result).split(',')[1]||'');f.readAsDataURL(b);});}
+class Saver{
+  constructor(name){this.name=name;this.chunks=[];this.first=true;this.dir='DOCUMENTS';this.q=Promise.resolve();this.fs=Cap&&Cap.Plugins&&Cap.Plugins.Filesystem;}
+  push(blob){
+    if(!blob||!blob.size)return;
+    if(!this.fs){this.chunks.push(blob);return;}
+    this.q=this.q.then(async()=>{
+      const data=await blobToB64(blob);
+      const path='ProMultiCam/'+this.name;
+      try{
+        if(this.first){await this.fs.writeFile({path,data,directory:this.dir,recursive:true});this.first=false;}
+        else await this.fs.appendFile({path,data,directory:this.dir});
+      }catch(e){
+        if(this.dir==='DOCUMENTS'){this.dir='EXTERNAL';this.first=true;this.chunks.push(blob);/* keep in memory as backup */}
+        else this.chunks.push(blob);
+      }
+    });
+  }
+  async finish(type){
+    await this.q;
+    if(this.fs&&!this.chunks.length){return {where:(this.dir==='DOCUMENTS'?'Documents/ProMultiCam/':'Android/data/…/ProMultiCam/')+this.name};}
+    const blob=new Blob(this.chunks,{type});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=this.name;document.body.appendChild(a);a.click();a.remove();
+    return {url,blob,where:'Downloads/'+this.name};
+  }
+}
+
+/* ============ CAMERA ROLE ============ */
+let camStream=null, camPeer=null, camConn=null, camCall=null, camFacing='environment', camCode='', camName='', camRecorder=null, camSaver=null, camTorchOn=false, camRetry=null;
+
+async function getCamStream(){
+  return navigator.mediaDevices.getUserMedia({
+    video:{facingMode:{ideal:camFacing},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},
+    audio:{echoCancellation:true,noiseSuppression:true}
+  });
+}
+function camCaps(){
+  const t=camStream&&camStream.getVideoTracks()[0];let caps={};
+  try{caps=t.getCapabilities?t.getCapabilities():{};}catch(e){}
+  const zoom=caps.zoom?{min:caps.zoom.min,max:caps.zoom.max,step:caps.zoom.step||0.1}:null;
+  $('zoomRow').style.display=zoom?'flex':'none';
+  if(zoom){const z=$('camZoom');z.min=zoom.min;z.max=Math.min(zoom.max,10);z.step=zoom.step;z.value=zoom.min;}
+  $('torchBtn').style.display=caps.torch?'block':'none';
+  return {zoom,torch:!!caps.torch};
+}
+async function camApplyZoom(v){
+  const t=camStream&&camStream.getVideoTracks()[0];if(!t)return;
+  try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});$('camZoom').value=v;}catch(e){}
+}
+async function camTorch(){
+  const t=camStream&&camStream.getVideoTracks()[0];if(!t)return;
+  camTorchOn=!camTorchOn;
+  try{await t.applyConstraints({advanced:[{torch:camTorchOn}]});}catch(e){toast('Lampu tak disokong');}
+}
+async function camFlip(){
+  camFacing=camFacing==='environment'?'user':'environment';
+  try{
+    const ns=await getCamStream();
+    const old=camStream;camStream=ns;$('camVideo').srcObject=ns;
+    $('camVideo').style.transform=camFacing==='user'?'scaleX(-1)':'';
+    if(camCall&&camCall.peerConnection){
+      for(const s of camCall.peerConnection.getSenders()){
+        if(!s.track)continue;
+        const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];
+        if(nt)await s.replaceTrack(nt);
+      }
+    }
+    if(camRecorder&&camRecorder.state==='recording'){toast('Rakaman penuh disambung dengan kamera baru');camStopLocal(true);camStartLocal();}
+    old.getTracks().forEach(t=>t.stop());
+    camSend({t:'caps',...camCaps()});
+  }catch(e){toast('Tak dapat tukar kamera');}
+}
+function camSend(o){try{if(camConn&&camConn.open)camConn.send(o);}catch(e){}}
+function camSetStatus(ok,txt){$('camDot').classList.toggle('ok',ok);$('camStatus').textContent=txt;}
+
+async function startCamera(){
+  camCode=$('joinCode').value.replace(/\D/g,'');
+  camName=($('camName').value||'').trim()||'Kamera';
+  if(camCode.length!==6){toast('Masukkan kod 6 nombor dari telefon pengarah');return;}
+  try{camStream=await getCamStream();}catch(e){toast('Kebenaran kamera/mikrofon ditolak');return;}
+  show('cam');keepAwake();
+  $('camVideo').srcObject=camStream;$('camCodeLbl').textContent=camCode;$('camNameLbl').textContent=camName;
+  camCaps();
+  $('camZoom').oninput=e=>camApplyZoom(e.target.value);
+  camConnect();
+}
+function camConnect(){
+  clearTimeout(camRetry);
+  if(camPeer){try{camPeer.destroy();}catch(e){}}
+  camSetStatus(false,'Menyambung…');
+  camPeer=new Peer(peerOpts);
+  camPeer.on('open',()=>{
+    const dirId=PREFIX+camCode;
+    camConn=camPeer.connect(dirId,{reliable:true,metadata:{name:camName}});
+    camConn.on('open',()=>{
+      camCall=camPeer.call(dirId,camStream,{metadata:{name:camName}});
+      camSend({t:'caps',...camCaps()});
+      camSetStatus(true,'Disambung ke pengarah');
+      camCall.on('close',()=>camLost());
+    });
+    camConn.on('data',camOnData);
+    camConn.on('close',()=>camLost());
+    camConn.on('error',()=>camLost());
+  });
+  camPeer.on('error',err=>{
+    if(err.type==='peer-unavailable')camSetStatus(false,'Kod tak dijumpai. Cuba lagi…');
+    else camSetStatus(false,'Ralat sambungan. Cuba lagi…');
+    camLost();
+  });
+}
+function camLost(){
+  $('camLive').style.display='none';
+  camSetStatus(false,'Terputus. Menyambung semula…');
+  clearTimeout(camRetry);camRetry=setTimeout(camConnect,3000);
+}
+function camOnData(d){
+  if(!d||!d.t)return;
+  if(d.t==='zoom')camApplyZoom(d.v);
+  else if(d.t==='live')$('camLive').style.display=d.on?'block':'none';
+  else if(d.t==='rec'){if(d.on)camStartLocal();else camStopLocal();}
+  else if(d.t==='torch')camTorch();
+}
+function camStartLocal(){
+  if(camRecorder&&camRecorder.state==='recording')return;
+  const mime=pickMime();const ext=mime.includes('mp4')?'mp4':'webm';
+  camSaver=new Saver(`ProMultiCam_${camName.replace(/[^\w-]/g,'_')}_${stamp()}.${ext}`);
+  try{camRecorder=new MediaRecorder(camStream,mime?{mimeType:mime,videoBitsPerSecond:8000000}:{});}
+  catch(e){toast('Telefon ini tak boleh rakam');return;}
+  const saver=camSaver;
+  camRecorder.ondataavailable=e=>saver.push(e.data);
+  camRecorder.onstop=async()=>{const r=await saver.finish(camRecorder.mimeType||mime||'video/webm');toast('Disimpan: '+r.where,4000);};
+  camRecorder.start(3000);
+  $('camRec').classList.add('show');
+}
+function camStopLocal(){
+  if(camRecorder&&camRecorder.state!=='inactive')camRecorder.stop();
+  $('camRec').classList.remove('show');
+}
+
+/* ============ DIRECTOR ROLE ============ */
+let dirPeer=null, roomCode='', sources=[], mainId=null, secId=null, mode='full', recorder=null, saver=null, recStart=0, recTimer=null, drawTimer=null;
+let actx=null, adest=null, aNode=null, localStream=null;
+const stage=$('stage'), ctx=stage.getContext('2d');
+
+function newCode(){return String(Math.floor(100000+Math.random()*900000));}
+function startDirector(){
+  show('dir');keepAwake();
+  roomCode=newCode();$('roomCode').textContent=roomCode;
+  dirPeer=new Peer(PREFIX+roomCode,peerOpts);
+  dirPeer.on('open',()=>toast('Sedia. Sambungkan telefon kamera dengan kod '+roomCode));
+  dirPeer.on('error',err=>{
+    if(err.type==='unavailable-id'){dirPeer.destroy();startDirector();}
+    else if(err.type!=='peer-unavailable')toast('Ralat sambungan: '+err.type);
+  });
+  dirPeer.on('disconnected',()=>{try{dirPeer.reconnect();}catch(e){}});
+  dirPeer.on('connection',conn=>{
+    conn.on('open',()=>{
+      const s=getSrc(conn.peer,conn.metadata&&conn.metadata.name);s.conn=conn;
+      if(recorder&&recorder.state==='recording'&&$('camLocalRec').checked)conn.send({t:'rec',on:true});
+      sendLiveFlags();
+    });
+    conn.on('data',d=>{if(d&&d.t==='caps'){const s=getSrc(conn.peer);s.caps=d;updateZoomUI();}});
+    conn.on('close',()=>removeSrc(conn.peer));
+  });
+  dirPeer.on('call',call=>{
+    call.answer();
+    call.on('stream',st=>{const s=getSrc(call.peer,call.metadata&&call.metadata.name);s.call=call;setStream(s,st);});
+    call.on('close',()=>removeSrc(call.peer));
+    const pc=call.peerConnection;
+    if(pc)pc.addEventListener('iceconnectionstatechange',()=>{if(pc.iceConnectionState==='failed'||pc.iceConnectionState==='closed')removeSrc(call.peer);});
+  });
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+    mode=b.dataset.m;document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
+    renderThumbs();sendLiveFlags();
+  });
+  $('aspectSel').onchange=$('qualSel').onchange=resizeStage;
+  $('audioSel').onchange=()=>applyAudio();
+  $('dirZoom').oninput=e=>setZoom(Number(e.target.value));
+  resizeStage();
+  clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
+}
+function getSrc(id,name){
+  let s=sources.find(x=>x.id===id);
+  if(!s){
+    s={id,name:name||('Kamera '+(sources.length+1)),zoom:1,caps:null,stream:null,video:document.createElement('video')};
+    s.video.muted=true;s.video.playsInline=true;s.video.autoplay=true;s.video.setAttribute('playsinline','');
+    sources.push(s);
+    if(!mainId)mainId=id;
+    toast('📷 '+s.name+' disambung');
+  }else if(name)s.name=name;
+  renderThumbs();refreshAudioList();
+  return s;
+}
+function setStream(s,st){s.stream=st;s.video.srcObject=st;s.video.play().catch(()=>{});renderThumbs();refreshAudioList();updateZoomUI();}
+function removeSrc(id){
+  const i=sources.findIndex(x=>x.id===id);if(i<0)return;
+  const s=sources[i];sources.splice(i,1);
+  toast('⚠ '+s.name+' terputus');
+  if(mainId===id)mainId=sources[0]?sources[0].id:null;
+  if(secId===id)secId=null;
+  if($('audioSel').value===id){$('audioSel').value=localStream?'local':'none';applyAudio();}
+  renderThumbs();refreshAudioList();sendLiveFlags();
+}
+function renderThumbs(){
+  const box=$('thumbs');box.innerHTML='';
+  if(!sources.length){box.innerHTML='<div class="empty">Belum ada kamera. Buka app di telefon lain → "Sambung sebagai Kamera" → masukkan kod <b>'+roomCode+'</b>.</div>';return;}
+  sources.forEach(s=>{
+    const d=document.createElement('div');d.className='thumb'+(s.id===mainId?' main':'')+(mode!=='full'&&s.id===secId?' sec':'');
+    d.appendChild(s.video);s.video.play().catch(()=>{});
+    const l=document.createElement('span');l.textContent=s.name+(s.stream?'':' (memuat…)');d.appendChild(l);
+    if(s.id===mainId||(mode!=='full'&&s.id===secId)){const t=document.createElement('span');t.className='tag';t.style.background=s.id===mainId?'var(--acc)':'#38bdf8';t.textContent=s.id===mainId?'1':'2';d.appendChild(t);}
+    d.onclick=()=>pick(s.id);
+    box.appendChild(d);
+  });
+  updateZoomUI();
+}
+function pick(id){
+  if(mode==='full'||id===mainId){if(id===mainId&&mode!=='full'&&secId){[mainId,secId]=[secId,mainId];}else mainId=id;}
+  else secId=id;
+  if(secId===mainId)secId=null;
+  renderThumbs();sendLiveFlags();
+}
+function sendLiveFlags(){
+  sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});
+}
+function updateZoomUI(){
+  const s=sources.find(x=>x.id===mainId);const z=$('dirZoom');
+  if(!s){z.disabled=true;return;}z.disabled=false;
+  if(s.caps&&s.caps.zoom){z.min=s.caps.zoom.min;z.max=Math.min(s.caps.zoom.max,10);z.step=s.caps.zoom.step||0.1;}
+  else{z.min=1;z.max=4;z.step=0.1;}
+  z.value=s.zoom;
+}
+function setZoom(v){
+  const s=sources.find(x=>x.id===mainId);if(!s)return;s.zoom=v;
+  if(s.local&&s.caps&&s.caps.zoom){const t=localStream.getVideoTracks()[0];t.applyConstraints({advanced:[{zoom:v}]}).catch(()=>{});}
+  else if(s.caps&&s.caps.zoom&&s.conn){try{s.conn.send({t:'zoom',v});}catch(e){}}
+}
+async function addLocalCam(){
+  if(localStream){toast('Kamera telefon ini sudah ditambah');return;}
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:{echoCancellation:true,noiseSuppression:true}});
+  }catch(e){toast('Kebenaran kamera ditolak');return;}
+  const s=getSrc('local','Telefon pengarah');s.local=true;
+  const t=localStream.getVideoTracks()[0];let caps={};try{caps=t.getCapabilities?t.getCapabilities():{};}catch(e){}
+  s.caps={zoom:caps.zoom?{min:caps.zoom.min,max:caps.zoom.max,step:caps.zoom.step||0.1}:null};
+  if(s.caps.zoom)s.zoom=caps.zoom.min;
+  setStream(s,localStream);
+  $('localBtn').disabled=true;
+  if($('audioSel').value==='none'){$('audioSel').value='local';applyAudio();}
+}
+function refreshAudioList(){
+  const sel=$('audioSel');const cur=sel.value;
+  sel.innerHTML='<option value="none">Tiada suara</option>';
+  sources.forEach(s=>{if(s.stream&&s.stream.getAudioTracks().length){const o=document.createElement('option');o.value=s.id;o.textContent='Mikrofon: '+s.name;sel.appendChild(o);}});
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;
+  else if(sel.options.length>1&&cur==='none'&&!sel._userSet){sel.value=sel.options[1].value;}
+  applyAudio();
+}
+function applyAudio(){
+  if(!actx)return; /* audio graph only exists while recording */
+  if(aNode){try{aNode.disconnect();}catch(e){}aNode=null;}
+  const id=$('audioSel').value;const s=sources.find(x=>x.id===id);
+  if(s&&s.stream&&s.stream.getAudioTracks().length){
+    aNode=actx.createMediaStreamSource(new MediaStream(s.stream.getAudioTracks()));aNode.connect(adest);
+  }
+}
+function resizeStage(){
+  const q=Number($('qualSel').value);const portrait=$('aspectSel').value==='p';
+  const long=q===1080?1920:1280,short=q;
+  stage.width=portrait?short:long;stage.height=portrait?long:short;
+  stage.style.maxHeight=portrait?'52vh':'';stage.style.width=portrait?'auto':'100%';
+  if(portrait){stage.style.height='52vh';stage.style.aspectRatio='9/16';}else{stage.style.height='auto';}
+}
+function drawCover(v,x,y,w,h,zoom){
+  const vw=v.videoWidth,vh=v.videoHeight;
+  if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
+  let sw,sh;const r=w/h;
+  if(vw/vh>r){sh=vh;sw=vh*r;}else{sw=vw;sh=vw/r;}
+  sw/=zoom;sh/=zoom;
+  const sx=(vw-sw)/2,sy=(vh-sh)/2;
+  ctx.drawImage(v,sx,sy,sw,sh,x,y,w,h);
+}
+function digitalZoom(s){return (s.caps&&s.caps.zoom)?1:s.zoom;}
+function draw(){
+  const W=stage.width,H=stage.height;
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  const m=sources.find(s=>s.id===mainId),sc=sources.find(s=>s.id===secId);
+  if(!m||!m.stream){
+    ctx.fillStyle='#94a3b8';ctx.font=`${Math.round(W/22)}px sans-serif`;ctx.textAlign='center';
+    ctx.fillText('Menunggu kamera…',W/2,H/2);
+  }else if(mode==='split'&&sc&&sc.stream){
+    const portrait=H>W;
+    if(portrait){drawCover(m.video,0,0,W,H/2,digitalZoom(m));drawCover(sc.video,0,H/2,W,H/2,digitalZoom(sc));ctx.fillStyle='#fff';ctx.fillRect(0,H/2-2,W,4);}
+    else{drawCover(m.video,0,0,W/2,H,digitalZoom(m));drawCover(sc.video,W/2,0,W/2,H,digitalZoom(sc));ctx.fillStyle='#fff';ctx.fillRect(W/2-2,0,4,H);}
+  }else{
+    drawCover(m.video,0,0,W,H,digitalZoom(m));
+    if(mode==='pip'&&sc&&sc.stream){
+      const pw=Math.round(Math.min(W,H)*0.36),ph=Math.round(pw*(H>W?16/9:9/16)*(H>W?0.75:1.4));
+      const px=W-pw-Math.round(W*0.04),py=H-ph-Math.round(H*0.12);
+      ctx.fillStyle='#fff';ctx.fillRect(px-4,py-4,pw+8,ph+8);
+      drawCover(sc.video,px,py,pw,ph,digitalZoom(sc));
+    }
+  }
+  const title=$('titleTxt').value.trim();
+  if(title){
+    const fs=Math.round(Math.min(W,H)/15);ctx.font=`bold ${fs}px sans-serif`;ctx.textAlign='center';
+    const tw=ctx.measureText(title).width,pad=fs*0.5,ty=Math.round(H*0.06);
+    ctx.fillStyle='rgba(249,115,22,.92)';
+    const bx=W/2-tw/2-pad,bw=tw+pad*2,bh=fs*1.6;
+    if(ctx.roundRect){ctx.beginPath();ctx.roundRect(bx,ty,bw,bh,fs*0.4);ctx.fill();}else ctx.fillRect(bx,ty,bw,bh);
+    ctx.fillStyle='#fff';ctx.fillText(title,W/2,ty+fs*1.15);
+  }
+}
+async function toggleRec(){
+  if(recorder&&recorder.state==='recording'){stopRec();return;}
+  if(!sources.some(s=>s.stream)){toast('Sambungkan sekurang-kurangnya satu kamera dulu');return;}
+  const mime=pickMime();const ext=mime.includes('mp4')?'mp4':'webm';
+  actx=new (window.AudioContext||window.webkitAudioContext)();adest=actx.createMediaStreamDestination();
+  if(actx.state==='suspended')await actx.resume();
+  applyAudio();
+  const out=stage.captureStream(30);
+  adest.stream.getAudioTracks().forEach(t=>out.addTrack(t));
+  const bps=stage.width*stage.height>=1920*1080*0.9?8000000:4500000;
+  try{recorder=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:bps,audioBitsPerSecond:128000}:{});}
+  catch(e){toast('Telefon ini tak boleh rakam video');return;}
+  saver=new Saver(`ProMultiCam_${stamp()}.${ext}`);
+  const sv=saver;
+  recorder.ondataavailable=e=>sv.push(e.data);
+  recorder.onstop=async()=>{
+    const r=await sv.finish(recorder.mimeType||mime||'video/webm');
+    addFile(r,sv.name);
+    try{actx.close();}catch(e){}actx=null;adest=null;aNode=null;
+  };
+  recorder.start(3000);
+  if($('camLocalRec').checked)sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'rec',on:true});}catch(e){}});
+  recStart=Date.now();
+  $('recBtn').textContent='■ Berhenti Rakam';$('recBtn').classList.add('recording');$('dirRec').classList.add('show');
+  $('aspectSel').disabled=$('qualSel').disabled=true;
+  recTimer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('recTime').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');},500);
+}
+function stopRec(){
+  if(recorder&&recorder.state!=='inactive')recorder.stop();
+  sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'rec',on:false});}catch(e){}});
+  clearInterval(recTimer);
+  $('recBtn').textContent='● Mula Rakam';$('recBtn').classList.remove('recording');$('dirRec').classList.remove('show');
+  $('aspectSel').disabled=$('qualSel').disabled=false;
+  toast('Menyimpan video…');
+}
+function addFile(r,name){
+  $('filesPanel').style.display='flex';
+  const div=document.createElement('div');
+  if(r.url){
+    const a=document.createElement('a');a.href=r.url;a.download=name;a.textContent='⬇ '+name;div.appendChild(a);
+    if(navigator.canShare&&r.blob){
+      const f=new File([r.blob],name,{type:r.blob.type});
+      if(navigator.canShare({files:[f]})){const b=document.createElement('button');b.textContent='📤 Kongsi (TikTok / WhatsApp)';b.onclick=()=>navigator.share({files:[f]}).catch(()=>{});div.appendChild(b);}
+    }
+  }else{div.textContent='✅ '+r.where;}
+  $('files').prepend(div);
+  toast('Video disimpan: '+r.where,4000);
+}
+$('audioSel').addEventListener('change',e=>e.target._userSet=true);
+
+/* PWA */
+if('serviceWorker' in navigator&&!Cap){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>
