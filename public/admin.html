@@ -23,7 +23,7 @@ header b{font-size:18px;margin-right:auto}
 .input,select{width:100%;font:15px var(--f);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px}
 label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:12px 16px 0;max-width:1100px;margin:0 auto}
+.tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:12px 16px 0;max-width:1100px;margin:0 auto}
 @media(max-width:560px){.tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:8px 6px;font:700 13px var(--f);cursor:pointer;text-align:center}
 .tabs button i{font-style:normal;font-size:20px;line-height:1}
@@ -41,6 +41,16 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
 .muted{color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000e;color:#fff;padding:10px 16px;border-radius:12px;display:none;z-index:99;max-width:90%}
 .hide{display:none!important}
+.sup-wrap{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:12px}
+@media(max-width:720px){.sup-wrap{grid-template-columns:1fr}.sup-wrap.open .sup-list{display:none}.sup-wrap:not(.open) .sup-chat{display:none}}
+.th{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink);font-family:var(--f);cursor:pointer}
+.th.on{border-color:var(--gold)}.th b{font-size:14px;display:flex;justify-content:space-between;gap:8px}.th span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th .nd{width:9px;height:9px;border-radius:50%;background:var(--bad);display:inline-block;flex-shrink:0;margin-top:4px}
+.sup-chat{min-height:60vh}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;max-height:55vh;padding:4px}
+.m{max-width:80%;padding:8px 12px;border-radius:14px;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.m.ad{align-self:flex-end;background:var(--gold);color:var(--on-gold)}.m.us{align-self:flex-start;background:var(--card2)}
+.m small{display:block;font-size:10px;opacity:.7}
 </style>
 </head>
 <body>
@@ -69,7 +79,7 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
 
 <div class="hide" id="app">
   <div class="tabs" id="tabs">
-    <button data-t="sum" class="on"><i>📊</i>Ringkasan</button><button data-t="users"><i>👥</i>Pelanggan</button><button data-t="pays"><i>💳</i>Bayaran</button><button data-t="plans"><i>🏷️</i>Harga & Sokongan</button><button data-t="promos"><i>🎟️</i>Kod Promo</button>
+    <button data-t="sum" class="on"><i>📊</i>Ringkasan</button><button data-t="users"><i>👥</i>Pelanggan</button><button data-t="pays"><i>💳</i>Bayaran</button><button data-t="plans"><i>🏷️</i>Harga</button><button data-t="promos"><i>🎟️</i>Kod Promo</button><button data-t="support"><i>💬</i>Sokongan <b id="supCount" style="color:var(--bad)"></b></button>
   </div>
   <div class="wrap">
     <section data-s="sum">
@@ -96,15 +106,6 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
         <button class="btn btn-gold" id="savePlans">Simpan</button>
         <span class="muted">Harga dipaparkan terus kepada pelanggan dalam app. Perubahan hari percubaan hanya untuk akaun baru.</span>
       </div>
-      <div class="card" style="max-width:520px;margin-top:12px">
-        <b>Hubungi sokongan</b>
-        <div class="grid2">
-          <label>No. WhatsApp sokongan<input class="input" id="spWa" inputmode="tel" placeholder="cth: 0123456789"></label>
-          <label>E-mel sokongan<input class="input" id="spEm" type="email" placeholder="cth: sokongan@domain.com"></label>
-        </div>
-        <button class="btn btn-gold" id="saveSupport">Simpan</button>
-        <span class="muted">Butang <b>Hubungi kami</b> dalam app akan buka WhatsApp (diutamakan) atau e-mel ini.</span>
-      </div>
     </section>
     <section data-s="promos" class="hide">
       <div class="card" style="max-width:720px">
@@ -120,6 +121,12 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
         <span class="muted">Setiap akaun hanya boleh guna satu kod yang sama sekali sahaja.</span>
       </div>
       <div class="card" style="margin-top:12px"><div class="tbl"><table><thead><tr><th>Kod</th><th>Jenis</th><th>Nilai</th><th>Digunakan</th><th>Tamat</th><th>Status</th><th></th></tr></thead><tbody id="pcBody"></tbody></table></div></div>
+    </section>
+    <section data-s="support" class="hide">
+      <div class="sup-wrap">
+        <div class="card sup-list"><div id="thList" style="display:flex;flex-direction:column;gap:6px"></div></div>
+        <div class="card sup-chat" id="thPane"><span class="muted">Pilih perbualan pelanggan.</span></div>
+      </div>
     </section>
   </div>
 </div>
@@ -159,7 +166,7 @@ function start(){
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'users'),F.orderBy('createdAt','desc'),F.limit(1000)),s=>{users=s.docs.map(d=>({id:d.id,...d.data()}));renderUsers();renderStats();}));
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'payments'),F.orderBy('createdAt','desc'),F.limit(500)),s=>{pays=s.docs.map(d=>({id:d.id,...d.data()}));renderPays();renderStats();}));
   unsubs.push(F.onSnapshot(F.collection(db,'promos'),s=>renderPromos(s.docs.map(d=>({id:d.id,...d.data()})))));
-  F.getDoc(F.doc(db,'config/support')).then(s=>{const d=s.data()||{};$('spWa').value=d.whatsapp||'';$('spEm').value=d.email||'';});
+  startSupport();
   F.getDoc(F.doc(db,'config/plans')).then(s=>{const d=s.data()||{};$('prM').value=d.monthly||'';$('prY').value=d.yearly||'';$('prT').value=d.trialDays??7;});
 }
 const PLAN_LBL={admin:'Admin',trial:'Percubaan 7 hari',monthly:'Bulanan',yearly:'Tahunan',promo:'Kod promo',free:'Percuma'};
@@ -189,7 +196,6 @@ $('savePlans').onclick=async()=>{
   if(!(m>=1)||!(y>=1)){toast('Masukkan harga sekurang-kurangnya RM1');return;}
   try{await F.setDoc(F.doc(db,'config/plans'),{monthly:m,yearly:y,trialDays:tr,updatedAt:F.serverTimestamp()},{merge:true});toast('Harga disimpan');}catch(e){toast('Gagal: '+e.message);}
 };
-$('saveSupport').onclick=async()=>{try{await F.setDoc(F.doc(db,'config/support'),{whatsapp:$('spWa').value.trim(),email:$('spEm').value.trim(),updatedAt:F.serverTimestamp()},{merge:true});toast('Disimpan');}catch(e){toast('Gagal: '+e.message);}};
 $('pcAdd').onclick=async()=>{
   const code=$('pcCode').value.trim().toUpperCase(),type=$('pcType').value,val=Number($('pcVal').value),max=Math.max(0,Math.round(Number($('pcMax').value||0)));
   if(!/^[A-Z0-9-]{3,30}$/.test(code)){toast('Kod: 3–30 huruf/nombor');return;}
@@ -206,6 +212,34 @@ function renderPromos(list){
     <td><button class="btn btn-sm" data-c="${esc(p.id)}" data-on="${p.active===false?1:0}">${p.active===false?'Aktifkan':'Matikan'}</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Belum ada kod promo.</td></tr>';
 }
 $('pcBody').onclick=async e=>{const b=e.target.closest('button[data-c]');if(!b)return;try{await F.updateDoc(F.doc(db,'promos/'+b.dataset.c),{active:b.dataset.on==='1'});}catch(err){toast('Gagal: '+err.message);}};
+
+/* ---------- Support inbox ---------- */
+let threads=[],thCur=null,thUnsub=null;
+function startSupport(){
+  unsubs.push(F.onSnapshot(F.query(F.collection(db,'supportChats'),F.orderBy('lastAt','desc'),F.limit(300)),s=>{
+    threads=s.docs.map(d=>({id:d.id,...d.data()}));const n=threads.filter(x=>x.unreadAdmin).length;$('supCount').textContent=n?'('+n+')':'';renderThreads();}));
+}
+function renderThreads(){
+  $('thList').innerHTML=threads.map(x=>`<button class="th${thCur===x.id?' on':''}" data-id="${esc(x.id)}"><b><span>${esc(x.email||x.id)}</span>${x.unreadAdmin?'<i class="nd"></i>':''}</b><span>${x.lastFrom==='admin'?'Anda: ':''}${esc(x.lastMsg||'')}</span><span>${x.lastAt?.toMillis?new Date(x.lastAt.toMillis()).toLocaleString('ms-MY'):''}</span></button>`).join('')||'<span class="muted">Belum ada mesej sokongan.</span>';
+}
+$('thList').onclick=e=>{const b=e.target.closest('.th');if(b)openThread(b.dataset.id);};
+function openThread(id){
+  thCur=id;renderThreads();document.querySelector('.sup-wrap').classList.add('open');
+  const th=threads.find(x=>x.id===id)||{};
+  $('thPane').innerHTML=`<div style="display:flex;align-items:center;gap:8px"><button class="btn btn-sm" id="thBack">←</button><b style="flex:1">${esc(th.email||id)}</b></div><div class="msgs" id="msgs"></div><div style="display:flex;gap:8px"><textarea class="input" id="rep" rows="2" maxlength="2000" placeholder="Balas…" style="flex:1"></textarea><button class="btn btn-gold" id="repBtn">Hantar</button></div>`;
+  $('thBack').onclick=()=>{document.querySelector('.sup-wrap').classList.remove('open');};
+  if(thUnsub)thUnsub();
+  thUnsub=F.onSnapshot(F.query(F.collection(db,`supportChats/${id}/messages`),F.orderBy('at','asc'),F.limitToLast(300)),s=>{
+    const box=$('msgs');if(!box)return;
+    box.innerHTML=s.docs.map(d=>{const m=d.data();const t=m.at?.toMillis?new Date(m.at.toMillis()).toLocaleString('ms-MY'):'';return `<div class="m ${m.from==='admin'?'ad':'us'}">${esc(m.text)}<small>${t}</small></div>`;}).join('');
+    box.scrollTop=box.scrollHeight;
+  });
+  if(th.unreadAdmin)F.updateDoc(F.doc(db,'supportChats/'+id),{unreadAdmin:false}).catch(()=>{});
+  $('repBtn').onclick=async()=>{const v=$('rep').value.trim();if(!v)return;$('repBtn').disabled=true;
+    try{await F.addDoc(F.collection(db,`supportChats/${id}/messages`),{from:'admin',text:v,at:F.serverTimestamp()});
+      await F.updateDoc(F.doc(db,'supportChats/'+id),{lastMsg:v.slice(0,300),lastAt:F.serverTimestamp(),lastFrom:'admin',unreadUser:true,unreadAdmin:false});$('rep').value='';}
+    catch(err){toast('Gagal: '+err.message);}$('repBtn').disabled=false;};
+}
 </script>
 </body>
 </html>

@@ -37,6 +37,22 @@ try {
     checkPayment: (id) => call('pmc_checkPayment', { id }),
     redeem: (code) => call('pmc_redeemPromo', { code }),
     call,
+    chatListen: (cb) => {
+      const u = auth.currentUser; if (!u) return () => {};
+      const q = F.query(F.collection(db, `supportChats/${u.uid}/messages`), F.orderBy('at', 'asc'), F.limitToLast(200));
+      return F.onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().at?.toMillis?.() || Date.now() }))), () => cb([]));
+    },
+    chatSend: async (text) => {
+      const u = auth.currentUser; if (!u) throw new Error('auth');
+      text = String(text || '').trim().slice(0, 2000); if (!text) return;
+      await F.addDoc(F.collection(db, `supportChats/${u.uid}/messages`), { from: 'user', text, at: F.serverTimestamp() });
+      await F.setDoc(F.doc(db, `supportChats/${u.uid}`), { uid: u.uid, email: u.email || '', lastMsg: text.slice(0, 300), lastAt: F.serverTimestamp(), lastFrom: 'user', unreadAdmin: true, unreadUser: false });
+    },
+    chatMarkRead: async () => {
+      const u = auth.currentUser; if (!u) return;
+      const ref = F.doc(db, `supportChats/${u.uid}`); const s = await F.getDoc(ref);
+      if (s.exists() && s.data().unreadUser) { const d = s.data(); await F.setDoc(ref, { uid: u.uid, email: d.email || u.email || '', lastMsg: d.lastMsg || '', lastAt: d.lastAt || F.serverTimestamp(), lastFrom: d.lastFrom || 'admin', unreadAdmin: !!d.unreadAdmin, unreadUser: false }); }
+    },
     listPayments: async () => {
       if (!auth.currentUser) return [];
       const q = F.query(F.collection(db, 'payments'), F.where('uid', '==', auth.currentUser.uid));
@@ -48,7 +64,6 @@ try {
   A.getRedirectResult(auth).catch(() => {});
 
   F.onSnapshot(F.doc(db, 'config/plans'), s => { PMC.plans = s.data() || {}; ev(); }, () => {});
-  F.onSnapshot(F.doc(db, 'config/support'), s => { PMC.support = s.data() || {}; ev(); }, () => {});
 
   let unsubUser = null;
   A.onAuthStateChanged(auth, async (u) => {
@@ -57,6 +72,8 @@ try {
     if (u) {
       try { const r = await call('pmc_initUser'); PMC.profile = { expiry: r.expiry, plan: r.plan, status: r.status }; }
       catch (e) { PMC.error = e.message; }
+      if (PMC._chatMeta) PMC._chatMeta();
+      PMC._chatMeta = F.onSnapshot(F.doc(db, `supportChats/${u.uid}`), s => { PMC.chatUnread = !!(s.data() && s.data().unreadUser); ev(); }, () => {});
       unsubUser = F.onSnapshot(F.doc(db, `users/${u.uid}`), s => {
         const d = s.data(); if (!d) return;
         PMC.profile = { expiry: d.expiry?.toMillis?.() || 0, plan: d.plan || 'free', status: d.status || 'active', email: d.email || u.email };

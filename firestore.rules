@@ -30,6 +30,25 @@ service cloud.firestore {
       allow read: if isSuper() || (signedIn() && resource.data.uid == request.auth.uid);
       allow write: if false;
     }
+    // In-app support chat: one thread per customer, readable by that customer and the Super Admin
+    match /supportChats/{uid} {
+      allow read: if isSuper() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if isSuper() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'lastMsg', 'lastAt', 'lastFrom', 'unreadAdmin', 'unreadUser'])
+        && request.resource.data.lastMsg is string && request.resource.data.lastMsg.size() <= 300);
+      allow delete: if isSuper();
+      match /messages/{mid} {
+        allow read: if isSuper() || (signedIn() && request.auth.uid == uid);
+        allow create: if request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
+          && ((isSuper() && request.resource.data.from == 'admin')
+              || (signedIn() && request.auth.uid == uid && request.resource.data.from == 'user'));
+        allow update: if false;
+        allow delete: if isSuper();
+      }
+    }
     // Promo codes — Super Admin only (redemption goes through Cloud Functions)
     match /promos/{code} {
       allow read, write: if isSuper();

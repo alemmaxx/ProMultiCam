@@ -6,6 +6,7 @@ window.LANGS = [
 ];
 window.I18N = {
 en:{
+ support:'Support', supportHint:'Send us a message — we usually reply within a day.', chatPh:'Type your message…', chatWelcome:'Hi! How can we help you with ProMultiCam?', loginNeeded2:'Please log in to contact support',
  receipts:'Receipts', receipt:'Receipt', paid:'PAID', noReceipts:'No payments yet.', savePdf:'Print / Save as PDF', rNo:'Reference', rDate:'Date', rPlan:'Plan', rPrice:'Price', rDisc:'Discount', rTotal:'Total paid', rUntil:'Pro active until', rMethod:'Payment', contact:'Contact us', legal:'Privacy & Terms', agreeTerms:'By paying you agree to the Terms & Refund Policy', contactMsg:'Hi ProMultiCam, I need help. Account: {e}', noContact:'Support contact is not set yet. Please try again later.', renewSoon:'⏳ Pro ends in {n} day(s) — tap to extend', trialEnds:'⏳ Pro trial ends in {n} day(s) — tap to upgrade', renewExpired:'⚠ Pro has ended — tap to renew',
  need2:'Split Screen and Picture-in-Picture need at least 2 cameras. Connect another phone first.',
  orScan:'— or —', 
@@ -55,6 +56,7 @@ en:{
  kicked:'The Director ended the connection', back:'Back', close:'Close', settingsBtn:'Settings'
 },
 ms:{
+ support:'Sokongan', supportHint:'Hantar mesej kepada kami — biasanya kami balas dalam tempoh sehari.', chatPh:'Taip mesej anda…', chatWelcome:'Hai! Apa yang boleh kami bantu tentang ProMultiCam?', loginNeeded2:'Sila log masuk untuk hubungi sokongan',
  receipts:'Resit', receipt:'Resit', paid:'DIBAYAR', noReceipts:'Belum ada bayaran.', savePdf:'Cetak / Simpan PDF', rNo:'No. rujukan', rDate:'Tarikh', rPlan:'Pakej', rPrice:'Harga', rDisc:'Diskaun', rTotal:'Jumlah dibayar', rUntil:'Pro aktif sehingga', rMethod:'Bayaran', contact:'Hubungi kami', legal:'Privasi & Terma', agreeTerms:'Dengan membayar, anda bersetuju dengan Terma & Polisi Bayaran Balik', contactMsg:'Hai ProMultiCam, saya perlukan bantuan. Akaun: {e}', noContact:'Hubungan sokongan belum ditetapkan. Sila cuba lagi nanti.', renewSoon:'⏳ Pro tamat dalam {n} hari — tekan untuk lanjutkan', trialEnds:'⏳ Percubaan Pro tamat dalam {n} hari — tekan untuk naik taraf', renewExpired:'⚠ Pro telah tamat — tekan untuk sambung semula',
  need2:'Skrin Belah dan Bingkai Kecil perlukan sekurang-kurangnya 2 kamera. Sambungkan telefon lain dahulu.',
  orScan:'— atau —', 
