@@ -1,16 +1,15 @@
 # ProMultiCam
-
-Rakam video masak dari beberapa sudut menggunakan beberapa telefon.
+**Studio multi-kamera dalam poket anda.** Rakam video masakan bertaraf studio menggunakan beberapa telefon.
 
 ## Cara guna
-1. **Telefon pengarah:** buka app → "Mula sebagai Pengarah" → akan keluar kod 6 nombor.
-2. **Telefon kamera:** buka app → masukkan kod + nama angle (cth: Kuali) → "Sambung sebagai Kamera".
-3. Di telefon pengarah, tekan gambar kecil untuk tukar angle. Pilih mod Penuh / Split / PiP.
-4. Tekan **Mula Rakam**. Bila berhenti, video siap disimpan.
-5. (Pilihan) Setiap telefon kamera turut simpan rakaman kualiti penuh, untuk diedit kemudian.
+1. **Master Studio:** buka app, pilih *MASTER STUDIO*.
+2. **Kamera Sudut:** di telefon lain, pilih *SLAVE · KAMERA SUDUT*.
+   - **Wi-Fi:** Master dalam Wi-Fi yang sama muncul secara automatik → *Sertai*.
+   - **Data:** masukkan Kod Studio 6 digit (Master → *Urus sambungan*).
+3. Sentuh kotak kamera sudut untuk tukar paparan, pilih **Gaya Visual**, kemudian tekan **MULA RAKAM**.
+
+Video disimpan pada telefon Master (Downloads dalam Chrome, atau Documents/ProMultiCam dalam APK).
 
 ## Pasang
-- **Cara cepat (tanpa APK):** muat naik ke GitHub Pages, buka link dalam Chrome → menu ⋮ → "Add to Home screen".
-- **APK:** muat naik ke repo baru (cth: alemmaxx/ProMultiCam) → tab Actions → "Build ProMultiCam APK" → muat turun ProMultiCam-APK.
-
-Video disimpan di folder Downloads (Chrome) atau Documents/ProMultiCam (APK).
+- **Web:** Settings → Pages → branch `main` → buka `https://alemmaxx.github.io/ProMultiCam/` → menu ⋮ → *Add to Home screen*.
+- **APK:** tab Actions → *Build ProMultiCam APK* → muat turun *ProMultiCam-APK*.
