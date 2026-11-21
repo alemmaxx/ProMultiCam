@@ -16,6 +16,7 @@ const TOYYIB_CATEGORY = 'popvay7w';
 const PLAN_MONTHS = { monthly: 1, yearly: 12 };
 const PLAN_NAME = { monthly: 'Bulanan', yearly: 'Tahunan' };
 const DEFAULT_TRIAL_DAYS = 7;
+const SUPER_UID = 'D3U6Dxs5joZQq5EYRdjZQUmRV773'; // owner account
 
 const clean = (s, n) => String(s || '').replace(/[^\p{L}\p{N} .,_@()-]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const projectId = () => process.env.GCLOUD_PROJECT || JSON.parse(process.env.FIREBASE_CONFIG || '{}').projectId;
@@ -26,8 +27,7 @@ function requireAuth(req) {
 }
 async function requireSuper(req) {
   const a = requireAuth(req);
-  const s = await db.doc('config/super').get();
-  if (!s.exists || s.data().uid !== a.uid) throw new HttpsError('permission-denied', 'Super Admin sahaja.');
+  if (a.uid !== SUPER_UID) throw new HttpsError('permission-denied', 'Super Admin sahaja.');
   return a;
 }
 async function plansCfg() { return (await db.doc('config/plans').get()).data() || {}; }

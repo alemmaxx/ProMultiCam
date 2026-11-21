@@ -138,9 +138,7 @@ A.onAuthStateChanged(auth,async u=>{
   unsubs.forEach(f=>f());unsubs=[];
   $('who').textContent=u?u.email:'';$('outBtn').classList.toggle('hide',!u);
   if(!u){show('loginBox');return;}
-  const sup=await F.getDoc(F.doc(db,'config/super'));
-  if(!sup.exists()){show('claimBox');$('claimBtn').onclick=async()=>{try{await F.setDoc(F.doc(db,'config/super'),{uid:u.uid,email:u.email||'',at:F.serverTimestamp()});location.reload();}catch(e){toast('Gagal: '+e.message);}};return;}
-  if(sup.data().uid!==u.uid){show('denyBox');return;}
+  if(u.uid!=='D3U6Dxs5joZQq5EYRdjZQUmRV773'){show('denyBox');return;}
   show('app');start();
 });
 

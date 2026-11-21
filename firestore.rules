@@ -5,12 +5,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function superPath() { return /databases/$(database)/documents/config/super; }
-    function isSuper() { return signedIn() && exists(superPath()) && get(superPath()).data.uid == request.auth.uid; }
+    // Super Admin is fixed to the owner's account
+    function isSuper() { return signedIn() && request.auth.uid == 'D3U6Dxs5joZQq5EYRdjZQUmRV773'; }
 
-    // Super Admin: the first account to claim becomes the owner of the admin page
+    // Super Admin record (optional, owner only)
     match /config/super {
       allow read: if signedIn();
-      allow create: if signedIn()
+      allow create: if isSuper()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid', 'email', 'at']);
     }
