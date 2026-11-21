@@ -76,7 +76,7 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
     <section data-s="users" class="hide">
       <div class="card">
         <input class="input" id="uSearch" placeholder="Cari e-mel…">
-        <div class="tbl"><table><thead><tr><th>E-mel</th><th>Status</th><th>Tamat</th><th>Daftar</th><th>Jumlah bayar</th><th>Tindakan</th></tr></thead><tbody id="uBody"></tbody></table></div>
+        <div class="tbl"><table><thead><tr><th>E-mel</th><th>Status</th><th>Pakej</th><th>Tamat</th><th>Jumlah bayar</th><th>Daftar</th></tr></thead><tbody id="uBody"></tbody></table></div>
       </div>
     </section>
     <section data-s="pays" class="hide">
@@ -149,26 +149,24 @@ function start(){
   unsubs.push(F.onSnapshot(F.collection(db,'promos'),s=>renderPromos(s.docs.map(d=>({id:d.id,...d.data()})))));
   F.getDoc(F.doc(db,'config/plans')).then(s=>{const d=s.data()||{};$('prM').value=d.monthly||'';$('prY').value=d.yearly||'';$('prT').value=d.trialDays??7;});
 }
+const PLAN_LBL={admin:'Admin',trial:'Percubaan 7 hari',monthly:'Bulanan',yearly:'Tahunan',promo:'Kod promo',free:'Percuma'};
 function status(u){const now=Date.now(),ex=u.expiry?.toMillis?.()||0;
+  if(u.plan==='admin')return['ADMIN','p-ok'];
   if(u.status==='suspended')return['GANTUNG','p-bad'];if(ex>now)return u.plan==='trial'?['PERCUBAAN','p-trial']:['PRO','p-pro'];return['PERCUMA','p-free'];}
 function renderStats(){
-  const now=Date.now(),pro=users.filter(u=>u.status!=='suspended'&&(u.expiry?.toMillis?.()||0)>now);
+  const now=Date.now(),cust=users.filter(u=>u.plan!=='admin'),pro=cust.filter(u=>u.status!=='suspended'&&(u.expiry?.toMillis?.()||0)>now);
   const paid=pays.filter(p=>p.status==='paid'),month=new Date();month.setDate(1);month.setHours(0,0,0,0);
   const mRev=paid.filter(p=>(p.paidAt?.toMillis?.()||0)>=month.getTime()).reduce((a,p)=>a+Number(p.amount||0),0);
-  const box=[['Jumlah pelanggan',users.length],['Pro aktif (berbayar)',pro.filter(u=>u.plan!=='trial').length],['Dalam percubaan',pro.filter(u=>u.plan==='trial').length],['Bayaran berjaya',paid.length],['Hasil bulan ini',rm(mRev)],['Hasil keseluruhan',rm(paid.reduce((a,p)=>a+Number(p.amount||0),0))]];
+  const box=[['Jumlah pelanggan',cust.length],['Pro aktif (berbayar)',pro.filter(u=>u.plan!=='trial').length],['Dalam percubaan',pro.filter(u=>u.plan==='trial').length],['Bayaran berjaya',paid.length],['Hasil bulan ini',rm(mRev)],['Hasil keseluruhan',rm(paid.reduce((a,p)=>a+Number(p.amount||0),0))]];
   $('stats').innerHTML=box.map(([k,v])=>`<div class="stat"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
 }
 $('uSearch').oninput=()=>renderUsers();
 function renderUsers(){
   const q=$('uSearch').value.trim().toLowerCase();
   $('uBody').innerHTML=users.filter(u=>!q||(u.email||'').toLowerCase().includes(q)).map(u=>{const [st,cl]=status(u);
-    return `<tr><td>${esc(u.email||u.id)}</td><td><span class="pill ${cl}">${st}</span></td><td>${dt(u.expiry)}</td><td>${dt(u.createdAt)}</td><td>${rm(u.totalPaid)}</td>
-    <td><button class="btn btn-sm" data-a="extend" data-d="30" data-u="${u.id}">+30 hari</button> <button class="btn btn-sm" data-a="extend" data-d="365" data-u="${u.id}">+1 tahun</button>
-    ${u.status==='suspended'?`<button class="btn btn-sm btn-ok" data-a="activate" data-u="${u.id}">Aktifkan</button>`:`<button class="btn btn-sm btn-danger" data-a="suspend" data-u="${u.id}">Gantung</button>`}</td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Belum ada pelanggan.</td></tr>';
+    const exp=u.plan==='admin'?'Tiada had':dt(u.expiry);
+    return `<tr><td>${esc(u.email||u.id)}</td><td><span class="pill ${cl}">${st}</span></td><td>${esc(PLAN_LBL[u.plan]||u.plan||'—')}</td><td>${exp}</td><td>${rm(u.totalPaid)}</td><td>${dt(u.createdAt)}</td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Belum ada pelanggan.</td></tr>';
 }
-$('uBody').onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;
-  if(b.dataset.a==='suspend'&&!confirm('Gantung akaun ini?'))return;
-  b.disabled=true;try{await call('pmc_adminUser',{uid:b.dataset.u,action:b.dataset.a,days:Number(b.dataset.d||0)});toast('Dikemas kini');}catch(err){toast('Gagal: '+err.message);}b.disabled=false;};
 function renderPays(){
   const cls={paid:'p-ok',pending:'p-trial',failed:'p-bad'};
   $('pBody').innerHTML=pays.map(p=>`<tr><td>${dt(p.createdAt)}</td><td>${esc(p.email)}</td><td>${p.plan==='yearly'?'Tahunan':'Bulanan'}</td><td>${rm(p.amount)}${p.discount?` <span class="muted">(-${p.discount}%)</span>`:''}</td><td>${esc(p.promo||'—')}</td><td><span class="pill ${cls[p.status]||'p-free'}">${esc(p.status)}</span></td><td><a style="color:var(--gold)" target="_blank" href="https://toyyibpay.com/${esc(p.billCode)}">${esc(p.billCode)}</a></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Belum ada bayaran.</td></tr>';

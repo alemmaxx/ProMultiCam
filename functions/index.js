@@ -36,6 +36,11 @@ async function plansCfg() { return (await db.doc('config/plans').get()).data() |
 exports.pmc_initUser = onCall({ region: REGION }, async (req) => {
   const a = requireAuth(req);
   const ref = db.doc(`users/${a.uid}`);
+  if (a.uid === SUPER_UID) {
+    const far = new Date('2099-12-31T00:00:00Z');
+    await ref.set({ email: a.token.email || '', plan: 'admin', status: 'active', expiry: Timestamp.fromDate(far), lastSeen: FieldValue.serverTimestamp() }, { merge: true });
+    return { expiry: far.getTime(), plan: 'admin', status: 'active' };
+  }
   return db.runTransaction(async (t) => {
     const s = await t.get(ref);
     if (s.exists) {
