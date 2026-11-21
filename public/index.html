@@ -828,13 +828,21 @@ try{$('devName').value=localStorage.getItem('pmc_name')||'';$('camLabel').value=
 function saveName(){try{localStorage.setItem('pmc_name',$('devName').value.trim());}catch(e){}}
 
 /* same Wi-Fi = same public IP -> shared LAN room key */
-async function lanKey(){
-  try{
-    const r=await fetch('https://api.ipify.org?format=json',{cache:'no-store'});const j=await r.json();
-    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('pmc|'+j.ip));
-    return [...new Uint8Array(buf)].slice(0,6).map(b=>b.toString(16).padStart(2,'0')).join('');
-  }catch(e){return null;}
+async function hkey(x){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(x));return [...new Uint8Array(buf)].slice(0,6).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function getIp(url){try{const c=new AbortController();const tm=setTimeout(()=>c.abort(),4500);const r=await fetch(url,{cache:'no-store',signal:c.signal});clearTimeout(tm);const j=await r.json();return j&&j.ip||null;}catch(e){return null;}}
+/* Room keys for phones on the same Wi-Fi: the shared public IPv4 address, plus the shared IPv6 network
+   prefix (/64) — some routers give each phone a different route out, but they still share one of these. */
+async function lanKeys(){
+  const [a,b]=await Promise.all([getIp('https://api.ipify.org?format=json'),getIp('https://api64.ipify.org?format=json')]);
+  const keys=new Set();
+  for(const ip of [a,b]){if(!ip)continue;
+    if(ip.includes(':')){const pre=ip.split(':').slice(0,4).join(':').toLowerCase();keys.add(await hkey('pmc6|'+pre));}
+    else keys.add(await hkey('pmc|'+ip));}
+  return [...keys];
 }
+async function lanKey(){const k=await lanKeys();return k[0]||null;}
+/* what the phone is really using right now (Android tells us), so the picture quality matches the network */
+function netVia(){try{const c=navigator.connection;if(c&&c.type){if(c.type==='cellular')return 'data';if(c.type==='wifi'||c.type==='ethernet')return 'wifi';}}catch(e){}return null;}
 
 /* ---------- crash-safe recording storage (OPFS: each chunk is its own file on disk) ---------- */
 async function recRoot(){try{const r=await navigator.storage.getDirectory();return await r.getDirectoryHandle('recordings',{create:true});}catch(e){return null;}}
@@ -975,9 +983,11 @@ async function goMaster(){
   roomCode=newCode();$('roomCode').textContent=roomCode;
   openPeer(PFX+'code-'+roomCode,true);
   // LAN peer (wifi discovery)
-  const key=await lanKey();
-  if(key)tryLanSlot(key,1);
+  await lanRegister();
+  setInterval(lanRegister,45000);
 }
+let lanDone=new Set();
+async function lanRegister(){const keys=await lanKeys();for(const k of keys){if(lanDone.has(k))continue;lanDone.add(k);tryLanSlot(k,1);}}
 function tryLanSlot(key,n){
   if(n>LAN_SLOTS)return;
   openPeer(PFX+'lan-'+key+'-'+n,false,()=>tryLanSlot(key,n+1));
@@ -991,7 +1001,7 @@ function openPeer(id,isCode,onTaken){
   p.on('connection',conn=>{
     conn.on('data',d=>{
       if(!d||!d.t)return;
-      if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
+      if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length,code:roomCode});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'&&overLimit(conn.peer)){try{conn.send({t:'full'});}catch(e){}setTimeout(()=>{try{conn.close();}catch(e){}},500);toast(t('limitCams'),4000);return;}
       if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});conn.send({t:'fmt',v:$('aspectSel').value});}
       if(d.t==='flip'||d.t==='rot'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.rotManual){setRot(s,d.t==='rot'?Number(d.v)||0:(d.on?180:0));renderConnList();}}
@@ -1003,6 +1013,7 @@ function openPeer(id,isCode,onTaken){
   p.on('call',call=>{
     if(overLimit(call.peer)){try{call.close();}catch(e){}return;}
     call.answer();
+    setTimeout(()=>{try{call.peerConnection.getReceivers().forEach(r=>{try{r.jitterBufferTarget=0;}catch(e){}try{r.playoutDelayHint=0;}catch(e){}});}catch(e){}},800);
     call.on('stream',st=>{const s=getSrc(call.peer,call.metadata&&call.metadata.name);s.call=call;if(call.metadata&&call.metadata.via)s.via=call.metadata.via;setStream(s,st);});
     call.on('close',()=>removeSrc(call.peer));
     const pc=call.peerConnection;
@@ -2009,17 +2020,17 @@ async function ensurePeer(){
 async function scanMasters(){
   const list=$('masterList');list.innerHTML='';
   $('scanMsg').innerHTML='<span class="spin"></span>'+t('scanning');
-  const key=await lanKey();
-  if(!key){$('scanMsg').textContent=t('noNet');return;}
-  const p=await ensurePeer();let found=0;
+  const keys=await lanKeys();
+  if(!keys.length){$('scanMsg').textContent=t('noNet');return;}
+  const p=await ensurePeer();let found=0;const seen=new Set();
   const jobs=[];
-  for(let n=1;n<=LAN_SLOTS;n++){
+  for(const key of keys)for(let n=1;n<=LAN_SLOTS;n++){
     const id=PFX+'lan-'+key+'-'+n;
     jobs.push(new Promise(done=>{
       let c;try{c=p.connect(id,{reliable:true});}catch(e){return done();}
-      const to=setTimeout(()=>{try{c.close();}catch(e){}done();},4500);
+      const to=setTimeout(()=>{try{c.close();}catch(e){}done();},7000);
       c.on('open',()=>c.send({t:'probe'}));
-      c.on('data',d=>{if(d&&d.t==='info'){clearTimeout(to);found++;addMasterItem(id,d);try{c.close();}catch(e){}done();}});
+      c.on('data',d=>{if(d&&d.t==='info'){clearTimeout(to);const dk=d.code||id;if(!seen.has(dk)){seen.add(dk);found++;addMasterItem(id,d);}try{c.close();}catch(e){}done();}});
       c.on('error',()=>{clearTimeout(to);done();});
     }));
   }
@@ -2131,6 +2142,7 @@ async function sendBattery(){
 function sSend(o){try{if(sConn&&sConn.open)sConn.send(o);}catch(e){}}
 function sStatus(ok,t){$('camDot').classList.toggle('ok',ok);$('camStatus').textContent=t;}
 async function startSlaveCam(target,via){
+  via=netVia()||via;
   stopScan();
   if(!sStream){try{sStream=await getCam();}catch(e){toast(t('allowCamMic'));return;}}
   sTarget=target;sVia=via;sKicked=false;
