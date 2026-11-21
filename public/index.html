@@ -98,6 +98,9 @@ label.lbl{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:
 .tile.main{border-color:var(--gold)}
 .tile.sec2{border-color:var(--info)}
 .tile video{width:100%;height:100%;object-fit:cover;display:block}
+.tile video.flip{transform:rotate(180deg)}
+body.upside #master,body.upside .sheet-wrap{transform:rotate(180deg)}
+body.upside .toast{top:24px;bottom:auto;transform:translateX(-50%) rotate(180deg)}
 .tile .lb{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(11,15,23,.9));padding:14px 6px 5px;font-size:12px;font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .nb{position:absolute;top:4px;right:4px;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:800;color:var(--on-gold);background:var(--gold)}
 .tile .nb.b{background:var(--info);color:#0b1a33}
@@ -785,6 +788,7 @@ async function goMaster(){
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();
+  if(!dirUpWatch)dirUpWatch=watchUpside(onDirUpside);
   loadSettings();applyTier();
   resizeStage();renderTiles();
   clearInterval(drawTimer);drawTimer=setInterval(draw,1000/30);
@@ -817,6 +821,7 @@ function openPeer(id,isCode,onTaken){
       if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'&&overLimit(conn.peer)){try{conn.send({t:'full'});}catch(e){}setTimeout(()=>{try{conn.close();}catch(e){}},500);toast(t('limitCams'),4000);return;}
       if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});}
+      if(d.t==='flip'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.flipManual){setFlip(s,!!d.on);renderConnList();}}
       if(d.t==='caps'){const s=sources.find(x=>x.id===conn.peer);if(s){s.caps=d;updateZoomUI();}}
       if(d.t==='stat'){const s=sources.find(x=>x.id===conn.peer);if(s){const was=s.batt;s.batt=d.batt;s.charging=d.charging;paintStat(s);if(d.batt<=15&&!d.charging&&(was==null||was>15))toast(t('battLow',{name:s.name,n:d.batt}));}}
     });
@@ -859,7 +864,7 @@ function renderTiles(){
     const b=document.createElement('button');
     b.className='tile'+(s.id===mainId?' main':'')+(mode!=='full'&&s.id===secId?' sec2':'');
     b.setAttribute('aria-label','Paparkan '+s.name);
-    b.appendChild(s.video);s.video.play().catch(()=>{});
+    s.video.classList.toggle('flip',!!s.flip);s.video._flip=!!s.flip;b.appendChild(s.video);s.video.play().catch(()=>{});
     const l=document.createElement('span');l.className='lb';l.textContent=s.name+(s.stream?'':' …');b.appendChild(l);
     const st=document.createElement('span');st.className='stat';b.appendChild(st);s.statEl=st;paintStat(s);
     if(s.id===mainId){const n=document.createElement('span');n.className='nb';n.textContent=t('bMain');b.appendChild(n);}
@@ -889,6 +894,7 @@ function renderConnList(){
     d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?t('live'):t('loading')}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
     d.querySelector('b').textContent=s.name;
     if(!s.local&&s.caps&&s.caps.lock){const lk=document.createElement('button');lk.className='btn btn-sm'+(s.locked?' btn-gold':'');lk.textContent=s.locked?'🔒':'🔓';lk.setAttribute('aria-label',t('lockLbl'));lk.onclick=()=>{s.locked=!s.locked;try{s.conn.send({t:'lock',on:s.locked});}catch(e){}renderConnList();};d.appendChild(lk);}
+    {const f=document.createElement('button');f.className='btn btn-sm'+(s.flip?' btn-gold':'');f.textContent='⟲ 180°';f.setAttribute('aria-label',t('flipLbl'));f.onclick=()=>{s.flipManual=true;setFlip(s,!s.flip);renderConnList();};d.appendChild(f);}
     if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
     box.appendChild(d);
   });
@@ -911,7 +917,7 @@ async function addLocalCam(silent){
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
   s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null};if(s.caps.zoom)s.zoom=c.zoom.min;
-  setStream(s,localStream);$('localBtn').disabled=true;renderConnList();
+  setFlip(s,dirUpside);setStream(s,localStream);$('localBtn').disabled=true;renderConnList();
   if(!silent)$('optSelf').checked=true;lsSet('pmc_selfcam','1');
 }
 function removeLocalCam(){
@@ -960,11 +966,25 @@ function resizeStage(){
   const long=q===1080?1920:1280;stage.width=portrait?q:long;stage.height=portrait?long:q;
 }
 let fadePrev=null,fadeCur=null,fadeAt=0;
+function setFlip(s,on){s.flip=!!on;if(s.video){s.video._flip=s.flip;s.video.classList.toggle('flip',s.flip);}}
+/* upside-down detection: phone turned so the camera sits at the bottom */
+function watchUpside(cb){
+  let up=false;
+  const h=e=>{if(e.beta==null)return;const ang=(screen.orientation&&screen.orientation.angle)||window.orientation||0;if(Math.abs(ang)===180)return;
+    const portrait=window.innerHeight>=window.innerWidth;const v=portrait?e.beta:(ang===90?-e.gamma:e.gamma);
+    if(!up&&v<-50){up=true;cb(true);}else if(up&&v>50){up=false;cb(false);}};
+  try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);}).catch(()=>{});else window.addEventListener('deviceorientation',h);}catch(e){}
+  return ()=>window.removeEventListener('deviceorientation',h);
+}
+let dirUpside=false,dirUpWatch=null;
+function onDirUpside(on){dirUpside=on;document.body.classList.toggle('upside',on);const l=sources.find(x=>x.local);if(l&&!l.flipManual){setFlip(l,on);renderConnList();}if(on)toast(t('flipAuto'),2500);}
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
   let sw,sh;const r=w/h;if(vw/vh>r){sh=vh;sw=vh*r;}else{sw=vw;sh=vw/r;}
-  sw/=zoom;sh/=zoom;ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,x,y,w,h);
+  sw/=zoom;sh/=zoom;
+  if(v._flip){ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(Math.PI);ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,-w/2,-h/2,w,h);ctx.restore();}
+  else ctx.drawImage(v,(vw-sw)/2,(vh-sh)/2,sw,sh,x,y,w,h);
 }
 const dz=s=>(s.caps&&s.caps.zoom)?1:s.zoom;
 let grainCanvas=null;
@@ -1570,6 +1590,7 @@ async function runTest(){
 }
 
 /* ================= SLAVE ================= */
+let sUpWatch=null,sUpside=false;
 let sPeer=null,sConn=null,sCall=null,sStream=null,sTarget=null,sVia='wifi',sFacing='environment',sTorch=false,sRetry=null,sKicked=false;
 /* in-app QR scan (camera phone scans the Director's QR) */
 let scanStream=null,scanTimer=null,scanDet=null,scanCv=null;
@@ -1750,6 +1771,7 @@ async function sConnect(){
   sConn=p.connect(sTarget,{reliable:true});
   sConn.on('open',()=>{
     sConn.send({t:'hello',name:camLabel(),via:sVia});
+    if(sUpWatch)sUpWatch();sUpWatch=watchUpside(on=>{sUpside=on;sSend({t:'flip',on});});if(sUpside)sSend({t:'flip',on:true});
     sCall=p.call(sTarget,sStream,{metadata:{name:camLabel(),via:sVia}});
     tuneSender();
     sCall.on('close',()=>sLost());
