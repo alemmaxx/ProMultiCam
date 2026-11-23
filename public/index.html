@@ -1155,13 +1155,18 @@ function sizeTileVid(v){const b=v.parentElement;if(!b)return;if(v._rot===90||v._
 /* How far this phone is turned compared with its screen, from the motion sensor (works even with auto-rotate off).
    Returns the clockwise turn (0/90/180/270) the picture needs to look upright. */
 function watchTurn(cb){
-  let phys=0,last=-1;
+  let phys=0,last=-1,cand=null,candAt=0;
   const scr=()=>{const a=(screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(window.orientation||0);return((a%360)+360)%360;};
   const emit=()=>{const need=(phys+scr())%360;if(need!==last){last=need;cb(need);}};
   const h=e=>{if(e.beta==null||e.gamma==null)return;const b=e.beta*Math.PI/180,g=e.gamma*Math.PI/180;
     const ux=-Math.cos(b)*Math.sin(g),uy=Math.sin(b);if(Math.hypot(ux,uy)<0.55)return; /* lying flat: keep last */
     const ang=((Math.atan2(ux,uy)*180/Math.PI)+360)%360;
-    for(const c of [0,90,180,270]){let d=Math.abs(ang-c);d=Math.min(d,360-d);if(d<35){if(c!==phys){phys=c;emit();}break;}}};
+    /* only turn after the phone has stayed in its new position for a moment, so a wobble or a quick tilt does not flip the view */
+    let near=null;for(const c of [0,90,180,270]){let d=Math.abs(ang-c);d=Math.min(d,360-d);if(d<28){near=c;break;}}
+    const now=Date.now();
+    if(near===null||near===phys){cand=null;return;}
+    if(cand!==near){cand=near;candAt=now;return;}
+    if(now-candAt>=1300){phys=near;cand=null;emit();}};
   try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')DeviceOrientationEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('deviceorientation',h);}).catch(()=>{});else window.addEventListener('deviceorientation',h);}catch(e){}
   const oc=()=>setTimeout(emit,300);window.addEventListener('orientationchange',oc);try{screen.orientation&&screen.orientation.addEventListener('change',oc);}catch(e){}
   return ()=>{window.removeEventListener('deviceorientation',h);window.removeEventListener('orientationchange',oc);};
