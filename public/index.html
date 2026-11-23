@@ -738,7 +738,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 <div class="sheet-wrap" id="proSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
     <div class="row-between"><h3>ProMultiCam <span class="badge b-pro">PRO</span></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('proSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="feat-list"><span data-i18n="pf1"></span><span data-i18n="pf2"></span><span data-i18n="pf3"></span><span data-i18n="pf4"></span><span data-i18n="pf5"></span><span data-i18n="pf6"></span><span data-i18n="pf7"></span></div>
+    <div class="feat-list"><span data-i18n="pf1"></span><span data-i18n="pf2"></span><span data-i18n="pf3"></span><span data-i18n="pf4"></span><span data-i18n="pf5"></span><span data-i18n="pf6"></span><span data-i18n="pf7"></span><span data-i18n="pf8"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="planCards"></div>
     <label class="lbl"><span data-i18n="promo"></span><input class="input" id="pPromo" style="text-transform:uppercase" data-i18n-ph="promoPh"></label>
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
@@ -984,6 +984,7 @@ async function listSaved(boxId){
     if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');acts.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
       sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};acts.appendChild(sh);}
+    if(box.id==='files'&&it.done){const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent=t('edBtn');eb.onclick=()=>openEditor(it);acts.appendChild(eb);}
     if(box.id==='files'&&it.done){const sb=document.createElement('button');sb.className='btn btn-sm';sb.textContent=t('seBtn');sb.onclick=()=>openSubEditor(it);acts.appendChild(sb);}
     const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
     del.onclick=()=>ask(t('delT'),t('delD',{n:it.name}),t('del'),async()=>{try{await root.removeEntry(it.name,{recursive:true});}catch(e){}try{localStorage.removeItem('pmc_sub_'+it.name);}catch(e){}listSaved(box.id);});
@@ -2191,7 +2192,7 @@ async function seExport(){
 }
 /* ---------- phone Back button: close what is open, ask before leaving ---------- */
 let askFn=null,exiting=false;
-function ask(title,desc,okTxt,fn){$('askT').textContent=title;$('askD').textContent=desc;$('askOk').textContent=okTxt;askFn=fn;$('askOk').onclick=()=>{const f=askFn;askClose();f&&f();};$('askBox').classList.add('show');}
+function ask(title,desc,okTxt,fn){const rp=$('askReplace');if(rp)rp.style.display='none';$('askT').textContent=title;$('askD').textContent=desc;$('askOk').textContent=okTxt;askFn=fn;$('askOk').onclick=()=>{const f=askFn;askClose();f&&f();};$('askBox').classList.add('show');}
 function askClose(){$('askBox').classList.remove('show');askFn=null;}
 function armBack(){try{if(!history.state||!history.state.pmcGuard)history.pushState({pmcGuard:1},'');}catch(e){}}
 function onBack(){
@@ -2597,5 +2598,6 @@ initLang();applyI18n();initInstall();
 })();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="editor.js"></script>
 </body>
 </html>
