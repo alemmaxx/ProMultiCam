@@ -34,6 +34,7 @@ img,canvas,video,svg{-webkit-user-drag:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased}
 /* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
 body{text-transform:capitalize}
+button,select{text-transform:inherit}
 input,textarea,.input,.msg,.mail,.nocap,.n,code,.tx b,td.mail,#chatList *,#aWho,#rcptBox *,#npop .d,.notif .d{text-transform:none}
 button,input,select{font-family:var(--f)}
 button{cursor:pointer}
@@ -256,6 +257,15 @@ body.land .sheet{max-height:92vh
 .level.show{display:block}.level.ok{border-color:#5fb38c}
 .level span{position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:12px;font-weight:800;background:rgba(14,14,15,.8);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .cam-tools{display:flex;gap:8px;flex-wrap:wrap}
+.cc-h{display:block;margin-top:6px;font-size:14px}
+.cc-seg{display:flex;gap:6px;flex-wrap:wrap}.cc-seg .btn.on,#ccBody>.btn.on{background:var(--gold);color:var(--on-gold)}.cc-seg .btn{min-height:40px;padding:8px 12px;font-size:13px}
+.cc-rng{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cc-rng input{flex:1;min-width:160px}.cc-val{min-width:44px;text-align:right;font-weight:800;color:var(--gold);font-size:13px}
+.cc-ends{flex:1 1 100%;display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.cc-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cc-ring{position:fixed;width:74px;height:74px;margin:-37px 0 0 -37px;border:2px solid var(--gold);border-radius:8px;pointer-events:none;z-index:200;animation:ccRing 1.1s ease forwards}
+@keyframes ccRing{0%{transform:scale(1.35);opacity:0}20%{transform:scale(1);opacity:1}75%{opacity:1}100%{opacity:0}}
+.zoomv .cc-mini{position:absolute;top:100%;left:2px;margin-top:10px}
+.cc-mini{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(14,14,15,.75);color:var(--gold);display:grid;place-items:center;padding:0;cursor:pointer;margin-top:auto}
 .fmtguide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;display:none;z-index:1}
 .fmtguide.show{display:block}
 .fmtguide span{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--on-gold);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800}
@@ -486,7 +496,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
     <div class="ov-tags"><span id="lblAngle" style="color:var(--gold)"></span><span id="lblLook"></span><span id="lblScene" style="background:var(--gold);color:var(--on-gold)"></span></div>
     <div class="recbadge" id="recBadge"><span id="recLbl">● REC</span> <span id="recTime">00:00</span></div>
-    <div class="zoomv"><span id="zoomVal">1.0×</span><input type="range" id="zoom" min="1" max="4" step="0.1" value="1" aria-label="Zoom"></div>
+    <div class="zoomv"><span id="zoomVal">1.0×</span><input type="range" id="zoom" min="1" max="4" step="0.1" value="1" aria-label="Zoom"><button class="cc-mini" id="ccDirBtn" type="button" onclick="ccDirOpen()" aria-label="Camera controls"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div class="ov-bot">
       <span id="tileHint"></span>
       <div class="strip" id="tiles"></div>
@@ -710,6 +720,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="cam-tools">
       <button class="btn on" id="gridBtn" onclick="toggleGrid()" data-i18n="gridLbl"></button>
       <button class="btn" id="lockBtn" onclick="toggleLock()" data-i18n="lockLbl"></button>
+      <button class="btn" id="ccCamBtn" onclick="ccCamOpen()" data-i18n="ccBtn"></button>
     </div>
     <div class="g3">
       <button class="btn" onclick="camFlip()" data-i18n="flip"></button>
@@ -720,6 +731,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
   </div>
 </div>
 
+<div class="sheet-wrap" id="ccSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet" style="gap:10px">
+    <div class="row-between"><div><h3 data-i18n="ccBtn"></h3><span class="hint" id="ccName"></span></div><button class="icon-btn" aria-label="Close" onclick="closeSheet('ccSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div id="ccBody" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
 <div class="sheet-wrap" id="testSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
     <div class="row-between"><h3 data-i18n="testT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('testSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -924,20 +941,6 @@ function getName(){const v=($('devName').value||'').trim();return v||'ProMultiCa
 try{$('devName').value=localStorage.getItem('pmc_name')||'';$('camLabel').value=localStorage.getItem('pmc_label')||'';}catch(e){}
 function saveName(){try{localStorage.setItem('pmc_name',$('devName').value.trim());}catch(e){}}
 
-/* same Wi-Fi = same public IP -> shared LAN room key */
-async function hkey(x){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(x));return [...new Uint8Array(buf)].slice(0,6).map(b=>b.toString(16).padStart(2,'0')).join('');}
-async function getIp(url){try{const c=new AbortController();const tm=setTimeout(()=>c.abort(),4500);const r=await fetch(url,{cache:'no-store',signal:c.signal});clearTimeout(tm);const j=await r.json();return j&&j.ip||null;}catch(e){return null;}}
-/* Room keys for phones on the same Wi-Fi: the shared public IPv4 address, plus the shared IPv6 network
-   prefix (/64) — some routers give each phone a different route out, but they still share one of these. */
-async function lanKeys(){
-  const [a,b]=await Promise.all([getIp('https://api.ipify.org?format=json'),getIp('https://api64.ipify.org?format=json')]);
-  const keys=new Set();
-  for(const ip of [a,b]){if(!ip)continue;
-    if(ip.includes(':')){const pre=ip.split(':').slice(0,4).join(':').toLowerCase();keys.add(await hkey('pmc6|'+pre));}
-    else keys.add(await hkey('pmc|'+ip));}
-  return [...keys];
-}
-async function lanKey(){const k=await lanKeys();return k[0]||null;}
 /* what the phone is really using right now (Android tells us), so the picture quality matches the network */
 function netVia(){try{const c=navigator.connection;if(c&&c.type){if(c.type==='cellular')return 'data';if(c.type==='wifi'||c.type==='ethernet')return 'wifi';}}catch(e){}return null;}
 
@@ -1118,7 +1121,6 @@ async function goMaster(){
   // LAN peer (wifi discovery)
 }
 let lanDone=new Set();
-async function lanRegister(){const keys=await lanKeys();for(const k of keys){if(lanDone.has(k))continue;lanDone.add(k);tryLanSlot(k,1);}}
 function tryLanSlot(key,n){
   if(n>LAN_SLOTS)return;
   openPeer(PFX+'lan-'+key+'-'+n,false,()=>tryLanSlot(key,n+1));
@@ -1217,6 +1219,14 @@ function renderConnList(){
     box.appendChild(d);
   });
 }
+function ccDirOpen(){
+  const s=sources.find(x=>x.id===mainId);if(!s){toast(t('ccPick'));return;}
+  if(s.local&&localStream){const tr=()=>localStream&&localStream.getVideoTracks()[0];ccOpen({name:s.name,caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>ccDo(tr(),op,v),tapHint:false});return;}
+  s.ccSt=s.ccSt||{lock:false,manual:false,ec:0,wb:'auto',torch:false,afZoom:true};
+  ccOpen({name:s.name,caps:s.caps&&s.caps.cc,state:s.ccSt,run:(op,v)=>{try{s.conn&&s.conn.send({t:'cc',op,v});}catch(e){}},tapHint:false});
+}
+function ccCamOpen(){const tr=()=>sStream&&sStream.getVideoTracks()[0];if(!tr()){toast(t('allowCam'));return;}
+  ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>ccDo(tr(),op,v),tapHint:true,torch:false});}
 function updateZoomUI(){
   const s=sources.find(x=>x.id===mainId);const z=$('zoom');
   if(!s){z.disabled=true;return;}z.disabled=false;
@@ -1225,16 +1235,16 @@ function updateZoomUI(){
 }
 function setZoom(v){
   const s=sources.find(x=>x.id===mainId);if(!s)return;s.zoom=v;
-  if(s.local&&s.caps&&s.caps.zoom){localStream.getVideoTracks()[0].applyConstraints({advanced:[{zoom:v}]}).catch(()=>{});}
+  if(s.local&&s.caps&&s.caps.zoom){const tr=localStream.getVideoTracks()[0];tr.applyConstraints({advanced:[{zoom:v}]}).then(()=>ccDo(tr,'zoomed')).catch(()=>{});}
   else if(s.caps&&s.caps.zoom&&s.conn){try{s.conn.send({t:'zoom',v});}catch(e){}}
 }
 async function addLocalCam(silent){
   if(localStream){if(!silent)toast(t('camInUse'));return;}
-  try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:{echoCancellation:true,noiseSuppression:true}});}
+  try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});}
   catch(e){toast(t('allowCam'));return;}
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
-  s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null};if(s.caps.zoom)s.zoom=c.zoom.min;
+  s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null,cc:ccCaps(trk)};if(s.caps.zoom)s.zoom=c.zoom.min;
   setStream(s,localStream);setRot(s,dirTurn);$('localBtn').disabled=true;renderConnList();
   if(!silent)$('optSelf').checked=true;lsSet('pmc_selfcam','1');
 }
@@ -2186,7 +2196,6 @@ function seStyUI(){
   $('seStyles').replaceChildren(txStylePicker(se.sty.style,$('seFont').value,se.sty.col,k=>{se.sty.style=k;seSave();seCapRender(true);}));
   $('seColors').replaceChildren(txSwatches(se.sty.col,k=>{se.sty.col=k;seSave();seStyUI();seCapRender(true);}));
   $('seCaseBox').replaceChildren(txCaseSel(se.sty.cs,v=>{se.sty.cs=v;seSave();seCapRender(true);}));}
-function seColor(){return txColor(se.sty.col);}
 function seAudioUI(){const a=$('seAudio').value;$('seMusic').style.display=(a==='music'||a==='mix')?'block':'none';}
 function seClose(){if(se.busy){toast(t('seBusy'));return;}seAutoStop();const v=$('seVid');v.pause();$('subEd').classList.remove('show');cancelAnimationFrame(se.raf);seSave();}
 function seToggle(){const v=$('seVid');if(v.paused)v.play().catch(()=>{});else v.pause();}
@@ -2517,41 +2526,13 @@ async function ensurePeer(){
     sPeer.on('disconnected',()=>{try{sPeer.reconnect();}catch(e){}});
   });
 }
-async function scanMasters(){
-  const list=$('masterList');list.innerHTML='';
-  $('scanMsg').innerHTML='<span class="spin"></span>'+t('scanning');
-  const keys=await lanKeys();
-  if(!keys.length){$('scanMsg').textContent=t('noNet');return;}
-  const p=await ensurePeer();let found=0;const seen=new Set();
-  const jobs=[];
-  for(const key of keys)for(let n=1;n<=LAN_SLOTS;n++){
-    const id=PFX+'lan-'+key+'-'+n;
-    jobs.push(new Promise(done=>{
-      let c;try{c=p.connect(id,{reliable:true});}catch(e){return done();}
-      const to=setTimeout(()=>{try{c.close();}catch(e){}done();},7000);
-      c.on('open',()=>c.send({t:'probe'}));
-      c.on('data',d=>{if(d&&d.t==='info'){clearTimeout(to);const dk=d.code||id;if(!seen.has(dk)){seen.add(dk);found++;addMasterItem(id,d);}try{c.close();}catch(e){}done();}});
-      c.on('error',()=>{clearTimeout(to);done();});
-    }));
-  }
-  await Promise.all(jobs);
-  $('scanMsg').innerHTML=found?'<span class="dot ok"></span>'+t('found',{n:found}):t('notFound');
-}
-function addMasterItem(id,info){
-  const b=document.createElement('button');b.className='master-item';
-  b.innerHTML='<div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#c8a45c"/></svg></div><div class="tx"><b></b><span></span></div><span class="go"></span>';
-  b.querySelector('b').textContent=info.name||t('dir');b.querySelector('.go').textContent=t('join');
-  b.querySelector('.tx span').textContent=t('camsJoined',{n:info.cams||0});
-  b.onclick=()=>startSlaveCam(id,'wifi');
-  $('masterList').appendChild(b);
-}
 function joinByCode(){
   const c=$('joinCode').value.replace(/\D/g,'');
   if(c.length!==6){toast(t('enterCode'));return;}
   startSlaveCam(PFX+'code-'+c,'data');
 }
 async function getCam(){
-  return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true}});
+  return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});
 }
 function camCaps(){
   const t=sStream&&sStream.getVideoTracks()[0];let c={};try{c=t.getCapabilities?t.getCapabilities():{};}catch(e){}
@@ -2560,9 +2541,9 @@ function camCaps(){
   if(zoom){const z=$('camZoom');z.min=zoom.min;z.max=Math.min(zoom.max,10);z.step=zoom.step;z.value=zoom.min;$('camZoomVal').textContent=Number(zoom.min).toFixed(1)+'×';}
   $('torchBtn').disabled=!c.torch;
   $('lockBtn').style.display=lockSupported()?'inline-flex':'none';
-  return{zoom,torch:!!c.torch,lock:lockSupported()};
+  return{zoom,torch:!!c.torch,lock:lockSupported(),cc:ccCaps(t)};
 }
-async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
+async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});ccDo(t,'zoomed');$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
 async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
 async function camFlip(){
   sFacing=sFacing==='environment'?'user':'environment';
@@ -2667,6 +2648,7 @@ async function startSlaveCam(target,via){
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
   camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);
+  if(!$('slavecam')._cc){$('slavecam')._cc=1;$('slavecam').addEventListener('click',e=>{const tg=e.target;if(tg!==$('camVideo')&&tg!==$('slavecam'))return;const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;ccTapFocus($('camVideo'),e,(op,v)=>ccDo(tr,op,v),sFacing==='user');});}
   $('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);startTilt();
   sConnect();
 }
@@ -2691,6 +2673,7 @@ async function sConnect(){
     else if(d.t==='getHD')sendHD(d.id);
     else if(d.t==='fmt'){sFmt=d.v==='l'?'l':'p';fmtGuide(true);}
     else if(d.t==='zoom')camZoom(d.v);
+    else if(d.t==='cc'){const tr=sStream&&sStream.getVideoTracks()[0];if(tr)ccDo(tr,d.op,d.v);}
     else if(d.t==='lock')setLock(!!d.on);
     else if(d.t==='rec'){if(d.on)hdStart(d.id,d.title);else hdStop();}
     else if(d.t==='q'){const hi=!!d.hi;if(hi!==sHi){sHi=hi;tuneSender(true);}}
@@ -2717,6 +2700,7 @@ initLang();applyI18n();initInstall();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 <script src="textfx.js"></script>
+<script src="camctl.js"></script>
 <script src="editor.js"></script>
 </body>
 </html>

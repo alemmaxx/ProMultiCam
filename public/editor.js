@@ -931,4 +931,5 @@ async function joinRun(list){
   go.disabled=false;
 }
 window.addEventListener('pmc-lang',()=>{if(E)renderAll();});
+window._edT={compose:(x)=>composeAt(null,x),get E(){return E;}};
 })();
