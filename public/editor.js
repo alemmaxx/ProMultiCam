@@ -56,7 +56,7 @@ const fm=x=>{x=Math.max(0,x||0);const m=Math.floor(x/60),s=Math.floor(x%60);retu
 const fm1=x=>{x=Math.max(0,x||0);const m=Math.floor(x/60),s=x-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1);};
 
 /* ---------- project ---------- */
-function blank(dur){return{v:1,segs:[{a:0,b:dur,keep:true,speed:1,zoom:false}],texts:[],voices:[],origVol:100,voiceVol:100,enh:'none',music:'none',musVol:35,duck:true,fmt:'orig',fill:'blur',sugs:[],cuts:[],offs:{},stickers:[],track:null,follow:false};}
+function blank(dur){return{v:1,segs:[{a:0,b:dur,keep:true,speed:1,zoom:false}],texts:[],voices:[],origVol:100,voiceVol:100,enh:'none',music:'none',musVol:35,duck:true,fmt:'orig',fill:'blur',sugs:[],cuts:[],offs:{},stickers:[],track:null,follow:false,look:'std',brand:false};}
 function key(){return 'pmc_ed_'+E.name;}
 function save(){try{const p=Object.assign({},E.p);localStorage.setItem(key(),JSON.stringify(p));}catch(e){}}
 function snap(){E.hist.push(JSON.stringify(E.p));if(E.hist.length>40)E.hist.shift();}
@@ -178,7 +178,13 @@ function drawText(c,W,H,tx,x){
 function drawAt(){if(!E)return;composeAt(null,V().currentTime);uiAt(V().currentTime);}
 function composeAt(src,x){
   const c=CV(),ctx2=c.getContext('2d'),W=c.width,Hh=c.height;
-  ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,Hh);drawVideo(ctx2,W,Hh,x,src);
+  ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,Hh);
+  const lk=(typeof LOOKS!=='undefined'&&LOOKS.find(l=>l.id===E.p.look))||null;
+  let R={x:0,y:0,w:W,h:Hh};if(E.p.brand&&typeof videoRect==='function'){R=videoRect(W,Hh);if(R.bg){ctx2.fillStyle=R.bg;ctx2.fillRect(0,0,W,Hh);}}
+  ctx2.save();ctx2.translate(R.x,R.y);if(lk&&lk.f)ctx2.filter=lk.f;drawVideo(ctx2,R.w,R.h,x,src);ctx2.restore();ctx2.filter='none';
+  if(lk&&lk.vig){const gr=ctx2.createRadialGradient(W/2,Hh/2,Math.min(W,Hh)*0.35,W/2,Hh/2,Math.max(W,Hh)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.6)');ctx2.fillStyle=gr;ctx2.fillRect(0,0,W,Hh);}
+  if(lk&&lk.bars){const bh=Math.round(Hh*0.08);ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,bh);ctx2.fillRect(0,Hh-bh,W,bh);}
+  if(E.p.brand&&typeof drawOverlays==='function'){const keepCtx=ctx,keepLook=look;try{ctx=ctx2;look=lk||LOOKS[0];drawOverlays(W,Hh);}catch(e){}finally{ctx=keepCtx;look=keepLook;}}
   const sg0=segAt(x);
   if(sg0&&sg0.tin&&sg0.tin!=='none'&&E.prevFrame&&E.prevAt===sg0.a){const p=clamp((x-sg0.a)/0.45,0,1);if(p<1){ctx2.save();
     if(sg0.tin==='fade'){ctx2.globalAlpha=1-p;ctx2.drawImage(E.prevFrame,0,0,W,Hh);}
@@ -221,7 +227,7 @@ function angleSync(playing,rate){
     v.playbackRate=rate||1;if(playing&&v.paused)v.play().catch(()=>{});if(!playing&&!v.paused)v.pause();});
 }
 async function loadAngles(){
-  E.angles=[];const id=recIdOf(E.name);if(!id)return;
+  (E.angles||[]).forEach(a=>{try{a.v.pause();URL.revokeObjectURL(a.url);}catch(e){}});E.angles=[];const id=recIdOf(E.name);if(!id)return;
   try{const a=await anglesRoot();const d=await a.getDirectoryHandle(id);
     for await(const [label,h] of d.entries()){if(h.kind!=='directory')continue;let meta={};try{meta=JSON.parse(await (await (await h.getFileHandle('_done')).getFile()).text());}catch(e){continue;}
       const blob=await savedBlob(h,meta.mime||'video/mp4');if(!blob.size)continue;const url=URL.createObjectURL(blob);const v=document.createElement('video');v.src=url;v.muted=true;v.playsInline=true;v.preload='auto';
@@ -332,8 +338,8 @@ function renderTl(){
 
 CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.stickers||[]).find(q=>q.id===E.sel);if(!sk)return;const r=CV().getBoundingClientRect();sk.x=clamp((e.clientX-r.left)/r.width,0,1);sk.y=clamp((e.clientY-r.top)/r.height,0,1);save();drawAt();});
 /* ---------- tools ---------- */
-const TABS=['cut','angle','sug','text','sticker','voice','music','fmt','cover'];
-function renderTabs(){const b=G('edTabs');b.innerHTML='';TABS.forEach(k=>{if(k==='angle'&&!(E.angles&&E.angles.length))return;const x=document.createElement('button');x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;renderTabs();renderPanel();};b.appendChild(x);});}
+const TABS=['cut','brand','angle','sug','text','sticker','voice','music','fmt','cover'];
+function renderTabs(){const b=G('edTabs');b.innerHTML='';TABS.forEach(k=>{const x=document.createElement('button');x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;renderTabs();renderPanel();};b.appendChild(x);});}
 function btn(label,fn,cls){const b=document.createElement('button');b.className='btn btn-sm '+(cls||'');b.textContent=label;b.onclick=fn;return b;}
 function row(...els){const d=document.createElement('div');d.className='ed-row';els.forEach(e=>e&&d.appendChild(e));return d;}
 function hint(txt){const s=document.createElement('span');s.className='hint';s.textContent=txt;return s;}
@@ -356,7 +362,24 @@ function renderPanel(){
     }
     P.appendChild(hint(t('edCutHint',{a:fm1(s.a),b:fm1(s.b)})));
   }
+  if(k==='brand'){
+    P.appendChild(row(hint(t('edLook')),sel(LOOKS.map(l=>[l.id,t('l_'+l.id)]),E.p.look||'std',v=>{E.p.look=v;save();drawAt();})));
+    const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('edBrand');const i=cb.querySelector('input');i.checked=!!E.p.brand;i.onchange=()=>{E.p.brand=i.checked;save();drawAt();renderPanel();};P.appendChild(cb);
+    if(E.p.brand){
+      const fld=(lab,id,ph)=>{const l=document.createElement('label');l.className='lbl';l.innerHTML='<span></span>';l.querySelector('span').textContent=t(lab);const inp=document.createElement('input');inp.className='input';inp.value=$(id).value;inp.placeholder=t(ph);inp.oninput=()=>{$(id).value=inp.value;saveSettings(true);drawAt();};l.appendChild(inp);return l;};
+      P.appendChild(fld('titleL','titleTxt','titlePh'));P.appendChild(fld('price','priceTxt','pricePh'));P.appendChild(fld('phone','phoneTxt','phonePh'));
+      P.appendChild(row(hint(t('ovT')),sel(OV_STYLES.map(k2=>[k2,t('ov_'+k2)]),$('ovStyle').value||'card',v=>{$('ovStyle').value=v;const f=$('ovFont');if(!f.dataset.touched)f.value=OV_DEF_FONT[v];saveSettings(true);try{renderOvUI();loadOvFont();}catch(e){}drawAt();})));
+      P.appendChild(row(sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),$('ovColor').value||'gold',v=>{$('ovColor').value=v;saveSettings(true);drawAt();}),sel(Object.keys(OV_FONTS).map(f=>[f,t('font_'+f)]),$('ovFont').value||'bricolage',v=>{$('ovFont').value=v;$('ovFont').dataset.touched='1';saveSettings(true);loadOvFont();setTimeout(drawAt,300);drawAt();})));
+      P.appendChild(hint(t('edBrandHint')));
+    }
+  }
   if(k==='angle'){
+    const lab=document.createElement('label');lab.className='btn btn-sm btn-gold';lab.style.cursor='pointer';lab.innerHTML='<span></span><input type="file" accept="video/*" multiple style="display:none">';lab.querySelector('span').textContent=t('angAddFile');
+    lab.querySelector('input').onchange=async e=>{const id=recIdOf(E.name);if(!id){toast(t('angNoId'));return;}const fs=[...e.target.files];toast(t('impRun',{n:fs.length}),3000);
+      for(const f of fs){const w=new ChunkWriter(angleDir(id,cleanName(f.name),true));w.push(f);await w.finish({label:cleanName(f.name),mime:f.type||'video/mp4',lag:0});}
+      await loadAngles();renderAll();toast(t('impAngDone',{n:fs.length}),3500);};
+    P.appendChild(row(lab));
+    if(!E.angles.length){P.appendChild(hint(t('angEmpty')));return;}
     P.appendChild(hint(t('angHint')));
     const cur=angleAt(x);
     P.appendChild(row(...[{label:-1,name:t('angProgram')}].concat(E.angles.map(a=>({label:a.label,name:a.label}))).map(o=>btn((((cur?cur.label:-1)===o.label)?'● ':'')+o.name,()=>{snap();const tt=+V().currentTime.toFixed(2);E.p.cuts=E.p.cuts.filter(c=>Math.abs(c.t-tt)>0.05);E.p.cuts.push({t:tt,a:o.label});E.p.cuts.sort((a,b)=>a.t-b.t);save();renderPanel();drawAt();},((cur?cur.label:-1)===o.label)?'btn-gold':''))));
