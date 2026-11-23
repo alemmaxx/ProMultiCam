@@ -594,22 +594,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="t"><span class="k" style="color:var(--info)" data-i18n="cam"></span><span class="n" data-i18n="connectTo"></span></div>
   </div>
   <div class="s-body">
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <span class="sec muted" data-i18n="method"></span>
-      <div class="tabs" id="tabs">
-        <button data-t="wifi" class="on">Wi-Fi</button>
-                <button data-t="data" data-i18n="data"></button>
-      </div>
-    </div>
-
-    <div id="tab-wifi" style="display:flex;flex-direction:column;gap:10px">
-      <div class="scan" id="scanMsg"></div>
-      <div id="masterList" style="display:flex;flex-direction:column;gap:8px"></div>
-      <button class="btn btn-sm" onclick="scanMasters()" style="align-self:flex-start" data-i18n="rescan"></button>
-      <span class="hint" style="line-height:1.5" data-i18n="noRouter"></span>
-    </div>
-
-    <div id="tab-data" class="panel" style="display:none">
+    <div id="tab-data" class="panel" style="display:flex">
       <b style="font-size:16px" data-i18n="dataTitle"></b>
       <span style="font-size:13px;color:var(--sub);line-height:1.5" data-i18n="dataDesc"></span>
       <div style="display:flex;gap:8px">
@@ -983,8 +968,6 @@ async function goMaster(){
   roomCode=newCode();$('roomCode').textContent=roomCode;
   openPeer(PFX+'code-'+roomCode,true);
   // LAN peer (wifi discovery)
-  await lanRegister();
-  setInterval(lanRegister,45000);
 }
 let lanDone=new Set();
 async function lanRegister(){const keys=await lanKeys();for(const k of keys){if(lanDone.has(k))continue;lanDone.add(k);tryLanSlot(k,1);}}
@@ -1998,16 +1981,9 @@ async function toggleScan(){if(scanStream){stopScan();return;}
 }
 function stopScan(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanStream.getTracks().forEach(tr=>tr.stop());scanStream=null;}
   const v=$('qrVideo');if(v)v.srcObject=null;if($('qrCamBox'))$('qrCamBox').style.display='none';if($('qrIntro'))$('qrIntro').style.display='flex';if($('qrBtn'))$('qrBtn').textContent=t('scanStart');}
-function selTab(name){
-  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===name));
-  ['wifi','data'].forEach(k=>$('tab-'+k).style.display=k===name?'flex':'none');
-  if(name!=='data')stopScan();
-  if(name==='wifi')scanMasters();
-}
+function selTab(name){/* one way to join now: the Studio ID (typed or scanned) */}
 function goSlave(){
   saveName();show('slave');track('role_camera');
-  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>selTab(b.dataset.t));
-  scanMasters();
   listSaved('sfiles');
 }
 function camLabel(){const v=($('camLabel').value||'').trim();try{localStorage.setItem('pmc_label',v);}catch(e){}return v||getName();}
