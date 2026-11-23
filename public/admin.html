@@ -14,6 +14,8 @@
 :root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--ok-soft:#123528;--bad:#ef6b5c;--bad-soft:#3a1c19;--info:#7aa7f5;--info-soft:#16233b;--f:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
+/* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
+button,h1,h2,h3,label,th,.tab,.tabs button,.card h3{text-transform:capitalize}
 .wrap{max-width:1100px;margin:0 auto;padding:16px}
 header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.95);z-index:5}
 header b{font-size:18px;margin-right:auto}

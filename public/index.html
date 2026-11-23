@@ -31,6 +31,9 @@ body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 input,textarea,select{-webkit-user-select:text;user-select:text}
 img,canvas,video,svg{-webkit-user-drag:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased}
+/* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
+body{text-transform:capitalize}
+input,textarea,.input,.msg,.mail,.nocap,.n,code,.tx b,td.mail,#chatList *,#aWho,#rcptBox *,#npop .d,.notif .d{text-transform:none}
 button,input,select{font-family:var(--f)}
 button{cursor:pointer}
 .screen{display:none;min-height:100%}

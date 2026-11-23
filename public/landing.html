@@ -18,6 +18,9 @@
 :root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--info:#7aa7f5;--f:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased;line-height:1.55}
+/* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
+body{text-transform:capitalize}
+input,textarea,.input,.msg,.mail,.nocap,.n,code,.tx b,td.mail,#chatList *{text-transform:none}
 a{color:var(--gold)}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
 header{position:sticky;top:0;z-index:10;background:rgba(11,15,23,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
