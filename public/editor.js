@@ -58,6 +58,11 @@ const fm1=x=>{x=Math.max(0,x||0);const m=Math.floor(x/60),s=x-m*60;return m+':'+
 /* ---------- project ---------- */
 function blank(dur){return{v:1,segs:[{a:0,b:dur,keep:true,speed:1,zoom:false}],texts:[],voices:[],origVol:100,voiceVol:100,enh:'none',music:'none',musVol:35,duck:true,fmt:'orig',fill:'blur',sugs:[],cuts:[],offs:{},stickers:[],track:null,follow:false,look:'std',brand:false,col:{b:0,c:0,s:0,t:0},angCol:{},steps:[],stepBar:true,sfx:[],q:'normal',subs:false};}
 function key(){return 'pmc_ed_'+E.name;}
+/* brand text and style belong to this video (so a clean recording keeps its own price, title…) */
+const BV_IDS=['titleTxt','priceTxt','phoneTxt','shopTxt','descTxt','menuTxt','ovStyle','ovColor','ovFont','logoPos'];
+function bvInit(){if(!E.p.bv){E.p.bv={};BV_IDS.forEach(id=>{const el=$(id);if(el)E.p.bv[id]=el.value;});}}
+function bvSwap(){if(!E||!E.p.bv)return null;const old={};BV_IDS.forEach(id=>{const el=$(id);if(el&&E.p.bv[id]!=null){old[id]=el.value;el.value=E.p.bv[id];}});return old;}
+function bvRestore(old){if(!old)return;Object.entries(old).forEach(([id,v])=>{const el=$(id);if(el)el.value=v;});}
 /* "Brand recipe": one tap to reuse the look, brand, sound and size of a video you liked */
 const PRESET_KEYS=['look','brand','fmt','fill','enh','music','musVol','duck','col','stepBar','q'];
 function presets(){try{return JSON.parse(localStorage.getItem('pmc_presets')||'[]');}catch(e){return[];}}
@@ -85,11 +90,12 @@ window.openEditor=async function(it){
   E.dur=v.duration||0;
   let p=null;try{p=JSON.parse(localStorage.getItem(key())||'null');}catch(e){}
   E.p=p&&p.segs&&p.segs.length?Object.assign(blank(E.dur),p):presetApply(blank(E.dur),defPreset());
+  if(!(p&&p.segs)){try{const fh=await it.h.getFileHandle('_brand.json');const meta=JSON.parse(await (await fh.getFile()).text());E.p.brand=true;E.p.look=meta.look||E.p.look;E.p.bv=meta.bv||null;E.fromClean=true;}catch(e){}}
   G('edName').textContent=it.name;G('edScreen').classList.add('show');
   if(E.p.bg&&E.p.bg!=='none'&&!window._edSeg)needSeg().then(()=>drawAt()).catch(()=>{E.p.bg='none';});
   E.p.dn=false;
   setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
-  v.currentTime=firstKept();drawAt();
+  v.addEventListener('loadeddata',()=>drawAt(),{once:true});v.currentTime=firstKept()+0.001;drawAt();setTimeout(()=>{if(E)drawAt();},600);
 };
 window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(a=>{try{a.pause();URL.revokeObjectURL(a.src);}catch(e){}});(E.angles||[]).forEach(a=>{try{a.v.pause();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl){try{E.musEl.pause();}catch(e){}}}E=null;};
 
@@ -202,7 +208,7 @@ function composeAt(src,x){
   const c=CV(),ctx2=c.getContext('2d'),W=c.width,Hh=c.height;
   ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,Hh);
   const lk=(typeof LOOKS!=='undefined'&&LOOKS.find(l=>l.id===E.p.look))||null;
-  let R={x:0,y:0,w:W,h:Hh};if(E.p.brand&&typeof videoRect==='function'){R=videoRect(W,Hh);if(R.bg){ctx2.fillStyle=R.bg;ctx2.fillRect(0,0,W,Hh);}}
+  let R={x:0,y:0,w:W,h:Hh};if(E.p.brand&&typeof videoRect==='function'){const sw=bvSwap();window._edDrawing=true;try{R=videoRect(W,Hh);}finally{window._edDrawing=false;bvRestore(sw);}if(R.bg){ctx2.fillStyle=R.bg;ctx2.fillRect(0,0,W,Hh);}}
   const LY=src?null:layoutAt(x);
   ctx2.save();ctx2.translate(R.x,R.y);
   if(LY&&LY.lay==='split'){const vert=R.h>R.w;
@@ -215,7 +221,7 @@ function composeAt(src,x){
   ctx2.restore();ctx2.filter='none';
   if(lk&&lk.vig){const gr=ctx2.createRadialGradient(W/2,Hh/2,Math.min(W,Hh)*0.35,W/2,Hh/2,Math.max(W,Hh)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.6)');ctx2.fillStyle=gr;ctx2.fillRect(0,0,W,Hh);}
   if(lk&&lk.bars){const bh=Math.round(Hh*0.08);ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,bh);ctx2.fillRect(0,Hh-bh,W,bh);}
-  if(E.p.brand&&typeof drawOverlays==='function'){const keepCtx=ctx,keepLook=look;try{ctx=ctx2;look=lk||LOOKS[0];drawOverlays(W,Hh);}catch(e){}finally{ctx=keepCtx;look=keepLook;}}
+  if(E.p.brand&&typeof drawOverlays==='function'){const keepCtx=ctx,keepLook=look,sw=bvSwap();try{ctx=ctx2;look=lk||LOOKS[0];window._edDrawing=true;drawOverlays(W,Hh);}catch(e){}finally{ctx=keepCtx;look=keepLook;window._edDrawing=false;bvRestore(sw);}}
   const sg0=segAt(x);
   if(sg0&&sg0.tin&&sg0.tin!=='none'&&E.prevFrame&&E.prevAt===sg0.a){const p=clamp((x-sg0.a)/0.45,0,1);if(p<1){ctx2.save();
     if(sg0.tin==='fade'){ctx2.globalAlpha=1-p;ctx2.drawImage(E.prevFrame,0,0,W,Hh);}
@@ -522,12 +528,13 @@ function renderPanel(){
       c.appendChild(row(nm,btn(t('preSave'),()=>{const n=nm.value.trim()||t('preName',{n:presets().length+1});const l=presets();l.push(presetFromNow(n));presetsSave(l);renderPanel();toast(t('preSaved',{n}));})));
       c.appendChild(hint(t('preHint')));P.appendChild(c);}
     P.appendChild(row(hint(t('edLook')),sel(LOOKS.map(l=>[l.id,t('l_'+l.id)]),E.p.look||'std',v=>{E.p.look=v;save();drawAt();})));
-    const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('edBrand');const i=cb.querySelector('input');i.checked=!!E.p.brand;i.onchange=()=>{E.p.brand=i.checked;save();drawAt();renderPanel();};P.appendChild(cb);
+    const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('edBrand');const i=cb.querySelector('input');i.checked=!!E.p.brand;i.onchange=()=>{E.p.brand=i.checked;if(i.checked)bvInit();save();drawAt();renderPanel();};P.appendChild(cb);
     if(E.p.brand){
-      const fld=(lab,id,ph)=>{const l=document.createElement('label');l.className='lbl';l.innerHTML='<span></span>';l.querySelector('span').textContent=t(lab);const inp=document.createElement('input');inp.className='input';inp.value=$(id).value;inp.placeholder=t(ph);inp.oninput=()=>{$(id).value=inp.value;saveSettings(true);drawAt();};l.appendChild(inp);return l;};
+      bvInit();if(E.fromClean)P.appendChild(hint(t('cleanEd')));
+      const fld=(lab,id,ph)=>{const l=document.createElement('label');l.className='lbl';l.innerHTML='<span></span>';l.querySelector('span').textContent=t(lab);const inp=document.createElement('input');inp.className='input';inp.value=E.p.bv[id]||'';inp.placeholder=t(ph);inp.oninput=()=>{E.p.bv[id]=inp.value;save();drawAt();};l.appendChild(inp);return l;};
       P.appendChild(fld('titleL','titleTxt','titlePh'));P.appendChild(fld('price','priceTxt','pricePh'));P.appendChild(fld('phone','phoneTxt','phonePh'));
-      P.appendChild(row(hint(t('ovT')),sel(OV_STYLES.map(k2=>[k2,t('ov_'+k2)]),$('ovStyle').value||'card',v=>{$('ovStyle').value=v;const f=$('ovFont');if(!f.dataset.touched)f.value=OV_DEF_FONT[v];saveSettings(true);try{renderOvUI();loadOvFont();}catch(e){}drawAt();})));
-      P.appendChild(row(sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),$('ovColor').value||'gold',v=>{$('ovColor').value=v;saveSettings(true);drawAt();}),sel(Object.keys(OV_FONTS).map(f=>[f,t('font_'+f)]),$('ovFont').value||'bricolage',v=>{$('ovFont').value=v;$('ovFont').dataset.touched='1';saveSettings(true);loadOvFont();setTimeout(drawAt,300);drawAt();})));
+      P.appendChild(row(hint(t('ovT')),sel(OV_STYLES.map(k2=>[k2,t('ov_'+k2)]),E.p.bv.ovStyle||'card',v=>{E.p.bv.ovStyle=v;E.p.bv.ovFont=OV_DEF_FONT[v];save();try{document.fonts.load(`${OV_FONTS[OV_DEF_FONT[v]].w} 30px ${OV_FONTS[OV_DEF_FONT[v]].fam}`).then(drawAt);}catch(e){}drawAt();renderPanel();})));
+      P.appendChild(row(sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),E.p.bv.ovColor||'gold',v=>{E.p.bv.ovColor=v;save();drawAt();}),sel(Object.keys(OV_FONTS).map(f=>[f,t('font_'+f)]),E.p.bv.ovFont||'bricolage',v=>{E.p.bv.ovFont=v;save();try{document.fonts.load(`${OV_FONTS[v].w} 30px ${OV_FONTS[v].fam}`).then(drawAt);}catch(e){}drawAt();})));
       P.appendChild(hint(t('edBrandHint')));
     }
   }
