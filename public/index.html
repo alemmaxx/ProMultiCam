@@ -12,6 +12,7 @@
 <meta name="theme-color" content="#0b0f17">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Montserrat:wght@800&family=Bebas+Neue&family=Anton&family=Playfair+Display:wght@700&family=Lobster&family=Pacifico&family=Dancing+Script:wght@700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Bangers&family=Fredoka:wght@700&family=Baloo+2:wght@800&family=Righteous&family=Kanit:wght@800&family=Oswald:wght@700&family=Archivo+Black&family=Caveat:wght@700&family=Satisfy&family=Lalezar&family=Amiri:wght@700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <script src="i18n.js"></script>
 <script type="module" src="account.js"></script>
@@ -333,8 +334,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .se-stage{position:relative;flex:0 0 auto;height:44vh;max-width:100%;aspect-ratio:9/16;align-self:center;background:#000;border-radius:14px;overflow:hidden}
 .se-stage.land{height:auto;width:100%;aspect-ratio:16/9}
 .se-stage video{width:100%;height:100%;object-fit:contain;display:block}
-.se-cap{position:absolute;left:5%;right:5%;text-align:center;font-weight:700;line-height:1.25;pointer-events:none;white-space:pre-wrap}
-.se-cap span{padding:.1em .35em;border-radius:.25em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.se-cap{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.tx-styles{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.tx-st{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px;border-radius:10px;border:2px solid transparent;background:transparent;color:var(--muted,#aab);font:600 11px Poppins,sans-serif;cursor:pointer}
+.tx-st canvas{width:84px;height:45px;border-radius:7px;display:block}
+.tx-st.on{border-color:var(--gold,#d9b44a);color:var(--text,#fff)}
+.tx-sw{flex-wrap:wrap;gap:8px}.tx-sw button{width:34px;height:34px}
 .se-ctl,.se-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .se-line{display:flex;flex-direction:column;gap:6px;background:var(--card2);border:2px solid transparent;border-radius:12px;padding:8px}
 .se-line.on{border-color:var(--gold)}
@@ -809,7 +814,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="t"><span class="k" data-i18n="seK"></span><span class="n" id="seName"></span></div>
   </div>
   <div class="se-body">
-    <div class="se-stage" id="seStage"><video id="seVid" playsinline preload="auto"></video><div class="se-cap" id="seCap"></div></div>
+    <div class="se-stage" id="seStage"><video id="seVid" playsinline preload="auto"></video><canvas class="se-cap" id="seCap"></canvas></div>
     <div class="se-ctl">
       <button class="btn btn-sm btn-gold" id="sePlay" onclick="seToggle()" style="min-width:72px"></button>
       <input type="range" id="seSeek" min="0" max="1000" value="0" step="1" style="flex:1" aria-label="Seek">
@@ -826,10 +831,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="subsec">
       <span class="sec" data-i18n="seStyleT"></span>
       <label class="lbl"><span data-i18n="ovFontT"></span><select class="input" id="seFont"></select></label>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="hint" data-i18n="ovColT"></span><div class="swatches" id="seColors"></div></div>
+      <span class="hint" data-i18n="txStyleT"></span><div id="seStyles"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="hint" data-i18n="ovColT"></span><div id="seColors"></div></div>
+      <label class="lbl"><span data-i18n="txCaseT"></span><span id="seCaseBox"></span></label>
       <label class="lbl"><span data-i18n="sePos"></span><select class="input" id="sePos"><option value="b" data-i18n="sePosB"></option><option value="m" data-i18n="sePosM"></option><option value="t" data-i18n="sePosT"></option></select></label>
       <div style="display:flex;gap:10px;align-items:center"><span class="hint" data-i18n="tpSize"></span><input type="range" id="seSize" min="4" max="9" step="0.5" value="6" style="flex:1"></div>
-      <label class="check"><input type="checkbox" id="seBox" checked><span data-i18n="seBox"></span></label>
+      <label class="check" style="display:none"><input type="checkbox" id="seBox" checked><span data-i18n="seBox"></span></label>
     </div>
     <div class="subsec">
       <span class="sec" data-i18n="seAudioT"></span>
@@ -2148,17 +2155,17 @@ function openAbout(){
 function closeAbout(){$('aboutView').classList.remove('show');}
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data==='pmc-close'){closeAbout();closeAdmin();}});
 /* ================= SUBTITLE EDITOR (Pro): type or detect lines, style them, swap the sound, make a new video ================= */
-let se={name:'',h:null,url:'',lines:[],raf:0,rec:null,busy:false};
+let se={name:'',h:null,url:'',lines:[],raf:0,rec:null,busy:false,sty:{col:'white',style:'darkbox',cs:'title'}};
 function fmtT(x){x=Math.max(0,x||0);const m=Math.floor(x/60),s=x-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1);}
 function seKey(){return 'pmc_sub_'+se.name;}
-function seSave(){try{localStorage.setItem(seKey(),JSON.stringify({lines:se.lines,font:$('seFont').value,col:$('seFont').dataset.col||'white',pos:$('sePos').value,size:$('seSize').value,box:$('seBox').checked,audio:$('seAudio').value,music:$('seMusic').value}));}catch(e){}}
+function seSave(){try{localStorage.setItem(seKey(),JSON.stringify({lines:se.lines,font:$('seFont').value,col:se.sty.col,pos:$('sePos').value,size:$('seSize').value,box:se.sty.style==='darkbox',style:se.sty.style,cs:se.sty.cs,audio:$('seAudio').value,music:$('seMusic').value}));}catch(e){}}
 async function openSubEditor(it){
   if(!isPro()){openPro();return;}
   se.name=it.name;se.h=it.h;closeSheet('filesSheet');
   const blob=await savedBlob(it.h,mimeOf(it.name));if(se.url)URL.revokeObjectURL(se.url);se.url=URL.createObjectURL(blob);
   const v=$('seVid');v.src=se.url;v.muted=false;$('seName').textContent=it.name;
   if(!$('seFont').options.length){Object.entries(OV_FONTS).forEach(([k,f])=>{const o=document.createElement('option');o.value=k;o.textContent=t('font_'+k);$('seFont').appendChild(o);});
-    const cs=$('seColors');[['white','#ffffff'],['gold','#d9b44a'],['yellow','#ffe14d'],['green','#5be08a']].forEach(([k,c])=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.dataset.c=c;b.style.background=c;b.setAttribute('aria-label',k);b.onclick=()=>{$('seFont').dataset.col=k;seColUI();seSave();seCapRender(true);};cs.appendChild(b);});
+    $('seFont').addEventListener('change',()=>{seStyUI();try{const f=OV_FONTS[$('seFont').value];document.fonts.load(`${f.w} 30px ${f.fam}`).then(()=>seCapRender(true));}catch(e){}});
     ['seFont','sePos','seSize','seBox','seAudio','seMusic'].forEach(id=>$(id).addEventListener('change',()=>{seSave();seCapRender(true);seAudioUI();}));
     $('seSize').addEventListener('input',()=>seCapRender(true));
     $('seSeek').addEventListener('input',()=>{const v=$('seVid');if(v.duration)v.currentTime=v.duration*$('seSeek').value/1000;});
@@ -2168,14 +2175,18 @@ async function openSubEditor(it){
     v.addEventListener('ended',()=>{if(se.rec)seAutoStop();});
     v.addEventListener('seeked',seTick);}
   let st={};try{st=JSON.parse(localStorage.getItem(seKey())||'null')||JSON.parse(localStorage.getItem('pmc_sub_style')||'{}')||{};}catch(e){}
-  se.lines=Array.isArray(st.lines)?st.lines:[];$('seFont').value=st.font||'poppins';$('seFont').dataset.col=st.col||'white';
+  se.lines=Array.isArray(st.lines)?st.lines:[];$('seFont').value=OV_FONTS[st.font]?st.font:'poppins';se.sty={col:st.col||'white',style:st.style||(st.box===false?'outline':'darkbox'),cs:st.cs||(Array.isArray(st.lines)?'asis':'title')};
   $('sePos').value=st.pos||'b';$('seSize').value=st.size||6;$('seBox').checked=st.box!==false;$('seAudio').value=st.audio||'orig';$('seMusic').value=st.music||'lofi';
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;$('seAutoBtn').style.display=SR?'inline-flex':'none';$('seLang').style.display=SR?'block':'none';$('seAutoHint').textContent=t(SR?'seAutoHint':'seNoAuto');
   $('sePlay').textContent=t('sePlay');$('seProg').classList.remove('show');seColUI();seAudioUI();seRenderList();
   $('subEd').classList.add('show');try{OV_FONTS&&document.fonts.load(`700 30px ${OV_FONTS[$('seFont').value].fam}`);}catch(e){}
 }
-function seColUI(){[...$('seColors').children].forEach(b=>b.classList.toggle('on',b.dataset.k===($('seFont').dataset.col||'white')));}
-function seColor(){const b=[...$('seColors').children].find(x=>x.dataset.k===($('seFont').dataset.col||'white'));return b?b.dataset.c:'#ffffff';}
+function seColUI(){seStyUI();}
+function seStyUI(){
+  $('seStyles').replaceChildren(txStylePicker(se.sty.style,$('seFont').value,se.sty.col,k=>{se.sty.style=k;seSave();seCapRender(true);}));
+  $('seColors').replaceChildren(txSwatches(se.sty.col,k=>{se.sty.col=k;seSave();seStyUI();seCapRender(true);}));
+  $('seCaseBox').replaceChildren(txCaseSel(se.sty.cs,v=>{se.sty.cs=v;seSave();seCapRender(true);}));}
+function seColor(){return txColor(se.sty.col);}
 function seAudioUI(){const a=$('seAudio').value;$('seMusic').style.display=(a==='music'||a==='mix')?'block':'none';}
 function seClose(){if(se.busy){toast(t('seBusy'));return;}seAutoStop();const v=$('seVid');v.pause();$('subEd').classList.remove('show');cancelAnimationFrame(se.raf);seSave();}
 function seToggle(){const v=$('seVid');if(v.paused)v.play().catch(()=>{});else v.pause();}
@@ -2187,17 +2198,16 @@ function seTick(){
   seCapRender(false);
 }
 function seCur(){const ct=$('seVid').currentTime;return se.lines.findIndex(l=>ct>=l.s&&ct<l.e);}
+const TX_MOVING=['neon','karaoke','wordpop','shake','write'];
 function seCapRender(force){
-  const ix=seCur();if(!force&&ix===seLastIx)return;seLastIx=ix;
-  [...$('seList').children].forEach((el,i)=>el.classList.toggle('on',i===ix));
-  const c=$('seCap'),txt=ix>=0?se.lines[ix].txt:'';c.innerHTML='';if(!txt)return;
-  const f=OV_FONTS[$('seFont').value]||OV_FONTS.poppins,stg=$('seStage'),h=stg.clientHeight,w=stg.clientWidth,S=Math.min(w,h);
-  c.style.fontFamily=f.fam+',"Bricolage Grotesque",sans-serif';c.style.fontWeight=f.w;c.style.fontSize=Math.round(S*Number($('seSize').value)/100)+'px';
-  c.style.top=c.style.bottom='';const pos=$('sePos').value;if(pos==='t')c.style.top='8%';else if(pos==='m'){c.style.top='50%';c.style.transform='translateY(-50%)';}else{c.style.bottom='10%';c.style.transform='';}
-  if(pos!=='m')c.style.transform='';
-  const sp=document.createElement('span');sp.textContent=f.caps?txt.toUpperCase():txt;sp.style.color=seColor();
-  if($('seBox').checked)sp.style.background='rgba(0,0,0,.62)';else{sp.style.background='transparent';sp.style.textShadow='0 0 4px #000,0 0 4px #000,0 2px 6px #000';}
-  c.appendChild(sp);
+  const ix=seCur();if(!force&&ix===seLastIx&&!(ix>=0&&TX_MOVING.includes(se.sty.style)))return;
+  if(ix!==seLastIx)[...$('seList').children].forEach((el,i)=>el.classList.toggle('on',i===ix));seLastIx=ix;
+  const cv=$('seCap'),stg=$('seStage'),dpr=Math.min(2,window.devicePixelRatio||1),w=stg.clientWidth,h=stg.clientHeight;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const c=cv.getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,cv.width,cv.height);
+  const l=ix>=0?se.lines[ix]:null;if(!l||!l.txt.trim())return;
+  const v=$('seVid'),vw=v.videoWidth||9,vh=v.videoHeight||16,k=Math.min(cv.width/vw,cv.height/vh),rw=vw*k,rh=vh*k;
+  c.translate((cv.width-rw)/2,(cv.height-rh)/2);seDrawCap(c,rw,rh,l,v.currentTime);
 }
 function seRenderList(){
   se.lines.sort((a,b)=>a.s-b.s);const box=$('seList');box.innerHTML='';
@@ -2245,15 +2255,8 @@ function seSrt(){
   const txt=se.lines.filter(l=>l.txt.trim()).map((l,i)=>`${i+1}\n${ts(l.s)} --> ${ts(l.e)}\n${l.txt.trim()}\n`).join('\n');
   downloadBlob(new Blob([txt],{type:'text/plain'}),se.name.replace(/\.\w+$/,'')+'.srt');
 }
-function seDrawCap(c,W,H,txt){
-  const f=OV_FONTS[$('seFont').value]||OV_FONTS.poppins,S=Math.min(W,H),fs=Math.round(S*Number($('seSize').value)/100);
-  c.font=`${f.w} ${fs}px ${f.fam},"Bricolage Grotesque",sans-serif`;c.textAlign='center';txt=f.caps?txt.toUpperCase():txt;
-  const maxW=W*0.88,lines=[];let cur='';txt.split(/\s+/).forEach(w=>{const tst=cur?cur+' '+w:w;if(c.measureText(tst).width>maxW&&cur){lines.push(cur);cur=w;}else cur=tst;});if(cur)lines.push(cur);
-  const lh=fs*1.3,total=lines.length*lh,pos=$('sePos').value;let y=pos==='t'?H*0.08:pos==='m'?H/2-total/2:H*0.9-total;
-  lines.forEach(l=>{const w=c.measureText(l).width;
-    if($('seBox').checked){c.fillStyle='rgba(0,0,0,.62)';c.beginPath();if(c.roundRect)c.roundRect(W/2-w/2-fs*0.35,y,w+fs*0.7,lh,fs*0.25);else c.rect(W/2-w/2-fs*0.35,y,w+fs*0.7,lh);c.fill();}
-    else{c.lineWidth=Math.max(2,fs*0.14);c.strokeStyle='rgba(0,0,0,.9)';c.lineJoin='round';c.strokeText(l,W/2,y+fs*1.0);}
-    c.fillStyle=seColor();c.fillText(l,W/2,y+fs*1.0);y+=lh;});
+function seDrawCap(c,W,H,l,ct){
+  txDraw(c,W,H,{txt:l.txt.trim(),font:$('seFont').value,col:se.sty.col,size:Number($('seSize').value),pos:$('sePos').value,style:se.sty.style,cs:se.sty.cs,maxW:0.88},ct-l.s,l.e-l.s);
 }
 /* make a new video: plays the recording once, drawing the lines and mixing the chosen sound. Takes as long as the video. */
 async function seExport(){
@@ -2276,7 +2279,7 @@ async function seExport(){
     const name=se.name.replace(/\.\w+$/,'')+'_'+t('seSuffix')+'.'+ext,sv=new Saver(name);
     rec.ondataavailable=e=>sv.push(e.data);
     const prog=$('seProg');prog.classList.add('show');
-    let stop=false;const frame=()=>{if(stop)return;c.drawImage(v,0,0,W,H);const ct=v.currentTime;const l=se.lines.find(x=>ct>=x.s&&ct<x.e&&x.txt.trim());if(l)seDrawCap(c,W,H,l.txt.trim());
+    let stop=false;const frame=()=>{if(stop)return;c.drawImage(v,0,0,W,H);const ct=v.currentTime;const l=se.lines.find(x=>ct>=x.s&&ct<x.e&&x.txt.trim());if(l)seDrawCap(c,W,H,l,ct);
       const p=v.duration?ct/v.duration:0;$('seBar').style.width=Math.round(p*100)+'%';$('seProgTx').textContent=t('seMaking',{n:Math.round(p*100)});
       if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(frame);else requestAnimationFrame(frame);};
     const done=new Promise(res=>{v.onended=res;});
@@ -2713,6 +2716,7 @@ initLang();applyI18n();initInstall();
 })();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script src="textfx.js"></script>
 <script src="editor.js"></script>
 </body>
 </html>
