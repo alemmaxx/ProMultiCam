@@ -927,7 +927,7 @@ const LOOKS=[
   {id:'soft',name:'Lembut',f:'brightness(1.1) contrast(0.85) saturate(0.9)'}
 ];
 let look=LOOKS[0];
-let peers=[], roomCode='', sources=[], mainId=null, secId=null, mode='full';
+let peers=[], roomCode='', sources=[], mainId=null, secId=null, mode='full', wantMain=null;
 let statTimer=null;
 let recorder=null, saver=null, recStart=0, recTimer=null, drawTimer=null, actx=null, adest=null, aNode=null, localStream=null;
 const stage=$('stage'), ctx=stage.getContext('2d');
@@ -1012,7 +1012,7 @@ function getSrc(id,name){
   if(!s){
     s={id,name:name||(t('cam')+' '+(sources.length+1)),zoom:1,caps:null,stream:null,via:'wifi',video:document.createElement('video')};
     s.video.muted=true;s.video.playsInline=true;s.video.autoplay=true;s.video.setAttribute('playsinline','');
-    sources.push(s);if(!mainId)mainId=id;
+    sources.push(s);if(!mainId||wantMain===id){mainId=id;wantMain=null;}
     toast(t('joined',{name:s.name}));
   }else if(name)s.name=name;
   renderTiles();
@@ -1022,7 +1022,7 @@ function setStream(s,st){s.stream=st;s.video.srcObject=st;s.video.play().catch((
 function removeSrc(id){
   const i=sources.findIndex(x=>x.id===id);if(i<0)return;
   const s=sources[i];sources.splice(i,1);toast(t('left',{name:s.name}));
-  if(mainId===id)mainId=sources[0]?sources[0].id:null;
+  if(mainId===id){wantMain=id;mainId=sources[0]?sources[0].id:null;}
   if(secId===id)secId=null;
   renderTiles();renderConnList();refreshAudio();sendLive();
 }
@@ -1050,7 +1050,7 @@ function renderTiles(){
 function updateLabels(){const m=sources.find(s=>s.id===mainId);$('lblAngle').textContent=m?m.name:t('waiting');}
 function pick(id){
   lastSwitch=Date.now();
-  if(mode==='full')mainId=id;
+  if(mode==='full'){mainId=id;wantMain=null;}
   else if(id===mainId){if(secId)[mainId,secId]=[secId,mainId];}
   else secId=id;
   renderTiles();sendLive();
@@ -1338,8 +1338,8 @@ function renderScenes(){
   updateSceneTag();
 }
 const TPL={
-  cook:{look:'warm',mode:'pip',auto:'10',fade:true,noise:true,intro:true,outro:true,story:false},
-  music:{look:'cine',mode:'full',auto:'b4',fade:true,noise:false,intro:true,outro:false,story:false},
+  cook:{look:'warm',mode:'pip',auto:'0',fade:true,noise:true,intro:true,outro:true,story:false},
+  music:{look:'cine',mode:'full',auto:'0',fade:true,noise:false,intro:true,outro:false,story:false},
   pod:{look:'std',mode:'split',auto:'0',fade:false,noise:true,intro:true,outro:true,story:false,music:'none'},
   drama:{look:'drama',mode:'full',auto:'0',fade:true,noise:true,intro:false,outro:false,story:true,music:'none'}
 };
@@ -1605,6 +1605,7 @@ function saveSettings(quiet){
   closeSheet('setSheet');toast(t('settingsSaved'));track('settings_saved');
 }
 function loadSettings(){
+  try{if(!localStorage.getItem('pmc_manual_v1')){const o=JSON.parse(localStorage.getItem('pmc_settings')||'{}');if(o&&o.autoSel&&o.autoSel!=='0'){o.autoSel='0';localStorage.setItem('pmc_settings',JSON.stringify(o));}localStorage.setItem('pmc_manual_v1','1');}}catch(e){}
   let o={};try{o=JSON.parse(lsGet('pmc_settings','{}'))||{};}catch(e){}
   for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(!e||!(id in o))continue;if(k==='c')e.checked=!!o[id];else e.value=o[id];}
   resizeStage();if(musicGain)musicGain.gain.value=Number($('musicVol').value)/100*0.8;
