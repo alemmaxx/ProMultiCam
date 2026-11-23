@@ -267,6 +267,8 @@ body.land .sheet{max-height:92vh
 .cc-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .cc-ring{position:fixed;width:74px;height:74px;margin:-37px 0 0 -37px;border:2px solid var(--gold);border-radius:8px;pointer-events:none;z-index:200;animation:ccRing 1.1s ease forwards}
 @keyframes ccRing{0%{transform:scale(1.35);opacity:0}20%{transform:scale(1);opacity:1}75%{opacity:1}100%{opacity:0}}
+.zv-in{height:100%;display:flex;flex-direction:column;align-items:center;gap:6px}
+.cam-zv{z-index:3}
 .zoomv .cc-mini{position:absolute;top:100%;left:2px;margin-top:10px}
 .cc-mini{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(14,14,15,.75);color:var(--gold);display:grid;place-items:center;padding:0;cursor:pointer;margin-top:auto}
 .fmtguide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none;display:none;z-index:1}
@@ -274,7 +276,6 @@ body.land .sheet{max-height:92vh
 .fmtguide span{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--on-gold);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800}
 body.land .cam-top{padding:8px 12px 20px;padding-top:max(8px,env(safe-area-inset-top));flex-direction:row;align-items:center;flex-wrap:wrap}
 body.land .cam-bot{flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:8px;padding:16px 12px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
-body.land .cam-bot #zoomRow{flex:1 1 100%}
 body.land .cam-bot .g3{flex:1;min-width:0}
 body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6px 10px
 }
@@ -706,6 +707,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
   <div class="fmtguide" id="fmtGuide"><span id="fmtGuideTx"></span></div>
   <div class="grid3x3" id="gridOv"></div>
   <div class="level" id="levelOv"><span id="levelTxt"></span></div>
+  <div class="zoomv cam-zv"><div class="zv-in" id="zoomRow" style="display:none"><span id="camZoomVal">1.0×</span><input type="range" id="camZoom" min="1" max="5" step="0.1" value="1" aria-label="Zoom"></div><button class="cc-mini" id="ccCamBtn" type="button" onclick="ccCamOpen()" aria-label="Camera controls"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button></div>
   <div class="cam-top">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span class="st"><span class="dot" id="camDot"></span><span id="camStatus"></span></span>
@@ -715,15 +717,9 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <span class="hdbadge" id="hdBadge" data-i18n="hdOn"></span>
   </div>
   <div class="cam-bot">
-    <div id="zoomRow" style="display:none;align-items:center;gap:10px">
-      <span style="font-size:13px;font-weight:700;color:var(--sub)" data-i18n="zoom"></span>
-      <input type="range" id="camZoom" min="1" max="5" step="0.1" value="1" style="flex:1">
-      <span id="camZoomVal" style="font-size:13px;font-weight:700;color:var(--gold);min-width:36px">1.0×</span>
-    </div>
     <div class="cam-tools">
       <button class="btn on" id="gridBtn" onclick="toggleGrid()" data-i18n="gridLbl"></button>
       <button class="btn" id="lockBtn" onclick="toggleLock()" data-i18n="lockLbl"></button>
-      <button class="btn" id="ccCamBtn" onclick="ccCamOpen()" data-i18n="ccBtn"></button>
     </div>
     <div class="g3">
       <button class="btn" onclick="camFlip()" data-i18n="flip"></button>
@@ -1257,7 +1253,8 @@ function ccDirOpen(){
 function camGuide(){if(!lsGet('pmc_camguide',''))openSheet('camGuideSheet');}
 function camGuideDone(){lsSet('pmc_camguide','1');closeSheet('camGuideSheet');}
 function ccCamOpen(){const tr=()=>sStream&&sStream.getVideoTracks()[0];if(!tr()){toast(t('allowCam'));return;}
-  ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>ccDo(tr(),op,v),tapHint:true,torch:false});}
+  const st=ccState(tr());st.torch=!!sTorch;
+  ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:st,run:(op,v)=>{if(op==='torch'){if(!!v!==!!sTorch)camTorch();return;}return ccDo(tr(),op,v);},tapHint:true});}
 function updateZoomUI(){
   const s=sources.find(x=>x.id===mainId);const z=$('zoom');
   if(!s){z.disabled=true;return;}z.disabled=false;
@@ -2583,7 +2580,7 @@ function camCaps(){
   return{zoom,torch:!!c.torch,lock:lockSupported(),cc:ccCaps(t)};
 }
 async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});ccDo(t,'zoomed');$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
-async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){toast(t('torchFail'));}}
+async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){sTorch=false;toast(t('torchFail'));}$('torchBtn').classList.toggle('on',sTorch);}
 async function camFlip(){
   sFacing=sFacing==='environment'?'user':'environment';
   try{
