@@ -9,13 +9,13 @@
 <meta property="og:title" content="ProMultiCam · Studio multi-kamera dalam poket anda">
 <meta property="og:description" content="Rakam video bertaraf studio dengan beberapa telefon.">
 <meta property="og:image" content="icon-512.png">
-<meta name="theme-color" content="#0b0f17">
+<meta name="theme-color" content="#0e0e0f">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <script src="config.js"></script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--info:#7aa7f5;--f:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:root{--bg:#0e0e0f;--card:#171718;--card2:#1f1f21;--ink:#ebe9e4;--muted:#9b978e;--sub:#c8c4bb;--line:#2b2a28;--gold:#c8a45c;--gold2:#262117;--on-gold:#17130b;--ok:#5fb38c;--info:#9fb1cc;--f:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased;line-height:1.55}
 /* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
@@ -23,32 +23,33 @@ body{text-transform:capitalize}
 input,textarea,.input,.msg,.mail,.nocap,.n,code,.tx b,td.mail,#chatList *{text-transform:none}
 a{color:var(--gold)}
 .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-header{position:sticky;top:0;z-index:10;background:rgba(11,15,23,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header{position:sticky;top:0;z-index:10;background:rgba(14,14,15,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 header .wrap{display:flex;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;text-decoration:none;color:var(--ink);margin-right:auto}
 .brand i{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--card)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 20px;border-radius:10px;border:0;font:800 15px var(--f);text-decoration:none;cursor:pointer;background:rgba(238,240,244,.1);color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 20px;border-radius:10px;border:0;font:800 15px var(--f);text-decoration:none;cursor:pointer;background:rgba(235,233,228,.1);color:var(--ink)}
 .btn-gold{background:var(--gold);color:var(--on-gold)}
-.btn-sm{min-height:38px;padding:8px 14px;font-size:13px}
-.lang{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.btn-sm{min-height:38px;padding:8px 14px;font-size:13px;white-space:nowrap;flex:0 0 auto}
+@media(max-width:420px){header .wrap{gap:8px}.brand{font-size:16px;gap:8px;min-width:0}.brand i{width:34px;height:34px}header .btn-sm{padding:8px 10px}}
+.lang{flex:0 0 auto;display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .lang button{border:0;background:transparent;color:var(--ink);font:800 12px var(--f);padding:8px 12px;cursor:pointer;min-height:38px}
 .lang button.on{background:var(--gold);color:var(--on-gold)}
-.hero{padding:64px 0 48px;background:radial-gradient(70% 60% at 85% 0%,#1c2f52 0%,transparent 60%),radial-gradient(60% 60% at 0% 100%,#2a2210 0%,transparent 60%)}
+.hero{padding:64px 0 48px;background:radial-gradient(70% 60% at 85% 0%,#1d1d1f 0%,transparent 60%),radial-gradient(60% 60% at 0% 100%,#241f16 0%,transparent 60%)}
 .hero .wrap{display:flex;flex-wrap:wrap;gap:40px;align-items:center}
 .hero .txt{flex:1 1 420px;display:flex;flex-direction:column;gap:18px}
 .tag{font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.5px}
 h1{margin:0;font-size:clamp(40px,7vw,64px);line-height:1;letter-spacing:-1.5px;font-weight:800;background-image:linear-gradient(180deg,#fffbe9 0%,#f3dc8e 42%,#c99a2e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{margin:0;font-size:18px;color:var(--sub);max-width:540px}
 .cta{display:flex;gap:10px;flex-wrap:wrap}
-.phone{flex:0 1 300px;margin:0 auto;aspect-ratio:9/18;border-radius:34px;border:2px solid var(--gold);background:#05080d;position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.phone{flex:0 1 300px;margin:0 auto;aspect-ratio:9/18;border-radius:34px;border:2px solid var(--gold);background:#070707;position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
 .phone .main{position:absolute;inset:0;background:radial-gradient(ellipse 60% 30% at 50% 48%,#c9862f 0 60%,#2b2b2e 61% 72%,transparent 73%),#3a2a16}
 .phone .dots span{position:absolute;border-radius:50%}
-.phone .chip{position:absolute;top:18px;left:14px;background:rgba(11,15,23,.85);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--gold)}
-.phone .rec{position:absolute;top:18px;right:14px;background:#ef6b5c;color:#1a0705;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
+.phone .chip{position:absolute;top:18px;left:14px;background:rgba(14,14,15,.85);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--gold)}
+.phone .rec{position:absolute;top:18px;right:14px;background:#d9776b;color:#1a0705;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
 .phone .strip{position:absolute;left:12px;right:12px;bottom:74px;display:flex;gap:6px}
 .phone .strip i{flex:1;height:58px;border-radius:8px;border:2px solid var(--line)}
 .phone .strip i:first-child{border-color:var(--gold)}
-.phone .btnr{position:absolute;left:12px;right:12px;bottom:18px;height:44px;border-radius:10px;background:#ef6b5c;color:#1a0705;display:grid;place-items:center;font-weight:800;font-size:13px}
+.phone .btnr{position:absolute;left:12px;right:12px;bottom:18px;height:44px;border-radius:10px;background:#d9776b;color:#1a0705;display:grid;place-items:center;font-weight:800;font-size:13px}
 section{padding:56px 0}
 h2{margin:0 0 8px;font-size:clamp(28px,4.5vw,40px);letter-spacing:-.8px;line-height:1.1}
 .lead{color:var(--sub);margin:0 0 28px;max-width:640px;font-size:16px}
@@ -70,7 +71,7 @@ h2{margin:0 0 8px;font-size:clamp(28px,4.5vw,40px);letter-spacing:-.8px;line-hei
 details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:10px}
 summary{font-weight:800;cursor:pointer;font-size:16px}
 details p{margin:10px 0 0;color:var(--sub)}
-.final{text-align:center;background:radial-gradient(60% 80% at 50% 0%,#2a2210 0%,transparent 70%)}
+.final{text-align:center;background:radial-gradient(60% 80% at 50% 0%,#241f16 0%,transparent 70%)}
 .final .cta{justify-content:center}
 footer{border-top:1px solid var(--line);padding:24px 0;color:var(--muted);font-size:14px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
@@ -78,7 +79,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
 </head>
 <body>
 <header><div class="wrap">
-  <a class="brand" href="#"><i><svg width="28" height="28" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#7aa7f5" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c3cad6" stroke-width="5" fill="#131a26"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#d9b44a"/><circle cx="61" cy="61" r="7" fill="#1b1503"/><circle cx="61" cy="61" r="3" fill="#ef6b5c"/></svg></i>ProMultiCam</a>
+  <a class="brand" href="#"><i><svg width="28" height="28" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#9fb1cc" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c8c4bb" stroke-width="5" fill="#171718"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#c8a45c"/><circle cx="61" cy="61" r="7" fill="#17130b"/><circle cx="61" cy="61" r="3" fill="#d9776b"/></svg></i>ProMultiCam</a>
   <div class="lang" role="group" aria-label="Language"><button data-l="ms" class="on">BM</button><button data-l="en">EN</button></div>
   <a class="btn btn-gold btn-sm" href="index.html" data-k="tryShort">Cuba Percuma</a>
 </div></header>
@@ -117,12 +118,12 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   <h2 data-k="featT">Semua yang anda perlukan</h2>
   <p class="lead" data-k="featL">Direka untuk peniaga, content creator, pemuzik, podcast dan pembuat cerita.</p>
   <div class="feat">
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span><b data-k="f1t">Tukar sudut secara langsung</b><p data-k="f1d">Penuh, skrin belah atau bingkai kecil. Auto-tukar sudut bila tangan sibuk memasak.</p></div>
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="#d9b44a"/></svg></span><b data-k="f2t">9 Gaya Visual</b><p data-k="f2d">Sinematik, Old School, Food Pop, Retro 90an dan banyak lagi — terus dalam video.</p></div>
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 17h6M16 17h2"/><rect x="15" y="4" width="6" height="6" rx="1"/></svg></span><b data-k="f3t">Logo & kad resepi</b><p data-k="f3d">Letak logo kedai, nama menu, harga dan nombor telefon untuk tempahan terus dalam video.</p></div>
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><b data-k="f4t">Muzik latar bebas hak cipta</b><p data-k="f4d">Muzik terbina bebas royalti — tak perlu risau isu hak cipta.</p></div>
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="#d9b44a"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg></span><b data-k="f5t">Simpan terus, muat naik bila-bila</b><p data-k="f5d">Video siap disimpan dalam telefon, sedia dimuat naik ke media sosial pilihan anda.</p></div>
-    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9b44a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span><b data-k="f6t">Rakaman selamat</b><p data-k="f6d">Video disimpan sedikit demi sedikit. App tertutup? Rakaman boleh dipulihkan.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span><b data-k="f1t">Tukar sudut secara langsung</b><p data-k="f1d">Penuh, skrin belah atau bingkai kecil. Auto-tukar sudut bila tangan sibuk memasak.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="#c8a45c"/></svg></span><b data-k="f2t">9 Gaya Visual</b><p data-k="f2d">Sinematik, Old School, Food Pop, Retro 90an dan banyak lagi — terus dalam video.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 17h6M16 17h2"/><rect x="15" y="4" width="6" height="6" rx="1"/></svg></span><b data-k="f3t">Logo & kad resepi</b><p data-k="f3d">Letak logo kedai, nama menu, harga dan nombor telefon untuk tempahan terus dalam video.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><b data-k="f4t">Muzik latar bebas hak cipta</b><p data-k="f4d">Muzik terbina bebas royalti — tak perlu risau isu hak cipta.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="#c8a45c"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg></span><b data-k="f5t">Simpan terus, muat naik bila-bila</b><p data-k="f5d">Video siap disimpan dalam telefon, sedia dimuat naik ke media sosial pilihan anda.</p></div>
+    <div class="card"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c8a45c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span><b data-k="f6t">Rakaman selamat</b><p data-k="f6d">Video disimpan sedikit demi sedikit. App tertutup? Rakaman boleh dipulihkan.</p></div>
   </div>
 </div></section>
 

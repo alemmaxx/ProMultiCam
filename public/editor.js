@@ -32,12 +32,12 @@ const CSS=`
 .ed-body>*{flex-shrink:0}
 .ed-stage{flex:0 0 auto;height:40vh;display:flex;align-items:center;justify-content:center;background:#000;border-radius:14px;overflow:hidden}
 .ed-stage canvas{max-width:100%;max-height:100%;display:block}
-.ed-tl{position:relative;height:64px;border-radius:10px;overflow:hidden;background:#0b0f17;touch-action:none;cursor:pointer}
+.ed-tl{position:relative;height:64px;border-radius:10px;overflow:hidden;background:#0e0e0f;touch-action:none;cursor:pointer}
 .ed-thumbs{position:absolute;inset:0;display:flex}.ed-thumbs img{flex:1;min-width:0;height:100%;object-fit:cover;opacity:.75}
-.ed-seg{position:absolute;top:0;bottom:0;border-left:2px solid #d9b44a}
+.ed-seg{position:absolute;top:0;bottom:0;border-left:2px solid #c8a45c}
 .ed-seg.off{background:repeating-linear-gradient(135deg,rgba(214,69,58,.55) 0 6px,rgba(0,0,0,.55) 6px 12px)}
 .ed-seg.sug{outline:2px dashed #ff6b5b;outline-offset:-2px}
-.ed-seg .sp{position:absolute;left:3px;top:3px;font-size:10px;font-weight:800;background:#d9b44a;color:#1b1503;border-radius:4px;padding:0 4px}
+.ed-seg .sp{position:absolute;left:3px;top:3px;font-size:10px;font-weight:800;background:#c8a45c;color:#17130b;border-radius:4px;padding:0 4px}
 .ed-ph{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 4px #000;pointer-events:none}
 .ed-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
 .ed-tabs button{flex:0 0 auto;min-height:40px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:13px;font-weight:700;padding:0 14px;cursor:pointer}
@@ -705,7 +705,7 @@ function bgProcess(v){
   const O=bgCanvas('o',w,h),og=O.getContext('2d'),b=E.p.bg;og.filter='none';
   if(b==='blur'){og.filter='blur(14px)';og.drawImage(v,-10,-10,w+20,h+20);og.filter='none';}
   else if(b==='dark'){og.drawImage(v,0,0,w,h);og.fillStyle='rgba(0,0,0,.7)';og.fillRect(0,0,w,h);}
-  else{const col=(OV_COLORS[E.p.bgCol]||OV_COLORS.gold).c,gr=og.createLinearGradient(0,0,0,h);gr.addColorStop(0,col);gr.addColorStop(1,'#0b0f17');og.fillStyle=gr;og.fillRect(0,0,w,h);}
+  else{const col=(OV_COLORS[E.p.bgCol]||OV_COLORS.gold).c,gr=og.createLinearGradient(0,0,0,h);gr.addColorStop(0,col);gr.addColorStop(1,'#0e0e0f');og.fillStyle=gr;og.fillRect(0,0,w,h);}
   og.drawImage(P,0,0);return O;
 }
 async function bgEnable(mode){

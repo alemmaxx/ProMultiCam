@@ -7,19 +7,19 @@
 <meta name="robots" content="noindex">
 <title>ProMultiCam · Admin</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#0b0f17">
+<meta name="theme-color" content="#0e0e0f">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <script src="config.js"></script>
 <style>
-:root{--bg:#0b0f17;--card:#131a26;--card2:#1a2232;--ink:#eef0f4;--muted:#98a2b3;--sub:#c3cad6;--line:#263044;--gold:#d9b44a;--gold2:#2e2712;--on-gold:#1b1503;--ok:#2fbf8c;--ok-soft:#123528;--bad:#ef6b5c;--bad-soft:#3a1c19;--info:#7aa7f5;--info-soft:#16233b;--f:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark}
+:root{--bg:#0e0e0f;--card:#171718;--card2:#1f1f21;--ink:#ebe9e4;--muted:#9b978e;--sub:#c8c4bb;--line:#2b2a28;--gold:#c8a45c;--gold2:#262117;--on-gold:#17130b;--ok:#5fb38c;--ok-soft:#17261f;--bad:#d9776b;--bad-soft:#2e1d1b;--info:#9fb1cc;--info-soft:#1c2026;--f:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
 /* Capitalise Each Word everywhere in the interface; typed text, e-mails, file names and messages stay as written */
 button,h1,h2,h3,label,th,.tab,.tabs button,.card h3{text-transform:capitalize}
 .wrap{max-width:1100px;margin:0 auto;padding:16px}
-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,23,.95);z-index:5}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(14,14,15,.95);z-index:5}
 header b{font-size:18px;margin-right:auto}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:10px 14px;min-height:42px;font:700 14px var(--f);background:rgba(238,240,244,.1);color:var(--ink);cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:10px 14px;min-height:42px;font:700 14px var(--f);background:rgba(235,233,228,.1);color:var(--ink);cursor:pointer}
 .btn-gold{background:var(--gold);color:var(--on-gold)}.btn-sm{min-height:34px;padding:6px 10px;font-size:13px}
 .btn-danger{background:var(--bad-soft);color:var(--bad)}.btn-ok{background:var(--ok-soft);color:var(--ok)}
 .input,select{width:100%;font:15px var(--f);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px}
@@ -38,7 +38,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
 th{color:var(--muted);font-weight:600;background:var(--card2)}
 .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:800}
-.p-pro{background:var(--gold);color:var(--on-gold)}.p-trial{background:var(--info-soft);color:var(--info)}.p-free{background:rgba(238,240,244,.1);color:var(--sub)}.p-bad{background:var(--bad-soft);color:var(--bad)}.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-pro{background:var(--gold);color:var(--on-gold)}.p-trial{background:var(--info-soft);color:var(--info)}.p-free{background:rgba(235,233,228,.1);color:var(--sub)}.p-bad{background:var(--bad-soft);color:var(--bad)}.p-ok{background:var(--ok-soft);color:var(--ok)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 .muted{color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000e;color:#fff;padding:10px 16px;border-radius:12px;display:none;z-index:99;max-width:90%}
