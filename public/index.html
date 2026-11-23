@@ -130,6 +130,7 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .m-foot{padding:10px 16px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:8px}
 .m-foot .side{width:56px;min-height:56px;border:0;border-radius:12px;background:var(--soft2);color:var(--ink);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 10px var(--f)}
 .m-foot.rec .side{display:flex}
+.m-foot .side.resume{background:var(--gold);color:var(--on-gold)}
 #recBtn{flex:1}
 .countdown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,13,.55);font-size:96px;font-weight:800;color:var(--gold)}
 .countdown.show{display:flex}
@@ -1848,10 +1849,10 @@ async function toggleRec(force){
 function togglePause(){
   if(!recorder||recorder.state==='inactive')return;
   if(recorder.state==='recording'){
-    recorder.pause();pausedAt=Date.now();tellCams({t:'pause'});stopMusic();
+    recorder.pause();pausedAt=Date.now();tellCams({t:'pause'});stopMusic();try{lhd&&lhd.state==='recording'&&lhd.pause();}catch(e){}$('pauseBtn').classList.add('resume');
     $('recLbl').textContent='II '+t('paused');$('recBadge').classList.add('paused');$('pauseLbl').textContent=t('resume');
   }else{
-    recorder.resume();pausedTotal+=Date.now()-pausedAt;pausedAt=0;tellCams({t:'resume'});startMusic(false);
+    recorder.resume();pausedTotal+=Date.now()-pausedAt;pausedAt=0;tellCams({t:'resume'});startMusic(false);try{lhd&&lhd.state==='paused'&&lhd.resume();}catch(e){}$('pauseBtn').classList.remove('resume');
     $('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
   }
 }
@@ -1863,6 +1864,8 @@ function addMark(){
   toast(t('marked',{tm:fmt(sec)}));
 }
 function stopRec(){
+  /* ending straight from pause: the outro (if on) still plays, so resume for it first */
+  if(recorder&&recorder.state==='paused'&&isPro()&&$('optOutro').checked&&!outroAt)togglePause();
   localHdStop();
   if(isPro()&&$('optOutro').checked&&!outroAt&&recorder&&recorder.state==='recording'){outroAt=performance.now();$('recBtn').textContent=t('outroRun');setTimeout(stopRec,3000);return;}
   if(outroAt===-1)return;outroAt=-1;
@@ -1870,7 +1873,7 @@ function stopRec(){
   if(recorder&&recorder.state!=='inactive')recorder.stop();
   tellCams({t:'rec',on:false});
   clearInterval(recTimer);
-  $('mFoot').classList.remove('rec');$('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
+  $('mFoot').classList.remove('rec');$('pauseBtn').classList.remove('resume');pausedAt=0;$('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
   $('recBtn').textContent=t('recStart');$('recBtn').classList.remove('recording');$('recBadge').classList.remove('show');
   $('aspectSel').disabled=$('qualSel').disabled=false;toast(t('saving'));
   if(storyOn()){const sc=scenes[sceneIx];if(sc){sc.take++;saveScenes();renderScenes();}}
