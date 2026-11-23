@@ -98,7 +98,7 @@ window.openEditor=async function(it){
   setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
   v.addEventListener('loadeddata',()=>drawAt(),{once:true});v.currentTime=firstKept()+0.001;drawAt();setTimeout(()=>{if(E)drawAt();},600);
 };
-window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(a=>{try{a.pause();URL.revokeObjectURL(a.src);}catch(e){}});(E.angles||[]).forEach(a=>{try{a.v.pause();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl){try{E.musEl.pause();}catch(e){}}}E=null;};
+window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl)freeAudio(E.musEl);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}}E=null;};
 
 /* ---------- segments (all times are in the original video's time) ---------- */
 function segAt(x){return E.p.segs.find(s=>x>=s.a&&x<s.b)||E.p.segs[E.p.segs.length-1];}
@@ -385,7 +385,7 @@ let sfxLastX=-1;
 function sfxSync(x){if(!E.p.sfx||!E.p.sfx.length){sfxLastX=x;return;}if(sfxLastX>=0&&x>sfxLastX&&x-sfxLastX<0.5){E.p.sfx.forEach(q=>{if(q.t>sfxLastX&&q.t<=x)sfxPlay(actx,E.g.out,q.kind,actx.currentTime,q.vol);});}sfxLastX=x;}
 /* custom music file in the editor */
 async function musicLoad(){if(E.p.music!=='custom'||E.musEl)return;try{const d=await editsDir();const f=await (await d.getFileHandle(E.name.replace(/[^\w.-]+/g,'_')+'.music')).getFile();musicSet(f);}catch(e){}}
-function musicSet(blob){if(E.musEl){try{E.musEl.pause();URL.revokeObjectURL(E.musEl.src);}catch(e){}}const a=new Audio();a.src=URL.createObjectURL(blob);a.loop=true;a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(musicGain);}catch(e){}E.musEl=a;E.musBlob=blob;}
+function musicSet(blob){if(E.musEl)freeAudio(E.musEl);const a=new Audio();a.src=URL.createObjectURL(blob);a.loop=true;a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(musicGain);a._node=s;}catch(e){}E.musEl=a;E.musBlob=blob;}
 function musicPlay(x){if(E.p.music==='custom'&&E.musEl){const d=E.musEl.duration||0;E.musEl.currentTime=d?outPos(x)%d:0;E.musEl.play().catch(()=>{});}else if(E.p.music==='lofi'||E.p.music==='ceria'){if(!mTimer){const keep=$('musicSel').value;$('musicSel').value=E.p.music;startMusic(false);$('musicSel').value=keep;}}}
 function musicStop(){if(E&&E.musEl)E.musEl.pause();stopMusic();}
 /* reverse and boomerang: the part's frames are kept in memory and played back */
@@ -592,7 +592,7 @@ function renderPanel(){
     P.appendChild(hint(t('edVoHint')));
     P.appendChild(row(hint(t('edVoiceVol')),range(0,150,E.p.voiceVol,v=>{E.p.voiceVol=v;applyEnh();save();})));
     E.p.voices.forEach((vc,i)=>{const c=document.createElement('div');c.className='ed-card';
-      c.appendChild(row(hint(t('edVoN',{n:i+1})+' · '+fm1(vc.t)+' – '+fm1(vc.t+vc.d)),btn('▶',()=>{V().currentTime=vc.t;edPlay();}),btn('✕',async()=>{snap();E.p.voices=E.p.voices.filter(q=>q!==vc);save();try{(await voiceDir()).removeEntry(vc.id);}catch(e){}renderPanel();},'btn-danger')));P.appendChild(c);});
+      c.appendChild(row(hint(t('edVoN',{n:i+1})+' · '+fm1(vc.t)+' – '+fm1(vc.t+vc.d)),btn('▶',()=>{V().currentTime=vc.t;edPlay();}),btn('✕',async()=>{snap();E.p.voices=E.p.voices.filter(q=>q!==vc);save();if(E.voiceEls[vc.id]){freeAudio(E.voiceEls[vc.id]);delete E.voiceEls[vc.id];}try{(await voiceDir()).removeEntry(vc.id);}catch(e){}renderPanel();},'btn-danger')));P.appendChild(c);});
   }
   if(k==='music'){
     P.appendChild(row(sel([['none',t('mNone')],['lofi',t('mLofi')],['ceria',t('mCeria')],['custom',t('mOwn')]],E.p.music,v=>{E.p.music=v;save();if(E.playing){edPause();edPlay();}renderPanel();})));
@@ -655,7 +655,9 @@ async function loadVoices(){
   E.voiceEls={};if(!E.p.voices.length)return;try{const dir=await voiceDir();for(const vc of E.p.voices){try{const f=await (await dir.getFileHandle(vc.id)).getFile();mkVoiceEl(vc,f);}catch(e){}}}catch(e){}
   try{const mk=[];for await(const [k,h] of E.h.entries()){if(k==='_markers.txt'){const txt=await (await h.getFile()).text();txt.split('\n').forEach(l=>{const m=l.match(/(\d+):(\d+)(?::(\d+))?/);if(m)mk.push(m[3]?(+m[1]*3600+ +m[2]*60+ +m[3]):(+m[1]*60+ +m[2]));});}}E.marks=mk;}catch(e){}
 }
-function mkVoiceEl(vc,blob){const a=new Audio();a.src=URL.createObjectURL(blob);a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(E.g.voice);}catch(e){}E.voiceEls[vc.id]=a;}
+function mkVoiceEl(vc,blob){const a=new Audio();a.src=URL.createObjectURL(blob);a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(E.g.voice);a._node=s;}catch(e){}E.voiceEls[vc.id]=a;}
+/* let go of an audio player completely: stop it, unplug it from the mixer, free its memory */
+function freeAudio(a){try{a.pause();}catch(e){}try{a._node&&a._node.disconnect();}catch(e){}try{const u=a.src;a.removeAttribute('src');a.load();if(u&&u.startsWith('blob:'))URL.revokeObjectURL(u);}catch(e){}}
 async function startVoiceRec(){
   let st;try{st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});}catch(e){toast(t('seMicNeed'),4000);return;}
   const start=V().currentTime,mr=new MediaRecorder(st),ch=[];E.vrec={mr,st,start};
