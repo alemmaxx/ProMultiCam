@@ -314,6 +314,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 @media (max-height:680px){#home .hero p{display:none}}
 #home .home-body{justify-content:flex-start}
 
+.stnow{display:flex;flex-direction:column;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stchip{display:inline-flex;align-items:center;gap:6px;min-height:36px;border-radius:99px;background:var(--gold);color:var(--on-gold);font-size:13px;font-weight:700;padding:0 6px 0 12px;border:0;cursor:pointer}
+.stchip i{font-style:normal;width:24px;height:24px;border-radius:99px;background:rgba(0,0,0,.18);display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.stnone{font-size:13px;color:var(--sub)}
+.tplgrid .btn.on{border-color:var(--gold);background:#2e2712}
+.tplgrid .btn.on b::after{content:' ✓';color:var(--gold)}
 .tplgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .tplgrid .btn{flex-direction:column;align-items:flex-start;text-align:left;gap:2px;padding:10px 12px;min-height:64px}
 .tplgrid .btn b{font-size:15px}.tplgrid .btn span{font-size:11px;color:var(--muted);font-weight:500;line-height:1.3}
@@ -543,15 +549,22 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="pro-only" style="display:flex;flex-direction:column;gap:14px">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
 
+      <div class="stnow">
+        <span class="sec" data-i18n="stNow"></span>
+        <div id="stChips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <button class="btn btn-sm" id="stAllOff" onclick="studioAllOff()" data-i18n="stAllOff"></button>
+      </div>
+
       <div class="subsec">
         <span class="sec" data-i18n="tplT"></span>
-        <span class="hint" data-i18n="tplD"></span>
-        <div class="tplgrid">
-          <button class="btn" onclick="applyTpl('cook')"><b data-i18n="tplCook"></b><span data-i18n="tplCookD"></span></button>
-          <button class="btn" onclick="applyTpl('music')"><b data-i18n="tplMusic"></b><span data-i18n="tplMusicD"></span></button>
-          <button class="btn" onclick="applyTpl('pod')"><b data-i18n="tplPod"></b><span data-i18n="tplPodD"></span></button>
-          <button class="btn" onclick="applyTpl('drama')"><b data-i18n="tplDrama"></b><span data-i18n="tplDramaD"></span></button>
+        <span class="hint" data-i18n="tplD2"></span>
+        <div class="tplgrid" id="tplGrid">
+          <button class="btn" data-tpl="cook" onclick="applyTpl('cook')"><b data-i18n="tplCook"></b><span data-i18n="tplCookD"></span></button>
+          <button class="btn" data-tpl="music" onclick="applyTpl('music')"><b data-i18n="tplMusic"></b><span data-i18n="tplMusicD"></span></button>
+          <button class="btn" data-tpl="pod" onclick="applyTpl('pod')"><b data-i18n="tplPod"></b><span data-i18n="tplPodD"></span></button>
+          <button class="btn" data-tpl="drama" onclick="applyTpl('drama')"><b data-i18n="tplDrama"></b><span data-i18n="tplDramaD"></span></button>
         </div>
+        <button class="btn btn-sm btn-danger" id="tplOff" onclick="offTpl()" data-i18n="tplOff"></button>
       </div>
 
       <div class="subsec">
@@ -1313,7 +1326,7 @@ function renderStudioHelp(){
   $('shPrev').style.visibility=shIx?'visible':'hidden';$('shNext').textContent=shIx===SH.length-1?t('shDone'):t('shNext');
   $('shDots').innerHTML=SH.map((_,i)=>`<i class="${i===shIx?'on':''}"></i>`).join('');
 }
-function openStudio(){applyTier();if(isPro()&&!lsGet('pmc_studio_help',''))setTimeout(()=>openStudioHelp(0),300);renderScenes();$('storyBox').style.display=$('optStory').checked?'flex':'none';openSheet('studioSheet');}
+function openStudio(){applyTier();renderStudioState();if(isPro()&&!lsGet('pmc_studio_help',''))setTimeout(()=>openStudioHelp(0),300);renderScenes();$('storyBox').style.display=$('optStory').checked?'flex':'none';openSheet('studioSheet');}
 function storyOn(){return isPro()&&$('optStory').checked&&scenes.length>0;}
 function storyTag(){if(!storyOn())return '';const sc=scenes[sceneIx];return `_B${sceneIx+1}-${(sc.name||'').replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,20)}_T${sc.take}`;}
 function saveScenes(){lsSet('pmc_scenes',JSON.stringify({scenes,sceneIx}));updateSceneTag();}
@@ -1343,8 +1356,9 @@ const TPL={
   pod:{look:'std',mode:'split',auto:'0',fade:false,noise:true,intro:true,outro:true,story:false,music:'none'},
   drama:{look:'drama',mode:'full',auto:'0',fade:true,noise:true,intro:false,outro:false,story:true,music:'none'}
 };
-function applyTpl(k){
-  if(!isPro()){openPro();return;}const c=TPL[k];if(!c)return;
+const TPL_NAME={cook:'Cook',music:'Music',pod:'Pod',drama:'Drama'};
+function tplSnap(){return {look:look.id,mode,auto:$('autoSel').value,fade:$('optFade').checked,noise:$('optNoise').checked,intro:$('optIntro').checked,outro:$('optOutro').checked,story:$('optStory').checked,music:$('musicSel').value};}
+function tplApplyCfg(c){
   look=LOOKS.find(l=>l.id===c.look)||LOOKS[0];$('lblLook').textContent=t('l_'+look.id);renderLooks();
   const live=sources.filter(x=>x.stream).length;
   mode=(c.mode!=='full'&&live<2)?'full':c.mode;document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
@@ -1352,9 +1366,46 @@ function applyTpl(k){
   $('autoSel').value=c.auto;lastSwitch=Date.now();$('optFade').checked=c.fade;$('optNoise').checked=c.noise;try{applyAudio();}catch(e){}
   $('optIntro').checked=c.intro;$('optOutro').checked=c.outro;$('optStory').checked=c.story;$('storyBox').style.display=c.story?'flex':'none';
   if(c.music)$('musicSel').value=c.music;
+  renderScenes();renderTiles();sendLive();
+}
+/* turn the active template off: everything goes back to how it was before the template */
+function offTpl(){
+  const k=lsGet('pmc_tpl','');if(!k)return;
+  let prev=null;try{prev=JSON.parse(lsGet('pmc_tpl_prev','null'));}catch(e){}
+  tplApplyCfg(prev||{look:'std',mode:'full',auto:'0',fade:true,noise:true,intro:false,outro:false,story:false,music:'none'});
+  try{localStorage.removeItem('pmc_tpl');localStorage.removeItem('pmc_tpl_prev');}catch(e){}
+  saveSettings(true);renderStudioState();toast(t('tplOffDone'));
+}
+function studioAllOff(){
+  if(lsGet('pmc_tpl',''))offTpl();
+  $('optStory').checked=false;$('storyBox').style.display='none';$('optIntro').checked=false;$('optOutro').checked=false;
+  try{tpSend('hide');}catch(e){}
+  updateSceneTag();saveSettings(true);renderStudioState();toast(t('stAllOffDone'));
+}
+function renderStudioState(){
+  const box=$('stChips');if(!box)return;box.innerHTML='';const k=lsGet('pmc_tpl','');
+  const items=[];
+  if(k)items.push([t('stTpl',{n:t('tpl'+TPL_NAME[k])}),offTpl]);
+  if($('optStory').checked)items.push([t('stStory'),()=>{$('optStory').checked=false;$('storyBox').style.display='none';updateSceneTag();saveSettings(true);renderStudioState();}]);
+  if($('optIntro').checked)items.push([t('stIntro'),()=>{$('optIntro').checked=false;saveSettings(true);renderStudioState();}]);
+  if($('optOutro').checked)items.push([t('stOutro'),()=>{$('optOutro').checked=false;saveSettings(true);renderStudioState();}]);
+  if($('autoSel').value!=='0')items.push([t('stAuto'),()=>{$('autoSel').value='0';saveSettings(true);renderStudioState();}]);
+  items.forEach(([label,fn])=>{const b=document.createElement('button');b.className='stchip';b.setAttribute('aria-label',t('stOffOne',{n:label}));b.innerHTML='<span></span><i>✕</i>';b.querySelector('span').textContent=label;b.onclick=fn;box.appendChild(b);});
+  if(!items.length){const s=document.createElement('span');s.className='stnone';s.textContent=t('stNone');box.appendChild(s);}
+  $('stAllOff').style.display=items.length>1?'flex':'none';
+  $('tplOff').style.display=k?'flex':'none';
+  document.querySelectorAll('#tplGrid .btn').forEach(b=>b.classList.toggle('on',b.dataset.tpl===k));
+}
+function applyTpl(k){
+  if(!isPro()){openPro();return;}const c=TPL[k];if(!c)return;
+  if(lsGet('pmc_tpl','')===k){offTpl();return;}                 /* tapping the active template again turns it off */
+  if(!lsGet('pmc_tpl',''))lsSet('pmc_tpl_prev',JSON.stringify(tplSnap()));
+  lsSet('pmc_tpl',k);
+  const live=sources.filter(x=>x.stream).length;
+  tplApplyCfg(c);
   if(c.story&&!scenes.length){scenes=[{name:t('sceneN',{n:1}),take:1}];sceneIx=0;saveScenes();}
-  renderScenes();renderTiles();sendLive();saveSettings(true);track('template',{k});
-  toast(t('tplDone',{n:t('tpl'+{cook:'Cook',music:'Music',pod:'Pod',drama:'Drama'}[k])})+(c.mode!=='full'&&live<2?' '+t('need2'):''),3500);
+  renderScenes();saveSettings(true);renderStudioState();track('template',{k});
+  toast(t('tplDone',{n:t('tpl'+TPL_NAME[k])})+(c.mode!=='full'&&live<2?' '+t('need2'):''),3500);
 }
 /* teleprompter: script goes to every camera phone, shown on its screen only (never in the video) */
 function tpSend(cmd){
@@ -1406,7 +1457,8 @@ function drawCards(W,H){
 function initStudio(){
   if(initStudio.done)return;initStudio.done=true;
   loadScenes();$('tpText').value=lsGet('pmc_tp','');
-  $('optStory').onchange=()=>{$('storyBox').style.display=$('optStory').checked?'flex':'none';if($('optStory').checked&&!scenes.length){scenes=[{name:t('sceneN',{n:1}),take:1}];sceneIx=0;saveScenes();}renderScenes();};
+  ['optIntro','optOutro'].forEach(id=>$(id).addEventListener('change',renderStudioState));
+  $('optStory').onchange=()=>{renderStudioState();$('storyBox').style.display=$('optStory').checked?'flex':'none';if($('optStory').checked&&!scenes.length){scenes=[{name:t('sceneN',{n:1}),take:1}];sceneIx=0;saveScenes();}renderScenes();};
   setInterval(beatTick,60);
 }
 function fileBase(){const tt=($('titleTxt').value||'').trim().replace(/[^\p{L}\p{N}_-]+/gu,'_').replace(/^_+|_+$/g,'').slice(0,40);return tt||'ProMultiCam';}
