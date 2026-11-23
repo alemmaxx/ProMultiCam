@@ -257,6 +257,8 @@ body.land .sheet{max-height:92vh
 .level.show{display:block}.level.ok{border-color:#5fb38c}
 .level span{position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:12px;font-weight:800;background:rgba(14,14,15,.8);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .cam-tools{display:flex;gap:8px;flex-wrap:wrap}
+.cg-step{display:flex;gap:12px;align-items:flex-start}.cg-step i{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--on-gold);font:800 14px var(--f);font-style:normal}.cg-step b{display:block;font-size:15px}.cg-step span{display:block;font-size:13px;color:var(--sub);line-height:1.45}
+.bk-tip{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;background:var(--card2);font-size:13px;color:var(--sub);line-height:1.45}.bk-tip span{flex:1}
 .cc-h{display:block;margin-top:6px;font-size:14px}
 .cc-seg{display:flex;gap:6px;flex-wrap:wrap}.cc-seg .btn.on,#ccBody>.btn.on{background:var(--gold);color:var(--on-gold)}.cc-seg .btn{min-height:40px;padding:8px 12px;font-size:13px}
 .cc-rng{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cc-rng input{flex:1;min-width:160px}.cc-val{min-width:44px;text-align:right;font-weight:800;color:var(--gold);font-size:13px}
@@ -731,6 +733,15 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
   </div>
 </div>
 
+<div class="sheet-wrap" id="camGuideSheet" onclick="if(event.target===this)camGuideDone()">
+  <div class="sheet" style="gap:12px">
+    <h3 data-i18n="cgT"></h3>
+    <div class="cg-step"><i>1</i><div><b data-i18n="cg1T"></b><span data-i18n="cg1D"></span></div></div>
+    <div class="cg-step"><i>2</i><div><b data-i18n="cg2T"></b><span data-i18n="cg2D"></span></div></div>
+    <div class="cg-step"><i>3</i><div><b data-i18n="cg3T"></b><span data-i18n="cg3D"></span></div></div>
+    <button class="btn btn-gold" type="button" onclick="camGuideDone()" data-i18n="gotIt"></button>
+  </div>
+</div>
 <div class="sheet-wrap" id="ccSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet" style="gap:10px">
     <div class="row-between"><div><h3 data-i18n="ccBtn"></h3><span class="hint" id="ccName"></span></div><button class="icon-btn" aria-label="Close" onclick="closeSheet('ccSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
@@ -1007,6 +1018,22 @@ async function savedBlob(dir,type){
   return new Blob(parts.map(p=>p[1]),{type});
 }
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+/* iPhone/iPad: the share sheet has "Save Video" straight into Photos; other phones download (Gallery picks up Downloads) */
+const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+async function saveToPhone(blob,name){
+  if(IOS&&navigator.canShare){try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare({files:[f]})){await navigator.share({files:[f]});return;}}catch(e){if(e&&e.name==='AbortError')return;}}
+  downloadBlob(blob,name);
+}
+/* free space the app can still use, in MB (null if the phone will not say) */
+async function freeMB(){try{const e=await navigator.storage.estimate();if(!e.quota)return null;return Math.max(0,(e.quota-e.usage)/1048576);}catch(e){return null;}}
+/* low battery warning on this phone: only listens for battery events, no timers */
+function watchBattery(){
+  if(watchBattery.on||!navigator.getBattery)return;watchBattery.on=1;
+  navigator.getBattery().then(b=>{let warned=0;const f=()=>{if(b.charging){warned=0;return;}const lv=Math.round(b.level*100);
+    if(lv<=5&&warned<2){warned=2;toast(t('battCrit',{n:lv}),7000);try{navigator.vibrate&&navigator.vibrate([80,60,80]);}catch(e){}}
+    else if(lv<=15&&warned<1){warned=1;toast(t('battMine',{n:lv}),6000);}};
+    b.addEventListener('levelchange',f);b.addEventListener('chargingchange',f);f();}).catch(()=>{});
+}
 function mimeOf(name){return name.endsWith('.mp4')?'video/mp4':'video/webm';}
 async function listSaved(boxId){
   const box=$(boxId||($('slave').classList.contains('show')?'sfiles':'files'));if(!box)return;
@@ -1024,6 +1051,7 @@ async function listSaved(boxId){
   box.innerHTML='';box.style.display=items.length?'flex':'none';
   if(items.length){const tot=items.reduce((a,b)=>a+b.size,0);const u=document.createElement('span');u.className='hint';u.textContent=t('storeUsed',{n:(tot/1048576).toFixed(1)});box.appendChild(u);}
   if(!items.length)return;
+  if(!lsGet('pmc_bk_ok','')){const tip=document.createElement('div');tip.className='bk-tip';tip.innerHTML='<span></span><button class="btn btn-sm" type="button"></button>';tip.querySelector('span').textContent=t('bkTip');const ok=tip.querySelector('button');ok.textContent=t('gotIt');ok.onclick=()=>{lsSet('pmc_bk_ok','1');tip.remove();};box.appendChild(tip);}
   if(box.id!=='files'){const hd=document.createElement('span');hd.className='sec';hd.textContent=t('savedRecs');box.appendChild(hd);}
   items.forEach(it=>{
     const d=document.createElement('div');d.className='item rec-item';
@@ -1032,8 +1060,8 @@ async function listSaved(boxId){
     const mc=it.marks?it.marks.trim().split('\n').filter(Boolean).length-1:0;
     d.querySelector('.tx span').textContent=(it.size/1048576).toFixed(1)+' MB'+(mc>0?' · '+t('markers',{n:mc}):'')+(it.done?'':' · '+t('recovered'))+(it.clean?' · '+t('cleanTag'):'');
     if(!it.done)d.querySelector('.dot').style.background='var(--gold)';
-    const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('download');
-    dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));downloadBlob(b,it.name);};
+    const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('saveToPhone');
+    dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));saveToPhone(b,it.name);};
     acts.appendChild(dl);
     if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');acts.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
@@ -1087,7 +1115,7 @@ function newCode(){return String(Math.floor(100000+Math.random()*900000));}
 async function goMaster(){
   if(!(window.PMC&&PMC.user)){toast(t('loginNeeded'));openAccount();return;}
   applyTier();
-  saveName();show('master');keepAwake();track('role_director');
+  saveName();show('master');keepAwake();track('role_director');watchBattery();
   ensureAudio();
   $('mName').textContent=getName();
   // looks
@@ -1225,6 +1253,8 @@ function ccDirOpen(){
   s.ccSt=s.ccSt||{lock:false,manual:false,ec:0,wb:'auto',torch:false,afZoom:true};
   ccOpen({name:s.name,caps:s.caps&&s.caps.cc,state:s.ccSt,run:(op,v)=>{try{s.conn&&s.conn.send({t:'cc',op,v});}catch(e){}},tapHint:false});
 }
+function camGuide(){if(!lsGet('pmc_camguide',''))openSheet('camGuideSheet');}
+function camGuideDone(){lsSet('pmc_camguide','1');closeSheet('camGuideSheet');}
 function ccCamOpen(){const tr=()=>sStream&&sStream.getVideoTracks()[0];if(!tr()){toast(t('allowCam'));return;}
   ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>ccDo(tr(),op,v),tapHint:true,torch:false});}
 function updateZoomUI(){
@@ -1765,10 +1795,13 @@ function hdRecv(conn,d){
 }
 function sendQuality(){tellCams({t:'q',hi:recActive()});}
 function tellCams(o){sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send(o);}catch(e){}});}
-async function toggleRec(){
+async function toggleRec(force){
   if(counting)return;
   if(recorder&&recorder.state!=='inactive'){stopRec();return;}
   if(!sources.some(s=>s.stream)){toast(t('needCam'));return;}
+  if(force!==true){const f=await freeMB();
+    if(f!=null&&f<150){ask(t('stoFullT'),t('stoFullD',{mb:Math.round(f)}),t('recFiles'),()=>openSheet('filesSheet'));return;}
+    if(f!=null&&f<900){ask(t('stoLowT'),t('stoLowD',{mb:Math.round(f),m:Math.max(1,Math.floor(f/60))}),t('recAnyway'),()=>toggleRec(true));return;}}
   if($('optCount').checked){
     counting=true;const cd=$('countdown');cd.classList.add('show');
     for(let i=3;i>0;i--){cd.textContent=i;try{navigator.vibrate&&navigator.vibrate(60);}catch(e){}await new Promise(r=>setTimeout(r,1000));}
@@ -1806,7 +1839,10 @@ async function toggleRec(){
   introAt=(isPro()&&$('optIntro').checked)?performance.now():0;outroAt=0;
   $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
-  const tick=()=>{const tm=fmt(recElapsed());$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;};
+  let stoN=0,stoWarn=false;
+  const tick=()=>{const tm=fmt(recElapsed());$('recTime').textContent=tm;$('recBtn').textContent=t('recStop')+'  ·  '+tm;
+    if(++stoN%120===0)freeMB().then(f=>{if(f==null||!recorder||recorder.state==='inactive')return;
+      if(f<60){toast(t('stoStop'),7000);stopRec();}else if(f<200&&!stoWarn){stoWarn=true;toast(t('stoRun',{m:Math.max(1,Math.floor(f/60))}),6000);}});};
   tick();recTimer=setInterval(tick,500);
 }
 function togglePause(){
@@ -2647,7 +2683,8 @@ async function startSlaveCam(target,via){
   show('slavecam');keepAwake();
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
-  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);
+  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();
+  freeMB().then(f=>{if(f!=null&&f<600)toast(t('stoCam',{mb:Math.round(f)}),6000);});
   if(!$('slavecam')._cc){$('slavecam')._cc=1;$('slavecam').addEventListener('click',e=>{const tg=e.target;if(tg!==$('camVideo')&&tg!==$('slavecam'))return;const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;ccTapFocus($('camVideo'),e,(op,v)=>ccDo(tr,op,v),sFacing==='user');});}
   $('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);startTilt();
   sConnect();

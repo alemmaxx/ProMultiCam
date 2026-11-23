@@ -163,7 +163,9 @@ async function settle(paymentId) {
     if (prRef) await t.get(prRef);
     const cur = us.data()?.expiry?.toMillis?.() || 0;
     const base = new Date(Math.max(Date.now(), cur));
+    const day = base.getDate();
     base.setMonth(base.getMonth() + Number(p.months || 1));
+    if (base.getDate() < day) base.setDate(0); // e.g. 31 Jan + 1 month = 28/29 Feb, not 3 Mar
     newExpiry = base;
     t.set(uRef, { expiry: Timestamp.fromDate(base), status: 'active', plan: p.plan, lastPaidAt: FieldValue.serverTimestamp(), totalPaid: FieldValue.increment(Number(p.amount || 0)) }, { merge: true });
     if (prRef) {
