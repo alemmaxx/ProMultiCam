@@ -947,6 +947,15 @@ class Saver{
     return{blob,where:'Downloads/'+this.name};
   }
 }
+/* ---------- per-angle HD copies for editing after recording: OPFS angles/<recId>/<label>/ (chunk files) ---------- */
+async function anglesRoot(){const r=await navigator.storage.getDirectory();return r.getDirectoryHandle('angles',{create:true});}
+async function angleDir(recId,label,create){const a=await anglesRoot();const d=await a.getDirectoryHandle(recId,{create:!!create});return d.getDirectoryHandle(label.replace(/[^\p{L}\p{N}_ .·-]+/gu,'_').slice(0,40)||'cam',{create:!!create});}
+class ChunkWriter{
+  constructor(dirP){this.n=0;this.q=Promise.resolve();this.ready=dirP.then(d=>this.dir=d).catch(()=>this.dir=null);}
+  push(blob){if(!blob||!blob.size)return;this.q=this.q.then(async()=>{await this.ready;if(!this.dir)return;try{const fh=await this.dir.getFileHandle(String(++this.n).padStart(6,'0'),{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();}catch(e){}});}
+  async finish(meta){await this.q;await this.ready;if(!this.dir)return;try{const fh=await this.dir.getFileHandle('_done',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(meta||{}));await w.close();}catch(e){}}
+}
+function recIdOf(name){const m=String(name).match(/(\d{8}_\d{6})/);return m?m[1]:'';}
 async function savedBlob(dir,type){
   const parts=[];for await(const [k,h] of dir.entries()){if(k[0]!=='_'&&h.kind==='file')parts.push([k,await h.getFile()]);}
   parts.sort((a,b)=>a[0]<b[0]?-1:1);
@@ -984,6 +993,7 @@ async function listSaved(boxId){
     if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');acts.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
       sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};acts.appendChild(sh);}
+    if(box.id==='files'&&it.done&&sources.some(s=>!s.local&&s.conn&&s.conn.open)){const ab=document.createElement('button');ab.className='btn btn-sm';ab.textContent=t('angBtn');ab.onclick=()=>collectAngles(it);acts.appendChild(ab);}
     if(box.id==='files'&&it.done){const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent=t('edBtn');eb.onclick=()=>openEditor(it);acts.appendChild(eb);}
     if(box.id==='files'&&it.done){const sb=document.createElement('button');sb.className='btn btn-sm';sb.textContent=t('seBtn');sb.onclick=()=>openSubEditor(it);acts.appendChild(sb);}
     const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
@@ -1082,6 +1092,7 @@ function openPeer(id,isCode,onTaken){
       if(d.t==='probe'){conn.send({t:'info',name:getName(),cams:sources.length,code:roomCode});setTimeout(()=>{try{conn.close();}catch(e){}},1500);return;}
       if(d.t==='hello'&&overLimit(conn.peer)){try{conn.send({t:'full'});}catch(e){}setTimeout(()=>{try{conn.close();}catch(e){}},500);toast(t('limitCams'),4000);return;}
       if(d.t==='hello'){const s=getSrc(conn.peer,d.name);s.conn=conn;s.via=d.via||'wifi';renderTiles();renderConnList();sendLive();conn.send({t:'welcome',name:getName()});conn.send({t:'fmt',v:$('aspectSel').value});conn.send({t:'q',hi:recActive()});}
+      if(d.t&&d.t.startsWith('hd')){hdRecv(conn,d);return;}
       if(d.t==='flip'||d.t==='rot'){const s=sources.find(x=>x.id===conn.peer);if(s&&!s.rotManual){setRot(s,d.t==='rot'?Number(d.v)||0:(d.on?180:0));renderConnList();}}
       if(d.t==='caps'){const s=sources.find(x=>x.id===conn.peer);if(s){s.caps=d;updateZoomUI();}}
       if(d.t==='stat'){const s=sources.find(x=>x.id===conn.peer);if(s){const was=s.batt;s.batt=d.batt;s.charging=d.charging;paintStat(s);if(d.batt<=15&&!d.charging&&(was==null||was>15))toast(t('battLow',{name:s.name,n:d.batt}));}}
@@ -1139,6 +1150,9 @@ function renderTiles(){
   updateLabels();updateZoomUI();
 }
 function updateLabels(){const m=sources.find(s=>s.id===mainId);$('lblAngle').textContent=m?m.name:t('waiting');}
+let swLog=[],swLast=null;
+function recSec(){return Math.max(0,((pausedAt||Date.now())-recStart-pausedTotal)/1000);}
+function logSwitch(){if(!recorder||recorder.state==='inactive')return;const s=sources.find(x=>x.id===mainId);const k=s?s.name:'';if(k===swLast)return;swLast=k;swLog.push({t:+recSec().toFixed(2),name:k});}
 function pick(id){
   lastSwitch=Date.now();
   if(mode==='full'){mainId=id;wantMain=null;}
@@ -1146,7 +1160,7 @@ function pick(id){
   else secId=id;
   renderTiles();sendLive();
 }
-function sendLive(){sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
+function sendLive(){logSwitch();sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
 function renderConnList(){
   const box=$('connList');if(!box)return;box.innerHTML='';
   if(!sources.length){box.innerHTML='<div class="hint">'+t('noCams')+'</div>';return;}
@@ -1657,6 +1671,32 @@ function fileBase(){const tt=($('titleTxt').value||'').trim().replace(/[^\p{L}\p
 let recId='',pausedAt=0,pausedTotal=0,marks=[],counting=false;
 function recElapsed(){return Math.floor(((pausedAt||Date.now())-recStart-pausedTotal)/1000);}
 function fmt(sec){return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');}
+/* Director's own camera, recorded on its own so it can be picked as an angle in the editor */
+let lhd=null;
+function localHdStart(){
+  const l=sources.find(x=>x.local);if(!l||!localStream||lhd)return;
+  const mime=pickMime();let mr;try{mr=new MediaRecorder(new MediaStream(localStream.getVideoTracks()),mime?{mimeType:mime.replace(/,mp4a.*|,opus/,''),videoBitsPerSecond:8000000}:{});}catch(e){try{mr=new MediaRecorder(new MediaStream(localStream.getVideoTracks()));}catch(e2){return;}}
+  const w=new ChunkWriter(angleDir(recId,l.name,true));mr.ondataavailable=e=>w.push(e.data);mr.onstop=()=>w.finish({label:l.name,mime:mr.mimeType,local:true,lag:0});
+  try{mr.start(3000);lhd=mr;}catch(e){}
+}
+function localHdStop(){if(lhd){try{lhd.stop();}catch(e){}lhd=null;}}
+/* pull the HD copies from every connected camera phone for one recording */
+const hdIn={};
+function collectAngles(it){
+  if(!isPro()){openPro();return;}
+  const id=recIdOf(it.name);if(!id){toast(t('angNoId'));return;}
+  const cams=sources.filter(s=>!s.local&&s.conn&&s.conn.open);
+  if(!cams.length){toast(t('angNoCams'),4500);return;}
+  cams.forEach(s=>{try{s.conn.send({t:'getHD',id});}catch(e){}});toast(t('angAsk',{n:cams.length}),4000);
+}
+function hdRecv(conn,d){
+  const k=conn.peer+'|'+d.name;
+  if(d.t==='hdNone'){const s=sources.find(x=>x.id===conn.peer);toast(t('angNone',{n:s?s.name:''}),3500);return;}
+  if(d.t==='hdBeg'){const s=sources.find(x=>x.id===conn.peer);const label=(s&&s.name)||d.label||'cam';hdIn[k]={w:new ChunkWriter(angleDir(d.id,label,true)),got:0,size:d.size,label,mime:d.mime,last:0};return;}
+  const st=hdIn[k];if(!st)return;
+  if(d.t==='hdChunk'){const b=new Blob([d.buf]);st.w.push(b);st.got+=b.size;const p=Math.round(st.got/Math.max(1,st.size)*100);if(p-st.last>=10){st.last=p;toast(t('angGet',{n:st.label,p}),1500);}return;}
+  if(d.t==='hdEnd'){st.w.finish({label:st.label,mime:st.mime,lag:d.lag||0});delete hdIn[k];toast(t('angDone',{n:st.label}),3500);}
+}
 function sendQuality(){tellCams({t:'q',hi:recActive()});}
 function tellCams(o){sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send(o);}catch(e){}});}
 async function toggleRec(){
@@ -1683,12 +1723,15 @@ async function toggleRec(){
     if(marks.length&&sv.dir){try{const fh=await sv.dir.getFileHandle('_markers.txt',{create:true});const w=await fh.createWritable();await w.write('ProMultiCam markers · '+recId+'\n'+marks.map((m,i)=>`${i+1}. ${fmt(m.t)}  ${m.angle}`).join('\n')+'\n');await w.close();}catch(e){}}
     const r=await sv.finish(recorder.mimeType||mime||'video/webm');toast(t('saved',{w:r.where}),4000);listSaved('files');
     resizeStage();perf.light=false;sendQuality();
+    try{if(sv.dir){const fh=await sv.dir.getFileHandle('_switches.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(swLog));await w.close();}}catch(e){}
   };
   recorder.start(3000);recStart=Date.now();
   previewing=false;previewGain.gain.value=0;$('musicPrev').textContent=t('mPreview');startMusic(false);
   track('rec_start',{cams:sources.length,look:look.id,music:$('musicSel').value});
   if($('optHD').checked&&isPro())tellCams({t:'rec',on:true,id:recId,title:fileBase()+storyTag()});
   sendQuality();
+  swLog=[];swLast=null;logSwitch();
+  if($('optHD').checked&&isPro())localHdStart();
   introAt=(isPro()&&$('optIntro').checked)?performance.now():0;outroAt=0;
   $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
@@ -1713,6 +1756,7 @@ function addMark(){
   toast(t('marked',{tm:fmt(sec)}));
 }
 function stopRec(){
+  localHdStop();
   if(isPro()&&$('optOutro').checked&&!outroAt&&recorder&&recorder.state==='recording'){outroAt=performance.now();$('recBtn').textContent=t('outroRun');setTimeout(stopRec,3000);return;}
   if(outroAt===-1)return;outroAt=-1;
   track('rec_stop',{sec:recElapsed()});stopMusic();
@@ -2518,6 +2562,22 @@ function startTilt(){
   }catch(e){}
 }
 let hdRec=null,hdId='',hdPart=0;
+async function sendHD(id){
+  const root=await recRoot();if(!root||!sConn)return;const list=[];
+  for await(const [name,h] of root.entries()){if(h.kind==='directory'&&name.includes(id))list.push({name,h});}
+  if(!list.length){sSend({t:'hdNone',id});return;}
+  toast(t('angSend'),3000);
+  for(const it of list){
+    const blob=await savedBlob(it.h,mimeOf(it.name));const CH=64*1024;
+    sSend({t:'hdBeg',id,name:it.name,size:blob.size,label:camLabel(),mime:blob.type});
+    for(let o=0;o<blob.size;o+=CH){
+      const dc=sConn&&sConn.dataChannel;while(dc&&dc.bufferedAmount>2*1024*1024)await new Promise(r=>setTimeout(r,40));
+      if(!sConn||!sConn.open)return;sSend({t:'hdChunk',name:it.name,buf:await blob.slice(o,o+CH).arrayBuffer()});
+    }
+    sSend({t:'hdEnd',name:it.name});
+  }
+  toast(t('angSent'),3000);
+}
 let hdTitle='';
 function hdStart(id,title){
   if(title)hdTitle=String(title).replace(/[^\p{L}\p{N}_-]+/gu,'_').replace(/^_+|_+$/g,'').slice(0,40);
@@ -2571,6 +2631,7 @@ async function sConnect(){
     if(d.t==='welcome')sStatus(true,t('connectedTo',{name:d.name||t('dir')}));
     else if(d.t==='live')$('onAir').classList.toggle('show',!!d.on);
     else if(d.t==='tp')tpRecv(d);
+    else if(d.t==='getHD')sendHD(d.id);
     else if(d.t==='fmt'){sFmt=d.v==='l'?'l':'p';fmtGuide(true);}
     else if(d.t==='zoom')camZoom(d.v);
     else if(d.t==='lock')setLock(!!d.on);
