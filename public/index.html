@@ -297,6 +297,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .tabs2 button{min-height:40px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:700 14px var(--f)}
 .tabs2 button.on{background:var(--gold);color:var(--on-gold)}
 .gbtn{background:#fff;color:#1f1f1f}
+.plan-list{display:flex;flex-direction:column;gap:10px}
+.plan-row{border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card2)}
+.plan-row.cur{border-color:var(--gold)}.plan-row.pick{border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,164,92,.18)}
+.plan-row .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plan-row .top b{font-size:17px}.plan-row .pr{font-size:22px;font-weight:800}.plan-row .pr small{font-size:13px;font-weight:600;color:var(--muted)}
+.plan-row ul{margin:0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.55}.plan-row .btn{margin-top:4px}
+.sub-feat summary{cursor:pointer;color:var(--gold);font-weight:700;font-size:14px;padding:4px 0}.sub-feat .feat-list{margin-top:8px}
 .plan-card{border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:4px;background:var(--card2);text-align:left;color:var(--ink);font-family:var(--f);cursor:pointer}
 .plan-card.on{border-color:var(--gold)}
 .plan-card b{font-size:16px}.plan-card .pr{font-size:24px;font-weight:800}
@@ -480,6 +486,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="tools">
       <button class="tool tool-gold" id="adminBtn" style="display:none" onclick="openAdmin()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Admin</span></button>
       <button class="tool tool-gold" id="installBtn" style="display:none" onclick="doInstall()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span data-i18n="install"></span></button>
+      <button class="tool tool-gold" onclick="openPro()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span data-i18n="subT"></span></button>
       <button class="tool" onclick="runTest()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="testBtn"></span></button>
       <button class="tool" onclick="openSupport()" style="position:relative"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="support"></span><span class="dotu" id="supDot" style="display:none;position:absolute;top:8px;right:10px"></span></button>
       <button class="tool" onclick="openGuide()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span data-i18n="guide"></span></button>
@@ -771,7 +778,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
     <div id="acctIn" style="display:none;flex-direction:column;gap:10px">
       <div class="item"><div class="tx"><b id="aWho"></b><span id="aPlan"></span></div><span class="badge" id="aBadge"></span></div>
-      <button class="btn btn-gold" onclick="openPro()" id="aUpBtn" data-i18n="upgrade"></button>
+      <button class="btn btn-gold" onclick="openPro()" id="aUpBtn" data-i18n="subT"></button>
       <button class="btn" id="aAdminBtn" style="display:none" onclick="closeSheet('acctSheet');openAdmin()">⚙ Admin</button>
       <div class="subsec"><span class="sec" data-i18n="promo"></span>
         <div style="display:flex;gap:8px"><input class="input" id="aPromo" style="flex:1;min-width:0;text-transform:uppercase" data-i18n-ph="promoPh"><button class="btn" onclick="redeemPromo()" data-i18n="redeem"></button></div>
@@ -787,15 +794,18 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 </div>
 <div class="sheet-wrap" id="proSheet" onclick="if(event.target===this)closeSheet(this.id)">
   <div class="sheet">
-    <div class="row-between"><h3>ProMultiCam <span class="badge b-pro">PRO</span></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('proSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="feat-list"><span data-i18n="pf1"></span><span data-i18n="pf2"></span><span data-i18n="pf3"></span><span data-i18n="pf4"></span><span data-i18n="pf5"></span><span data-i18n="pf6"></span><span data-i18n="pf7"></span><span data-i18n="pf8"></span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="planCards"></div>
+    <div class="row-between"><h3 data-i18n="subT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('proSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <span class="hint" id="subNow" style="font-size:14px"></span>
+    <div id="planCards" class="plan-list"></div>
+    <details class="sub-feat"><summary data-i18n="subAllPro"></summary><div class="feat-list"><span data-i18n="pf1"></span><span data-i18n="pf2"></span><span data-i18n="pf3"></span><span data-i18n="pf4"></span><span data-i18n="pf5"></span><span data-i18n="pf6"></span><span data-i18n="pf7"></span><span data-i18n="pf8"></span></div></details>
+    <div id="payBox" style="display:none;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px"><b id="payFor"></b>
     <label class="lbl"><span data-i18n="promo"></span><input class="input" id="pPromo" style="text-transform:uppercase" data-i18n-ph="promoPh"></label>
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
     <div class="req"><b data-i18n="reqT"></b><ul><li data-i18n="req1"></li><li data-i18n="req2"></li><li data-i18n="req3"></li><li id="req4"></li></ul></div>
     <label class="check"><input type="checkbox" id="reqOk"><span data-i18n="reqAgree"></span></label>
     <button class="btn btn-gold" id="payBtn" onclick="startPay()" data-i18n="payNow"></button>
     <span class="hint" style="line-height:1.5" data-i18n="payNote"></span>
+    </div>
     <button class="btn btn-sm" style="background:none;color:var(--gold);align-self:center" onclick="openLegal('terms')" data-i18n="agreeTerms"></button>
   </div>
 </div>
@@ -2506,12 +2516,38 @@ let payPlan='yearly';
 function openPro(){
   if(!window.PMC||!PMC.user){toast(t('loginNeeded'));openAccount();return;}
   ['setSheet','styleSheet','acctSheet'].forEach(closeSheet);
-  const pl=PMC.plans||{},box=$('planCards');box.innerHTML='';
-  [['monthly',t('monthly'),t('perMonth')],['yearly',t('yearly'),t('perYear')]].forEach(([id,name,per])=>{
-    const price=Number(pl[id]||0);const b=document.createElement('button');b.className='plan-card'+(payPlan===id?' on':'');
-    let save='';if(id==='yearly'&&pl.monthly&&pl.yearly){const pc=Math.round((1-pl.yearly/(pl.monthly*12))*100);if(pc>0)save=`<span class="badge b-pro" style="align-self:flex-start">${t('save',{n:pc})}</span>`;}
-    b.innerHTML=`<b></b><span class="pr">${price?money(price):'—'}</span><span class="hint">${per}</span>${save}`;b.querySelector('b').textContent=name;
-    b.onclick=()=>{payPlan=id;[...box.children].forEach(x=>x.classList.toggle('on',x===b));};box.appendChild(b);
+  const pl=PMC.plans||{},box=$('planCards'),p=PMC.profile||{},adm=isAdmin(),pro=isPro(),dl=PMC.daysLeft();
+  const paid=pro&&!adm&&(p.plan==='monthly'||p.plan==='yearly'),cur=adm?'admin':paid?p.plan:pro?'trial':'free';
+  $('subNow').textContent=adm?t('subAdmin'):cur==='free'?t('subNowFree'):cur==='trial'?t('subNowTrial',{n:dl}):t('subNowPro',{plan:t(cur),n:dl});
+  box.innerHTML='';$('payBox').style.display='none';
+  const save=(pl.monthly&&pl.yearly)?Math.round((1-pl.yearly/(pl.monthly*12))*100):0;
+  const plans=[
+    {id:'free',name:t('subFree'),price:0,per:'',feats:['subF1','subF2','subF3']},
+    {id:'monthly',name:t('monthly'),price:Number(pl.monthly||0),per:t('perMonth'),feats:['subP1','subP2','subP3','subP4']},
+    {id:'yearly',name:t('yearly'),price:Number(pl.yearly||0),per:t('perYear'),feats:['subP1','subP2','subP3','subP4'],save}
+  ];
+  plans.forEach(pp=>{
+    const row=document.createElement('div');row.className='plan-row'+(cur===pp.id?' cur':'');
+    const top=document.createElement('div');top.className='top';const nm=document.createElement('b');nm.textContent=pp.name;top.appendChild(nm);
+    if(pp.id!=='free'){const bd=document.createElement('span');bd.className='badge b-pro';bd.textContent='PRO';top.appendChild(bd);}
+    if(pp.save>0){const sv=document.createElement('span');sv.className='badge b-trial';sv.textContent=t('save',{n:pp.save});top.appendChild(sv);}
+    if(cur===pp.id){const c=document.createElement('span');c.className='badge b-free';c.textContent=t('subCurrent');top.appendChild(c);}
+    row.appendChild(top);
+    const pr=document.createElement('div');pr.className='pr';pr.innerHTML=pp.id==='free'?'RM0':(pp.price?money(pp.price):'—')+' <small></small>';if(pp.per)pr.querySelector('small').textContent=pp.per;row.appendChild(pr);
+    const ul=document.createElement('ul');pp.feats.forEach(k=>{const li=document.createElement('li');li.textContent=t(k);ul.appendChild(li);});row.appendChild(ul);
+    /* what the button says, and whether it can be pressed */
+    let label='',on=false;
+    if(adm){label=t('subAdminBtn');}
+    else if(pp.id==='free'){label=cur==='free'?t('subCurrent'):t('subFreeAfter');}
+    else if(cur===pp.id){if(dl<=5){label=t('subRenew');on=true;}else label=t('subActiveN',{n:dl});}
+    else if(cur==='yearly'&&pp.id==='monthly'){label=t('subHaveYear');}
+    else if(cur==='monthly'&&pp.id==='yearly'){label=t('subUpYear');on=true;}
+    else{label=t('subChoose',{plan:pp.name});on=true;}
+    if(!pp.price&&pp.id!=='free')on=false;
+    const b=document.createElement('button');b.type='button';b.className='btn '+(on?'btn-gold':'');b.disabled=!on;b.textContent=label;
+    b.onclick=()=>{payPlan=pp.id;[...box.children].forEach(x=>x.classList.toggle('pick',x===row));$('payFor').textContent=t('subPayFor',{plan:pp.name,price:money(pp.price)})+(paid&&cur!==pp.id?' · '+t('subKeepDays',{n:dl}):'');
+      $('payBox').style.display='flex';setTimeout(()=>$('payBox').scrollIntoView({behavior:'smooth',block:'start'}),50);};
+    row.appendChild(b);box.appendChild(row);
   });
   $('payBtn').disabled=!(pl.monthly||pl.yearly);
   const td=Number.isFinite(Number(pl.trialDays))?Number(pl.trialDays):7;$('req4').textContent=td>0?t('req4',{n:td}):t('req4b');
