@@ -834,6 +834,7 @@ async function needSeg(){
 let segTs=0;const BGC={};
 const BG_IMGS=['hills','beach','city','office','cafe','garden','studio','gold','dusk','kitchen','podcast'],BGIMG={};
 function bgSrc(n){return ['hills','dusk','kitchen','podcast'].includes(n)?`art/${n}.svg`:`art/bg/${n}.svg`;}
+window.PMC_BG={list:BG_IMGS,src:n=>bgSrc(n),seg:()=>needSeg()};
 function bgImg(n){let im=BGIMG[n];if(!im){im=BGIMG[n]=new Image();im.onload=()=>{if(E&&!E.playing)drawAt();};im.src=bgSrc(n);}return im;}
 function bgCanvas(k,w,h){let c=BGC[k];if(!c){c=BGC[k]=document.createElement('canvas');}if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return c;}
 /* person stays sharp; what is behind them is blurred, darkened or replaced by a colour */
