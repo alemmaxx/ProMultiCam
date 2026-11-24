@@ -113,16 +113,14 @@ th{color:var(--muted);font-weight:600;background:var(--card2)}
       <div class="card" style="max-width:720px">
         <b>Cipta kod promo</b>
         <div class="grid2">
-          <label>Kod<input class="input" id="pcCode" placeholder="cth: RAYA20" style="text-transform:uppercase"></label>
-          <label>Jenis<select id="pcType"><option value="percent">Diskaun %</option><option value="days">Hari Pro percuma</option></select></label>
-          <label>Nilai (% atau hari)<input class="input" id="pcVal" type="number" min="1"></label>
-          <label>Had guna (0 = tanpa had)<input class="input" id="pcMax" type="number" min="0" value="0"></label>
-          <label>Tamat (pilihan)<input class="input" id="pcExp" type="date"></label>
+          <label>Nama kod<input class="input" id="pcCode" placeholder="cth: RAYA2026" style="text-transform:uppercase"></label>
+          <label>Berapa orang boleh guna<input class="input" id="pcMax" type="number" min="1" placeholder="cth: 10"></label>
+          <label>Berapa hari Pro percuma<input class="input" id="pcVal" type="number" min="1" placeholder="cth: 7"></label>
         </div>
         <button class="btn btn-gold" id="pcAdd">Cipta kod</button>
-        <span class="muted">Setiap akaun hanya boleh guna satu kod yang sama sekali sahaja.</span>
+        <span class="muted">Pelanggan masukkan kod ini di Akaun → Kod Promo untuk dapat Pro percuma. Setiap akaun hanya boleh guna kod yang sama sekali sahaja.</span>
       </div>
-      <div class="card" style="margin-top:12px"><div class="tbl"><table><thead><tr><th>Kod</th><th>Jenis</th><th>Nilai</th><th>Digunakan</th><th>Tamat</th><th>Status</th><th></th></tr></thead><tbody id="pcBody"></tbody></table></div></div>
+      <div class="card" style="margin-top:12px"><div class="tbl"><table><thead><tr><th>Kod</th><th>Hari Pro</th><th>Digunakan</th><th>Status</th><th></th></tr></thead><tbody id="pcBody"></tbody></table></div></div>
     </section>
     <section data-s="support" class="hide">
       <div class="sup-wrap">
@@ -202,21 +200,23 @@ $('savePlans').onclick=async()=>{
   try{await F.setDoc(F.doc(db,'config/plans'),{monthly:m,yearly:y,trialDays:tr,updatedAt:F.serverTimestamp()},{merge:true});toast('Harga disimpan');}catch(e){toast('Gagal: '+e.message);}
 };
 $('pcAdd').onclick=async()=>{
-  const code=$('pcCode').value.trim().toUpperCase(),type=$('pcType').value,val=Number($('pcVal').value),max=Math.max(0,Math.round(Number($('pcMax').value||0)));
-  if(!/^[A-Z0-9-]{3,30}$/.test(code)){toast('Kod: 3–30 huruf/nombor');return;}
-  if(!(val>0)||(type==='percent'&&val>100)){toast('Nilai tidak sah');return;}
+  const code=$('pcCode').value.trim().toUpperCase(),days=Math.round(Number($('pcVal').value||0)),max=Math.round(Number($('pcMax').value||0));
+  if(!/^[A-Z0-9-]{3,30}$/.test(code)){toast('Nama kod: 3–30 huruf/nombor, tanpa jarak');return;}
+  if(!(max>=1)){toast('Masukkan berapa orang boleh guna (sekurang-kurangnya 1)');return;}
+  if(!(days>=1&&days<=3650)){toast('Masukkan berapa hari Pro (1–3650)');return;}
   const ref=F.doc(db,'promos/'+code);if((await F.getDoc(ref)).exists()){toast('Kod sudah wujud');return;}
-  const d={type,value:val,maxUses:max,uses:0,active:true,createdAt:F.serverTimestamp()};
-  if($('pcExp').value)d.expiresAt=F.Timestamp.fromDate(new Date($('pcExp').value+'T23:59:59'));
-  try{await F.setDoc(ref,d);toast('Kod dicipta');$('pcCode').value='';$('pcVal').value='';}catch(e){toast('Gagal: '+e.message);}
+  try{await F.setDoc(ref,{type:'days',value:days,maxUses:max,uses:0,active:true,createdAt:F.serverTimestamp()});toast('Kod dicipta');$('pcCode').value='';$('pcVal').value='';$('pcMax').value='';}catch(e){toast('Gagal: '+e.message);}
 };
 function renderPromos(list){
   list.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
-  $('pcBody').innerHTML=list.map(p=>`<tr><td><b>${esc(p.id)}</b></td><td>${p.type==='days'?'Hari Pro':'Diskaun'}</td><td>${p.type==='days'?p.value+' hari':p.value+'%'}</td><td>${p.uses||0}${p.maxUses?' / '+p.maxUses:''}</td><td>${dt(p.expiresAt)}</td>
-    <td><span class="pill ${p.active===false?'p-bad':'p-ok'}">${p.active===false?'Tidak aktif':'Aktif'}</span></td>
-    <td><button class="btn btn-sm" data-c="${esc(p.id)}" data-on="${p.active===false?1:0}">${p.active===false?'Aktifkan':'Matikan'}</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">Belum ada kod promo.</td></tr>';
+  $('pcBody').innerHTML=list.map(p=>{const off=p.active===false||(p.maxUses&&(p.uses||0)>=p.maxUses);return `<tr><td><b>${esc(p.id)}</b></td><td>${p.type==='days'?p.value+' hari':'Diskaun '+p.value+'%'}</td><td>${p.uses||0}${p.maxUses?' / '+p.maxUses+' orang':''}</td>
+    <td><span class="pill ${off?'p-bad':'p-ok'}">${p.active===false?'Tidak aktif':(p.maxUses&&(p.uses||0)>=p.maxUses)?'Penuh':'Aktif'}</span></td>
+    <td style="white-space:nowrap"><button class="btn btn-sm" data-c="${esc(p.id)}" data-on="${p.active===false?1:0}">${p.active===false?'Aktifkan':'Matikan'}</button>${p.active===false?` <button class="btn btn-sm btn-danger" data-del="${esc(p.id)}">Padam</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="5" class="muted">Belum ada kod promo.</td></tr>';
 }
-$('pcBody').onclick=async e=>{const b=e.target.closest('button[data-c]');if(!b)return;try{await F.updateDoc(F.doc(db,'promos/'+b.dataset.c),{active:b.dataset.on==='1'});}catch(err){toast('Gagal: '+err.message);}};
+$('pcBody').onclick=async e=>{
+  const d=e.target.closest('button[data-del]');
+  if(d){if(!confirm('Padam kod '+d.dataset.del+'? Ia tidak boleh digunakan lagi.'))return;try{await F.deleteDoc(F.doc(db,'promos/'+d.dataset.del));toast('Kod dipadam');}catch(err){toast('Gagal: '+err.message);}return;}
+  const b=e.target.closest('button[data-c]');if(!b)return;try{await F.updateDoc(F.doc(db,'promos/'+b.dataset.c),{active:b.dataset.on==='1'});}catch(err){toast('Gagal: '+err.message);}};
 
 /* ---------- Support inbox ---------- */
 let threads=[],thCur=null,thUnsub=null;
