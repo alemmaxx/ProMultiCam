@@ -58,6 +58,8 @@ let E=null; /* the open project */
 const st=document.createElement('style');st.textContent=CSS;document.head.appendChild(st);
 document.body.insertAdjacentHTML('beforeend',H);
 const edI18n=()=>{if(typeof t!=='function')return;document.querySelectorAll('#edScreen [data-i18n]').forEach(e=>{e.textContent=t(e.dataset.i18n);});};edI18n();
+/* language changed while the editor is open: redraw its buttons and panel in the new language */
+window.edRelang=()=>{edI18n();try{if(E){renderTabs();renderPanel();G('edPlay').textContent=E.playing?t('tpPause'):t('sePlay');drawAt();}}catch(e){}};
 const V=()=>document.getElementById('edVid'),CV=()=>document.getElementById('edCv'),G=id=>document.getElementById(id);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const fm=x=>{x=Math.max(0,x||0);const m=Math.floor(x/60),s=Math.floor(x%60);return m+':'+String(s).padStart(2,'0');};
