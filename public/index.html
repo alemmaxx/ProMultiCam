@@ -151,6 +151,7 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .sheet-wrap.show{display:flex}
 .sheet{background:var(--card);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:18px 16px;padding-bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;max-height:85vh;overflow-y:auto}
 .sheet h3{margin:0;font-size:17px;font-weight:800}
+#styleSheet .sheet>*{flex-shrink:0}
 .item{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:12px;padding:12px}
 .item .tx{display:flex;flex-direction:column;flex:1;min-width:0}
 .item .tx b{font-size:15px}
@@ -469,9 +470,9 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .req b{color:var(--ink)}.req ul{margin:6px 0 0;padding-left:18px}
 /* ---- 3D raised buttons (pure CSS: no effect on recording speed) ---- */
 :root{--b3-hi:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.32);--b3-up:0 3px 0 rgba(0,0,0,.55),0 6px 12px rgba(0,0,0,.35);--b3-dn:0 1px 0 rgba(0,0,0,.55),0 2px 4px rgba(0,0,0,.3);--b3-gold:0 3px 0 #6e5524,0 6px 14px rgba(0,0,0,.4);--b3-goldd:0 1px 0 #6e5524,0 2px 5px rgba(0,0,0,.35);--b3-sh:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 50%,rgba(0,0,0,.16))}
-.btn,.icon-btn,.tool,.role,.m-foot .side,#recBtn,.seg button,.tabs button.on,.ed-tabs button,.ed-sub button.on,.bg-opt,.master-item,.btnr{background-image:var(--b3-sh);box-shadow:var(--b3-hi),var(--b3-up);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
-.btn-gold,#recBtn,.seg button.on,.tabs button.on,.ed-tabs button.on,.m-foot .side.resume,.tool-gold,.role.master{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.22),var(--b3-gold)}
-.btn:active,.icon-btn:active,.tool:active,.role:active,.m-foot .side:active,.seg button:active,.tabs button:active,.ed-tabs button:active,.ed-sub button:active,.bg-opt:active,.master-item:active,.btnr:active{transform:translateY(2px);box-shadow:var(--b3-hi),var(--b3-dn)}
+.btn,.icon-btn,.tool,.role,.m-foot .side,#recBtn,.seg button,.looks button,.tabs button.on,.ed-tabs button,.ed-sub button.on,.bg-opt,.master-item,.btnr{background-image:var(--b3-sh);box-shadow:var(--b3-hi),var(--b3-up);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
+.btn-gold,#recBtn,.seg button.on,.looks button.on,.tabs button.on,.ed-tabs button.on,.m-foot .side.resume,.tool-gold,.role.master{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.22),var(--b3-gold)}
+.btn:active,.looks button:active,.icon-btn:active,.tool:active,.role:active,.m-foot .side:active,.seg button:active,.tabs button:active,.ed-tabs button:active,.ed-sub button:active,.bg-opt:active,.master-item:active,.btnr:active{transform:translateY(2px);box-shadow:var(--b3-hi),var(--b3-dn)}
 .btn-gold:active,#recBtn:active,.seg button.on:active,.ed-tabs button.on:active,.tool-gold:active,.role.master:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(0,0,0,.2),var(--b3-goldd)}
 #recBtn.recording{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.22),0 3px 0 #7a2a22,0 6px 14px rgba(0,0,0,.4)}
 .btn:disabled,.btn[disabled]{box-shadow:none;background-image:none;transform:none}
