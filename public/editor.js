@@ -831,10 +831,17 @@ async function needSeg(){
   const opt=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',delegate:d},runningMode:'VIDEO',outputCategoryMask:false,outputConfidenceMasks:true});
   try{window._edSeg=await m.ImageSegmenter.createFromOptions(fs,opt('GPU'));}catch(e){window._edSeg=await m.ImageSegmenter.createFromOptions(fs,opt('CPU'));}
 }
+async function needFace(){
+  if(window._faceLm)return;
+  const m=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
+  const fs=await m.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`);
+  const opt=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',delegate:d},runningMode:'VIDEO',numFaces:3});
+  try{window._faceLm=await m.FaceLandmarker.createFromOptions(fs,opt('GPU'));}catch(e){window._faceLm=await m.FaceLandmarker.createFromOptions(fs,opt('CPU'));}
+}
 let segTs=0;const BGC={};
 const BG_IMGS=['hills','beach','city','office','cafe','garden','studio','gold','dusk','kitchen','podcast'],BGIMG={};
 function bgSrc(n){return ['hills','dusk','kitchen','podcast'].includes(n)?`art/${n}.svg`:`art/bg/${n}.svg`;}
-window.PMC_BG={list:BG_IMGS,src:n=>bgSrc(n),seg:()=>needSeg()};
+window.PMC_BG={list:BG_IMGS,src:n=>bgSrc(n),seg:()=>needSeg(),face:()=>needFace()};
 function bgImg(n){let im=BGIMG[n];if(!im){im=BGIMG[n]=new Image();im.onload=()=>{if(E&&!E.playing)drawAt();};im.src=bgSrc(n);}return im;}
 function bgCanvas(k,w,h){let c=BGC[k];if(!c){c=BGC[k]=document.createElement('canvas');}if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return c;}
 /* person stays sharp; what is behind them is blurred, darkened or replaced by a colour */
