@@ -1136,7 +1136,7 @@ async function goMaster(){
   clearInterval(statTimer);statTimer=setInterval(pollStats,3000);
   listSaved();
   if(!initImport.done){initImport();}
-  $('optSelf').checked=lsGet('pmc_selfcam','1')==='1';
+  $('optSelf').checked=true; /* every new session starts with the Director's camera on; untick to leave it out */
   $('optSelf').onchange=()=>{lsSet('pmc_selfcam',$('optSelf').checked?'1':'0');if($('optSelf').checked)addLocalCam(true);else removeLocalCam();};
   if($('optSelf').checked)addLocalCam(true);
   await iceReady;
@@ -1246,15 +1246,15 @@ function renderConnList(){
 }
 function ccDirOpen(){
   const s=sources.find(x=>x.id===mainId);if(!s){toast(t('ccPick'));return;}
-  if(s.local&&localStream){const tr=()=>localStream&&localStream.getVideoTracks()[0];ccOpen({name:s.name,caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>ccDo(tr(),op,v),tapHint:false});return;}
+  if(s.local&&localStream){const tr=()=>localStream&&localStream.getVideoTracks()[0];ccOpen({name:s.name,caps:ccCaps(tr()),state:ccState(tr()),run:(op,v)=>op==='beauty'?ccBeauty(tr(),s.video):op==='beautyPref'?0:ccDo(tr(),op,v),tapHint:false});return;}
   s.ccSt=s.ccSt||{lock:false,manual:false,ec:0,wb:'auto',torch:false,afZoom:true};
-  ccOpen({name:s.name,caps:s.caps&&s.caps.cc,state:s.ccSt,run:(op,v)=>{try{s.conn&&s.conn.send({t:'cc',op,v});}catch(e){}},tapHint:false});
+  ccOpen({name:s.name,caps:s.caps&&s.caps.cc,state:s.ccSt,remote:true,run:(op,v)=>{try{s.conn&&s.conn.send({t:'cc',op,v});}catch(e){}if(op==='beauty')toast(t('beautySent',{name:s.name}));},tapHint:false});
 }
 function camGuide(){if(!lsGet('pmc_camguide',''))openSheet('camGuideSheet');}
 function camGuideDone(){lsSet('pmc_camguide','1');closeSheet('camGuideSheet');}
 function ccCamOpen(){const tr=()=>sStream&&sStream.getVideoTracks()[0];if(!tr()){toast(t('allowCam'));return;}
   const st=ccState(tr());st.torch=!!sTorch;
-  ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:st,run:(op,v)=>{if(op==='torch'){if(!!v!==!!sTorch)camTorch();return;}return ccDo(tr(),op,v);},tapHint:true});}
+  ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:st,run:(op,v)=>{if(op==='torch'){if(!!v!==!!sTorch)camTorch();return;}if(op==='beauty')return ccBeauty(tr(),$('camVideo'));if(op==='beautyPref')return;return ccDo(tr(),op,v);},tapHint:true});}
 function updateZoomUI(){
   const s=sources.find(x=>x.id===mainId);const z=$('zoom');
   if(!s){z.disabled=true;return;}z.disabled=false;
@@ -1274,6 +1274,7 @@ async function addLocalCam(silent){
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
   s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null,cc:ccCaps(trk)};if(s.caps.zoom)s.zoom=c.zoom.min;
   setStream(s,localStream);setRot(s,dirTurn);$('localBtn').disabled=true;renderConnList();
+  if(ccBeautyOn())setTimeout(()=>ccBeauty(trk,s.video),300);
   if(!silent)$('optSelf').checked=true;lsSet('pmc_selfcam','1');
 }
 function removeLocalCam(){
@@ -1990,7 +1991,7 @@ function trimLogo(c,g,im){
   return o.toDataURL('image/png');
 }
 /* settings: save & restore */
-const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optCount:'c',optHD:'c',optSelf:'c',optLogoBg:'c'};
+const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optCount:'c',optHD:'c',optLogoBg:'c'};
 function saveSettings(quiet){
   const o={};for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(e)o[id]=k==='c'?e.checked:e.value;}
   lsSet('pmc_settings',JSON.stringify(o));
@@ -2586,6 +2587,7 @@ async function camFlip(){
   try{
     const ns=await getCam(),old=sStream;sStream=ns;$('camVideo').srcObject=ns;
     $('camVideo').style.transform=sFacing==='user'?'scaleX(-1)':'';
+    if(ccBeautyOn())setTimeout(()=>ccBeauty(ns.getVideoTracks()[0],$('camVideo'),true),300);
     if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(!s.track)continue;const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];if(nt)await s.replaceTrack(nt);}
     if(hdRec&&hdRec.state!=='inactive'){hdRec.stop();setTimeout(()=>hdStart(),300);}
     sLocked=false;$('lockBtn').classList.remove('on');tuneSender();
@@ -2684,6 +2686,7 @@ async function startSlaveCam(target,via){
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
   camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();
+  if(ccBeautyOn()){const tr=sStream&&sStream.getVideoTracks()[0];setTimeout(()=>ccBeauty(tr,$('camVideo')),300);}
   freeMB().then(f=>{if(f!=null&&f<600)toast(t('stoCam',{mb:Math.round(f)}),6000);});
   if(!$('slavecam')._cc){$('slavecam')._cc=1;$('slavecam').addEventListener('click',e=>{const tg=e.target;if(tg!==$('camVideo')&&tg!==$('slavecam'))return;const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;ccTapFocus($('camVideo'),e,(op,v)=>ccDo(tr,op,v),sFacing==='user');});}
   $('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);startTilt();
@@ -2710,7 +2713,7 @@ async function sConnect(){
     else if(d.t==='getHD')sendHD(d.id);
     else if(d.t==='fmt'){sFmt=d.v==='l'?'l':'p';fmtGuide(true);}
     else if(d.t==='zoom')camZoom(d.v);
-    else if(d.t==='cc'){const tr=sStream&&sStream.getVideoTracks()[0];if(tr)ccDo(tr,d.op,d.v);}
+    else if(d.t==='cc'){const tr=sStream&&sStream.getVideoTracks()[0];if(!tr){}else if(d.op==='beauty')ccBeauty(tr,$('camVideo'));else if(d.op==='beautyPref')lsSet('pmc_beauty',d.v?'1':'0');else ccDo(tr,d.op,d.v);}
     else if(d.t==='lock')setLock(!!d.on);
     else if(d.t==='rec'){if(d.on)hdStart(d.id,d.title);else hdStop();}
     else if(d.t==='q'){const hi=!!d.hi;if(hi!==sHi){sHi=hi;tuneSender(true);}}

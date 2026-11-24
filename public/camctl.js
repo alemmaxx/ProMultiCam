@@ -48,6 +48,48 @@ window.ccDo=async function(tr,op,v){
   return false;
 };
 window.ccState=tr=>tr?st(tr):null;
+/* ---------- Auto Cantik: a one-time tidy-up when the camera opens ----------
+   1) make sure focus, exposure and white balance are on full auto;
+   2) look at a tiny 32x18 copy of the picture a few times over ~3 s and nudge brightness
+      (and colour, only when it is far off). Then it stops — nothing keeps running. */
+window.ccBeautyOn=()=>{try{return localStorage.getItem('pmc_beauty')!=='0';}catch(e){return true;}};
+function sample(v){
+  try{const W=32,H=18;const c=sample.c||(sample.c=document.createElement('canvas'));c.width=W;c.height=H;const x=c.getContext('2d',{willReadFrequently:true});
+    x.drawImage(v,0,0,W,H);const d=x.getImageData(0,0,W,H).data;let Y=0,n=0,hi=0,lo=0,R=0,G=0,B=0,m=0;
+    for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2],y=0.2126*r+0.7152*g+0.0722*b;Y+=y;n++;if(y>245)hi++;if(y<14)lo++;if(y>50&&y<230&&Math.max(r,g,b)-Math.min(r,g,b)<90){R+=r;G+=g;B+=b;m++;}}
+    /* colour is judged only on near-grey things (walls, plates, counters) so orange food does not fool it */
+    return{y:Y/n,hi:hi/n,lo:lo/n,rb:m>=n*0.15?(R/m+1)/(B/m+1):1};}catch(e){return null;}
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function avg(v,k){let a={y:0,hi:0,lo:0,rb:0},n=0;for(let i=0;i<k;i++){const q=sample(v);if(q){a.y+=q.y;a.hi+=q.hi;a.lo+=q.lo;a.rb+=q.rb;n++;}await sleep(250);}if(!n)return null;for(const z in a)a[z]/=n;return a;}
+window.ccBeauty=async function(tr,v,quiet){
+  if(!tr||!v||tr.readyState!=='live')return null;const c=capsOf(tr),s=st(tr),fm=c.focusMode||[],em=c.exposureMode||[],wm=c.whiteBalanceMode||[];
+  if(s.beautyBusy)return null;s.beautyBusy=true;
+  try{
+    const adv={};if(fm.includes('continuous'))adv.focusMode='continuous';if(em.includes('continuous'))adv.exposureMode='continuous';if(wm.includes('continuous'))adv.whiteBalanceMode='continuous';
+    const ecR=rng(c.exposureCompensation);if(ecR)adv.exposureCompensation=0;
+    if(Object.keys(adv).length)await ap(tr,adv);s.lock=false;s.manual=false;s.ec=0;s.wb='auto';
+    for(let i=0;i<20&&!(v.videoWidth&&v.readyState>=2);i++)await sleep(150);
+    await sleep(1100);                                   /* let the phone's own auto settle first */
+    let q=await avg(v,3);if(!q)return null;let ec=0,wb='auto';
+    if(ecR){
+      for(let pass=0;pass<2;pass++){
+        let want=ec;
+        if(q.y<92)want=ec+Math.min(1,(118-q.y)/45);else if(q.y>195||q.hi>0.12)want=ec-Math.min(0.7,Math.max((q.y-170)/45,q.hi*3));else break;
+        want=Math.max(Math.max(ecR.min,-1),Math.min(Math.min(ecR.max,1.5),want));want=Math.round(want/ecR.step)*ecR.step;
+        if(Math.abs(want-ec)<ecR.step/2)break;ec=want;await ap(tr,{exposureCompensation:ec});await sleep(700);q=await avg(v,2)||q;
+      }
+      s.ec=ec;
+    }
+    /* colour: only when the picture is clearly too yellow or too blue (food is often warm, so stay gentle) */
+    const ctR=rng(c.colorTemperature);
+    if(ctR&&wm.includes('manual')){if(q.rb>1.5){wb='white';}else if(q.rb<0.7){wb='cloud';}
+      if(wb!=='auto'){const k=Math.max(ctR.min,Math.min(ctR.max,WB[wb]));await ap(tr,{whiteBalanceMode:'manual',colorTemperature:k});s.wb=wb;}}
+    const changed=ec!==0||wb!=='auto';
+    if(!quiet&&(ecR||ctR))toast(t(changed?'beautyDone':'beautyOk'),2600);
+    return{ec,wb,y:Math.round(q.y)};
+  }finally{s.beautyBusy=false;}
+};
 
 /* ---------- the control sheet (one for the Director, one for the camera phone) ---------- */
 let target=null; /* {name, caps, state, run(op,v), tapHint} */
@@ -58,6 +100,9 @@ function slider(r,val,fn,fmt){const w=el('div','cc-rng');const i=document.create
 function render(){
   const box=document.getElementById('ccBody');if(!box||!target)return;box.replaceChildren();const k=target.caps,s=target.state;
   document.getElementById('ccName').textContent=target.name||'';
+  { const row=el('div','cc-row');const bb=el('button','btn btn-gold',t('beautyNow'));bb.type='button';bb.onclick=async()=>{bb.disabled=true;await target.run('beauty');setTimeout(()=>{bb.disabled=false;render();},target.remote?400:0);};
+    const lb=document.createElement('label');lb.className='check';lb.innerHTML='<input type="checkbox"><span></span>';lb.querySelector('span').textContent=t('beautyAuto');const ci=lb.querySelector('input');ci.checked=ccBeautyOn();ci.onchange=()=>{try{localStorage.setItem('pmc_beauty',ci.checked?'1':'0');}catch(e){}target.run('beautyPref',ci.checked);};
+    row.append(bb,lb);box.appendChild(row);}
   if(!any(k)){box.appendChild(el('p','hint',t('ccNone')));return;}
   if(k.fm.length||k.fd){
     box.appendChild(el('b','cc-h',t('ccFocus')));
