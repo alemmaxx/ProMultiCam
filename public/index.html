@@ -533,7 +533,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
     <div class="ov-tags"><span id="lblAngle" style="color:var(--gold)"></span><span id="lblLook"></span><span id="lblScene" style="background:var(--gold);color:var(--on-gold)"></span></div>
     <div class="recbadge" id="recBadge"><span id="recLbl">● REC</span> <span id="recTime">00:00</span></div>
-    <div class="zoomv"><span id="zoomVal">1.0×</span><input type="range" id="zoom" min="1" max="4" step="0.1" value="1" aria-label="Zoom"><button class="cc-mini" id="ccDirBtn" type="button" onclick="ccDirOpen()" aria-label="Camera controls"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div class="zoomv"><span id="zoomVal">1.0×</span><input type="range" id="zoom" min="1" max="4" step="0.1" value="1" aria-label="Zoom"><button class="cc-mini" id="ccDirBtn" type="button" onclick="ccDirOpen()" aria-label="Camera controls"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button><button class="cc-mini" id="dirFlipBtn" type="button" onclick="dirFlip()" aria-label="Flip camera" style="display:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg></button></div>
     <div class="ov-bot">
       <span id="tileHint"></span>
       <div class="strip" id="tiles"></div>
@@ -1353,6 +1353,7 @@ function ccCamOpen(){const tr=()=>sStream&&sStream.getVideoTracks()[0];if(!tr())
   ccOpen({name:t('ccThis'),caps:ccCaps(tr()),state:st,run:(op,v)=>{if(op==='torch'){if(!!v!==!!sTorch)camTorch();return;}if(op==='beauty')return ccBeauty(tr(),$('camVideo'));if(op==='beautyPref')return;return ccDo(tr(),op,v);},tapHint:true});}
 function updateZoomUI(){
   const s=sources.find(x=>x.id===mainId);const z=$('zoom');
+  {const fb=$('dirFlipBtn');if(fb)fb.style.display=s&&s.local?'':'none';}
   if(!s){z.disabled=true;return;}z.disabled=false;
   if(s.caps&&s.caps.zoom){z.min=s.caps.zoom.min;z.max=Math.min(s.caps.zoom.max,10);z.step=s.caps.zoom.step||0.1;}else{z.min=1;z.max=4;z.step=0.1;}
   z.value=s.zoom;$('zoomVal').textContent=Number(s.zoom).toFixed(1)+'×';
@@ -2878,18 +2879,49 @@ async function camScreen(){
   sScr=st;$('camVideo').srcObject=st;$('camVideo').style.objectFit='contain';await camSend(st);$('camScrBtn').classList.add('on');$('camScrBtn').textContent=t('scrBack');tuneSender();toast(t('scrSending'),4000);
   st.getVideoTracks()[0].addEventListener('ended',()=>{if(sScr===st)camScreen();});
 }
+/* open one camera facing a side; stops nothing. Tries exact, then ideal, then picks another lens by label/id */
+async function openFacing(want,curId){
+  const base={width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}};
+  for(const fm of[{exact:want},{ideal:want}]){try{const st=await navigator.mediaDevices.getUserMedia({video:{...base,facingMode:fm},audio:false});const tr=st.getVideoTracks()[0],se=tr.getSettings?tr.getSettings():{};
+    if(fm.ideal&&curId&&se.deviceId===curId&&se.facingMode!==want){tr.stop();break;}return tr;}catch(e){}}
+  const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+  const re=want==='user'?/front|user|depan|facetime/i:/back|rear|environment|belakang/i;
+  const pick=ds.find(d=>re.test(d.label)&&d.deviceId!==curId)||ds.find(d=>d.deviceId!==curId);
+  if(!pick)throw new Error('one camera');
+  return (await navigator.mediaDevices.getUserMedia({video:{...base,deviceId:{exact:pick.deviceId}},audio:false})).getVideoTracks()[0];
+}
+/* swap the video track of a stream to the other side; old lens is released first (many phones can open only one camera) */
+async function flipTrack(stream,facing){
+  const want=facing==='user'?'environment':'user',old=stream.getVideoTracks()[0],curId=old&&old.getSettings?old.getSettings().deviceId:null;
+  if(old){old.stop();stream.removeTrack(old);}
+  let nv,got=want;
+  try{nv=await openFacing(want,curId);}catch(e){got=facing;try{nv=await openFacing(facing,null);}catch(e2){}}
+  if(!nv)throw new Error('no camera');
+  stream.addTrack(nv);return {track:nv,facing:got};
+}
+let dirFacing='environment';
+async function dirFlip(){
+  const s=sources.find(x=>x.id==='local');if(!s||!localStream)return;
+  try{const r=await flipTrack(localStream,dirFacing);if(r.facing===dirFacing)toast(t('flipFail'));dirFacing=r.facing;
+    s.video.srcObject=null;s.video.srcObject=localStream;s.video.play().catch(()=>{});
+    let c={};try{c=r.track.getCapabilities?r.track.getCapabilities():{};}catch(e){}
+    s.caps={zoom:c.zoom?{min:c.zoom.min,max:c.zoom.max,step:c.zoom.step||0.1}:null,cc:ccCaps(r.track)};s.zoom=s.caps.zoom?c.zoom.min:1;
+    if(ccBeautyOn())setTimeout(()=>ccBeauty(r.track,s.video),300);updateZoomUI();renderTiles();
+  }catch(e){toast(t('flipFail'));}
+}
 async function camFlip(){
-  sFacing=sFacing==='environment'?'user':'environment';
+  if(!sStream)return;
+  const hd=hdRec&&hdRec.state!=='inactive';if(hd)hdRec.stop();
   try{
-    const ns=await getCam(),old=sStream;sStream=ns;$('camVideo').srcObject=ns;
+    const r=await flipTrack(sStream,sFacing);if(r.facing===sFacing)toast(t('flipFail'));sFacing=r.facing;const ns=sStream;
+    if(!sScr){$('camVideo').srcObject=null;$('camVideo').srcObject=ns;$('camVideo').play&&$('camVideo').play().catch(()=>{});}
     $('camVideo').style.transform=sFacing==='user'?'scaleX(-1)':'';
-    if(ccBeautyOn())setTimeout(()=>ccBeauty(ns.getVideoTracks()[0],$('camVideo'),true),300);
-    if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(!s.track)continue;const nt=s.track.kind==='video'?ns.getVideoTracks()[0]:ns.getAudioTracks()[0];if(nt)await s.replaceTrack(nt);}
-    if(hdRec&&hdRec.state!=='inactive'){hdRec.stop();setTimeout(()=>hdStart(),300);}
+    if(ccBeautyOn())setTimeout(()=>ccBeauty(r.track,$('camVideo'),true),300);
+    if(!sScr&&sCall&&sCall.peerConnection)for(const sd of sCall.peerConnection.getSenders()){if(sd.track&&sd.track.kind==='video')await sd.replaceTrack(r.track);}
     sLocked=false;$('lockBtn').classList.remove('on');tuneSender();
-    old.getTracks().forEach(tr=>tr.stop());
     sSend({t:'caps',...camCaps()});
   }catch(e){toast(t('flipFail'));}
+  if(hd)setTimeout(()=>hdStart(),300);
 }
 /* ---------- camera quality: bitrate, lock, grid, level ---------- */
 let sLocked=false,gridOn=true,sHi=true;
