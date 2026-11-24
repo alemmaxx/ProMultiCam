@@ -18,21 +18,35 @@ const H=`
       <button class="btn btn-sm" onclick="edUndo()" data-i18n="edUndo"></button>
     </div>
     <div class="ed-tl" id="edTl"><div class="ed-thumbs" id="edThumbs"></div><div id="edSegs"></div><div class="ed-ph" id="edPh"></div><div class="ed-rng" id="edRng"></div></div>
-    <div class="ed-tabs" id="edTabs"></div>
-  </div>
-  <div class="ed-body">
-    <span class="hint" data-i18n="edTlHint"></span>
-    <div class="ed-panel" id="edPanel"></div>
     <div class="se-prog" id="edProg"><div><i id="edBar"></i></div><span id="edProgTx"></span></div>
   </div>
+  <div class="ed-body">
+    <div class="ed-phead"><div class="ed-sub" id="edSub"></div><button class="ed-x" type="button" onclick="edPanelClose()" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+    <span class="hint" data-i18n="edTlHint"></span>
+    <div class="ed-panel" id="edPanel"></div>
+  </div>
+  <div class="ed-bar" id="edTabs"></div>
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+
+.eds:not(.pop) .ed-body{display:none!important}
+.ed-phead{display:flex;align-items:center;gap:8px;position:sticky;top:-10px;z-index:2;background:var(--bg);margin:-10px -14px 0;padding:8px 14px 6px}
+.ed-phead .ed-sub{flex:1;min-width:0}
+.ed-sub button{flex:0 0 auto;min-height:32px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:12px;font-weight:700;padding:0 13px;cursor:pointer}
+.ed-sub button.on{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
+.ed-sub b{font-size:15px;font-weight:800;padding:4px 2px}
+.ed-x{flex:0 0 auto;width:40px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+.ed-bar{flex:0 0 auto;display:flex;gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#0d0d0e}
+.ed-bar button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 2px 6px;border:0;border-radius:12px;background:none;color:var(--sub);font:700 11.5px var(--f);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ed-bar button svg{width:24px;height:24px}
+.ed-bar button.on{color:var(--gold);background:rgba(200,164,92,.13)}
+.ed-bar button:active{transform:translateY(1px)}
 .eds{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;flex-direction:column}
 .eds.show{display:flex}
-.ed-top{flex:0 0 auto;padding:8px 14px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);background:var(--bg)}
-.ed-top>*{flex-shrink:0}
-.ed-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+.ed-top{flex:1 1 auto;min-height:0;padding:8px 14px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);background:var(--bg)}
+.ed-top>*{flex-shrink:0}.ed-top>.ed-stage{flex:1 1 auto;min-height:150px;height:auto}
+.ed-body{flex:0 0 auto;max-height:46vh;border-top:1px solid var(--line);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
 .eds .topbar .t{flex:1;min-width:0}.eds .topbar .n{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.eds .topbar .btn,.se-ctl .btn{flex-shrink:0;white-space:nowrap}
 .ed-body>*{flex-shrink:0}
 .ed-stage{flex:0 0 auto;height:34vh;display:flex;align-items:center;justify-content:center;background:#000;border-radius:14px;overflow:hidden}
@@ -52,7 +66,7 @@ const CSS=`
 .ed-more{border:1px solid var(--line);border-radius:12px;padding:8px 10px}.ed-more>summary{cursor:pointer;font-weight:700;color:var(--muted);font-size:13px;padding:4px 0}.ed-more[open]{display:flex;flex-direction:column;gap:10px}
 .ed-card.rsel{outline:2px solid var(--gold);outline-offset:1px}
 .ed-ph{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 4px #000;pointer-events:none}
-.ed-tabs{display:flex;flex-direction:column;gap:6px}.ed-grp,.ed-sub{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}.ed-grp button{flex:1 1 0;padding:0 6px!important;min-width:58px}.ed-sub button{min-height:32px!important;font-size:12px!important;background:transparent!important}.ed-sub button.on{background:var(--soft2)!important;color:var(--ink)!important;border-color:var(--gold)!important}
+.ed-tabs{display:flex;flex-direction:column;gap:6px}.ed-grp,.ed-sub{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}.ed-grp button{flex:1 1 0;padding:0 6px!important;min-width:58px}
 .ed-tabs button{flex:0 0 auto;min-height:40px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:13px;font-weight:700;padding:0 14px;cursor:pointer}
 .ed-tabs button.on{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
 .ed-panel{display:flex;flex-direction:column;gap:10px}
@@ -484,10 +498,16 @@ CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.
 const TABS=['tpl','bg','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
 /* five simple groups; a group with more than one tool shows small chips underneath */
 const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker','cover']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
+const GICON={tpl:'<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',g_cut:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1L20 20M8.1 15.9L20 4"/>',g_text:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',g_sound:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',g_look:'<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="16" cy="10" r="1.3"/><path d="M12 21a3 3 0 0 1 0-6h1.5a2.5 2.5 0 0 0 0-5"/>'};
+window.edPanelClose=()=>{if(!E)return;E.pop=false;renderTabs();};
 function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(g=>g[1].includes(E.tab))||TGROUPS[0];
-  const gr=document.createElement('div');gr.className='ed-grp';
-  TGROUPS.forEach(([g,ks])=>{const x=document.createElement('button');x.textContent=t('edG_'+g);x.className=cur[0]===g?'on':'';x.onclick=()=>{if(cur[0]!==g){E.tab=(E.lastIn&&E.lastIn[g])||ks[0];renderTabs();renderPanel();}};gr.appendChild(x);});b.appendChild(gr);
-  if(cur[1].length>1){const sb=document.createElement('div');sb.className='ed-sub';cur[1].forEach(k=>{const x=document.createElement('button');x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;(E.lastIn=E.lastIn||{})[cur[0]]=k;renderTabs();renderPanel();};sb.appendChild(x);});b.appendChild(sb);}
+  G('edScreen').classList.toggle('pop',!!E.pop);
+  TGROUPS.forEach(([g,ks])=>{const x=document.createElement('button');x.type='button';x.className=E.pop&&cur[0]===g?'on':'';
+    x.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+GICON[g]+'</svg><span></span>';x.querySelector('span').textContent=t('edG_'+g);
+    x.onclick=()=>{if(E.pop&&cur[0]===g){edPanelClose();return;}if(cur[0]!==g)E.tab=(E.lastIn&&E.lastIn[g])||ks[0];E.pop=true;renderTabs();renderPanel();const bd=document.querySelector('#edScreen .ed-body');if(bd)bd.scrollTop=0;};b.appendChild(x);});
+  const sb=G('edSub');sb.innerHTML='';
+  if(cur[1].length>1)cur[1].forEach(k=>{const x=document.createElement('button');x.type='button';x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;(E.lastIn=E.lastIn||{})[cur[0]]=k;renderTabs();renderPanel();};sb.appendChild(x);});
+  else{const h=document.createElement('b');h.textContent=t('edG_'+cur[0]);sb.appendChild(h);}
 }
 function btn(label,fn,cls){const b=document.createElement('button');b.className='btn btn-sm '+(cls||'');b.textContent=label;b.onclick=fn;return b;}
 /* ---------- pick times on the strip (like other editors): tap 📍, then drag the gold handles on the timeline ---------- */
