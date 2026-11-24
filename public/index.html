@@ -261,6 +261,7 @@ body.land .sheet{max-height:92vh
 .cg-step{display:flex;gap:12px;align-items:flex-start}.cg-step i{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--on-gold);font:800 14px var(--f);font-style:normal}.cg-step b{display:block;font-size:15px}.cg-step span{display:block;font-size:13px;color:var(--sub);line-height:1.45}
 .bk-tip{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;background:var(--card2);font-size:13px;color:var(--sub);line-height:1.45}.bk-tip span{flex:1}
 .trans-demo{display:flex;gap:10px;align-items:center}.trans-demo canvas{width:160px;height:90px;border-radius:8px;background:#000}
+#setSheet:not(.adv-on) .adv{display:none!important}
 .cc-h{display:block;margin-top:6px;font-size:14px}
 .cc-seg{display:flex;gap:6px;flex-wrap:wrap}.cc-seg .btn.on,#ccBody>.btn.on{background:var(--gold);color:var(--on-gold)}.cc-seg .btn{min-height:40px;padding:8px 12px;font-size:13px}
 .cc-rng{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cc-rng input{flex:1;min-width:160px}.cc-val{min-width:44px;text-align:right;font-weight:800;color:var(--gold);font-size:13px}
@@ -560,33 +561,33 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
   <div class="sheet">
     <div class="row-between"><h3 data-i18n="settings"></h3><button class="icon-btn" aria-label="Tutup" onclick="closeSheet('setSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <label class="lbl"><span data-i18n="format"></span><select class="input" id="aspectSel"><option value="p" data-i18n="fmtP"></option><option value="l" data-i18n="fmtL"></option></select></label>
-    <label class="lbl"><span data-i18n="quality"></span><select class="input" id="qualSel"><option value="720" data-i18n="q720"></option><option value="1080" data-i18n="q1080"></option></select></label>
-    <label class="lbl"><span data-i18n="audio"></span><select class="input" id="audioSel"><option value="none">-</option></select></label>
+    <label class="lbl adv"><span data-i18n="quality"></span><select class="input" id="qualSel"><option value="720" data-i18n="q720"></option><option value="1080" data-i18n="q1080"></option></select></label>
+    <label class="lbl adv"><span data-i18n="audio"></span><select class="input" id="audioSel"><option value="none">-</option></select></label>
     <label class="lbl"><span data-i18n="title"></span><input class="input" id="titleTxt" maxlength="40" data-i18n-ph="titlePh"></label>
-    <div class="subsec pro-only">
+    <div class="subsec pro-only adv">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
       <span class="sec" data-i18n="autoSw"></span>
       <select class="input" id="autoSel"><option value="0" data-i18n="autoOff"></option><option value="5"></option><option value="10"></option><option value="15"></option><option value="30"></option><option value="b4" data-i18n="beat4"></option><option value="b8" data-i18n="beat8"></option></select>
     </div>
     <div class="subsec pro-only">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
-      <span class="sec" data-i18n="ovT"></span>
-      <div class="ovgrid" id="ovGrid"></div><input type="hidden" id="ovStyle" value="card">
-      <span class="hint" data-i18n="ovColT"></span>
-      <div class="swatches" id="ovColors"></div><input type="hidden" id="ovColor" value="gold">
-      <label class="lbl"><span data-i18n="ovFontT"></span><select class="input" id="ovFont"></select></label>
-      <label class="lbl" id="shopRow"><span data-i18n="shopL"></span><input class="input" id="shopTxt" maxlength="30" data-i18n-ph="shopPh"></label>
-      <label class="lbl" id="descRow"><span data-i18n="descL"></span><input class="input" id="descTxt" maxlength="40" data-i18n-ph="descPh"></label>
-      <label class="lbl" id="menuRow"><span data-i18n="menuL"></span><textarea class="input" id="menuTxt" rows="4" maxlength="200" data-i18n-ph="menuPh" style="resize:vertical;min-height:90px;padding:10px 12px;line-height:1.4"></textarea></label>
-      <span class="hint" id="spkHint" data-i18n="spkHint"></span>
+      <span class="sec adv" data-i18n="ovT"></span>
+      <div class="ovgrid adv" id="ovGrid"></div><input type="hidden" id="ovStyle" value="card">
+      <span class="hint adv" data-i18n="ovColT"></span>
+      <div class="swatches adv" id="ovColors"></div><input type="hidden" id="ovColor" value="gold">
+      <label class="lbl adv"><span data-i18n="ovFontT"></span><select class="input" id="ovFont"></select></label>
+      <label class="lbl adv" id="shopRow"><span data-i18n="shopL"></span><input class="input" id="shopTxt" maxlength="30" data-i18n-ph="shopPh"></label>
+      <label class="lbl adv" id="descRow"><span data-i18n="descL"></span><input class="input" id="descTxt" maxlength="40" data-i18n-ph="descPh"></label>
+      <label class="lbl adv" id="menuRow"><span data-i18n="menuL"></span><textarea class="input" id="menuTxt" rows="4" maxlength="200" data-i18n-ph="menuPh" style="resize:vertical;min-height:90px;padding:10px 12px;line-height:1.4"></textarea></label>
+      <span class="hint adv" id="spkHint" data-i18n="spkHint"></span>
       <span class="sec" data-i18n="brand" style="margin-top:6px"></span>
       <div style="display:flex;gap:10px;align-items:center">
         <div class="logo-prev" id="logoPrev"></div>
         <label class="btn btn-sm btn-soft" style="cursor:pointer"><span data-i18n="logoAdd"></span><input type="file" id="logoFile" accept="image/*" style="display:none"></label>
         <button class="btn btn-sm btn-danger" id="logoDel" data-i18n="logoRemove"></button>
       </div>
-      <label class="check"><input type="checkbox" id="optLogoBg" checked><span data-i18n="logoBgOpt"></span></label>
-      <label class="lbl"><span data-i18n="logoPos"></span><select class="input" id="logoPos"><option value="tr" data-i18n="posTR"></option><option value="tl" data-i18n="posTL"></option><option value="br" data-i18n="posBR"></option><option value="bl" data-i18n="posBL"></option></select></label>
+      <label class="check adv"><input type="checkbox" id="optLogoBg" checked><span data-i18n="logoBgOpt"></span></label>
+      <label class="lbl adv"><span data-i18n="logoPos"></span><select class="input" id="logoPos"><option value="tr" data-i18n="posTR"></option><option value="tl" data-i18n="posTL"></option><option value="br" data-i18n="posBR"></option><option value="bl" data-i18n="posBL"></option></select></label>
       <label class="lbl"><span data-i18n="price"></span><input class="input" id="priceTxt" maxlength="20" data-i18n-ph="pricePh"></label>
       <label class="lbl"><span data-i18n="phone"></span><input class="input" id="phoneTxt" maxlength="24" inputmode="tel" data-i18n-ph="phonePh"></label>
     </div>
@@ -594,17 +595,18 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
       <span class="sec" data-i18n="music"></span>
       <select class="input" id="musicSel"><option value="none" data-i18n="mNone"></option><option value="lofi" data-i18n="m_lofi"></option><option value="ceria" data-i18n="m_ceria"></option><option value="korporat" data-i18n="m_korporat"></option><option value="santai" data-i18n="m_santai"></option><option value="hiphop" data-i18n="m_hiphop"></option><option value="edm" data-i18n="m_edm"></option><option value="sinematik" data-i18n="m_sinematik"></option><option value="jazz" data-i18n="m_jazz"></option><option value="raya" data-i18n="m_raya"></option><option value="kanak" data-i18n="m_kanak"></option><option value="romantik" data-i18n="m_romantik"></option><option value="suspen" data-i18n="m_suspen"></option><option value="custom" data-i18n="mCustom"></option></select>
-      <label class="btn btn-sm btn-soft" id="musicFileBtn" style="display:none;cursor:pointer;align-self:flex-start"><span data-i18n="mFile"></span><input type="file" id="musicFile" accept="audio/*" style="display:none"></label>
-      <div style="display:flex;gap:10px;align-items:center"><span class="hint" data-i18n="mVol"></span><input type="range" id="musicVol" min="0" max="100" value="35" style="flex:1"><button class="btn btn-sm" id="musicPrev" onclick="togglePreview()" data-i18n="mPreview"></button></div>
-      <span class="hint" style="line-height:1.5" data-i18n="musicNote"></span>
+      <label class="btn btn-sm btn-soft adv" id="musicFileBtn" style="display:none;cursor:pointer;align-self:flex-start"><span data-i18n="mFile"></span><input type="file" id="musicFile" accept="audio/*" style="display:none"></label>
+      <div class="adv" style="display:flex;gap:10px;align-items:center"><span class="hint" data-i18n="mVol"></span><input type="range" id="musicVol" min="0" max="100" value="35" style="flex:1"><button class="btn btn-sm" id="musicPrev" onclick="togglePreview()" data-i18n="mPreview"></button></div>
+      <span class="hint adv" style="line-height:1.5" data-i18n="musicNote"></span>
     </div>
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
     <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
-    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optClean"><span data-i18n="cleanOpt"></span></label><span class="hint" data-i18n="cleanHint"></span></div>
-    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label><label class="lbl" id="transRow"><span data-i18n="transT"></span><select class="input" id="transSel"></select></label><div class="trans-demo"><canvas id="transDemo" width="240" height="135"></canvas><button class="btn btn-sm" type="button" onclick="transDemo()" data-i18n="transTry"></button></div></div>
-    <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
+    <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optClean"><span data-i18n="cleanOpt"></span></label><span class="hint" data-i18n="cleanHint"></span></div>
+    <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label><label class="lbl" id="transRow"><span data-i18n="transT"></span><select class="input" id="transSel"></select></label><div class="trans-demo"><canvas id="transDemo" width="240" height="135"></canvas><button class="btn btn-sm" type="button" onclick="transDemo()" data-i18n="transTry"></button></div></div>
+    <label class="check adv"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
-    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
+    <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
+    <button class="btn btn-soft" id="advBtn" type="button" onclick="toggleAdv()" style="align-self:flex-start"></button>
     <div style="position:sticky;bottom:0;background:var(--card);padding:10px 0 2px;margin-top:4px;border-top:1px solid var(--line)"><button class="btn btn-gold" style="width:100%" onclick="saveSettings()" data-i18n="saveSet"></button></div>
   </div>
 </div>
@@ -937,7 +939,9 @@ function rotateHint(){
   if(wantL===isL)rotHintShown='';
 }
 window.addEventListener('resize',()=>{clearTimeout(window._rhT);window._rhT=setTimeout(rotateHint,600);});
-function openSheet(id){$(id).classList.add('show');if(id==='connSheet'){renderConnList();renderQR();}if(id==='filesSheet')listSaved('files');}
+function openSheet(id){$(id).classList.add('show');if(id==='setSheet')advPaint();if(id==='connSheet'){renderConnList();renderQR();}if(id==='filesSheet')listSaved('files');}
+function advPaint(){const on=lsGet('pmc_adv','')==='1';$('setSheet').classList.toggle('adv-on',on);$('advBtn').textContent=on?t('advHide'):t('advShow');}
+function toggleAdv(){lsSet('pmc_adv',lsGet('pmc_adv','')==='1'?'0':'1');advPaint();}
 function closeSheet(id){$(id).classList.remove('show');}
 function leave(){location.reload();}
 let wakeLock=null;

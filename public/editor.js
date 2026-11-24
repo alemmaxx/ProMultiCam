@@ -39,7 +39,7 @@ const CSS=`
 .ed-seg.sug{outline:2px dashed #ff6b5b;outline-offset:-2px}
 .ed-seg .sp{position:absolute;left:3px;top:3px;font-size:10px;font-weight:800;background:#c8a45c;color:#17130b;border-radius:4px;padding:0 4px}
 .ed-ph{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 4px #000;pointer-events:none}
-.ed-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.ed-tabs{display:flex;flex-direction:column;gap:6px}.ed-grp,.ed-sub{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}.ed-grp button{flex:1 1 0;padding:0 6px!important;min-width:58px}.ed-sub button{min-height:32px!important;font-size:12px!important;background:transparent!important}.ed-sub button.on{background:var(--soft2)!important;color:var(--ink)!important;border-color:var(--gold)!important}
 .ed-tabs button{flex:0 0 auto;min-height:40px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:13px;font-weight:700;padding:0 14px;cursor:pointer}
 .ed-tabs button.on{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
 .ed-panel{display:flex;flex-direction:column;gap:10px}
@@ -84,7 +84,7 @@ window.openEditor=async function(it){
   if(!isPro()){openPro();return;}
   closeSheet('filesSheet');
   const blob=await savedBlob(it.h,mimeOf(it.name));
-  E={name:it.name,h:it.h,blob,url:URL.createObjectURL(blob),hist:[],tab:'cut',raf:0,playing:false,voiceEls:{},sel:null};
+  E={name:it.name,h:it.h,blob,url:URL.createObjectURL(blob),hist:[],tab:'tpl',raf:0,playing:false,voiceEls:{},sel:null};
   const v=V();v.src=E.url;v.muted=false;
   await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=rej;}).catch(()=>{});
   if(!isFinite(v.duration)){v.currentTime=1e9;await new Promise(r=>v.ondurationchange=r);v.currentTime=0;}
@@ -459,7 +459,13 @@ function renderTl(){
 CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.stickers||[]).find(q=>q.id===E.sel);if(!sk)return;const r=CV().getBoundingClientRect();sk.x=clamp((e.clientX-r.left)/r.width,0,1);sk.y=clamp((e.clientY-r.top)/r.height,0,1);save();drawAt();});
 /* ---------- tools ---------- */
 const TABS=['tpl','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
-function renderTabs(){const b=G('edTabs');b.innerHTML='';TABS.forEach(k=>{const x=document.createElement('button');x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;renderTabs();renderPanel();};b.appendChild(x);});}
+/* five simple groups; a group with more than one tool shows small chips underneath */
+const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug','angle']],['g_text',['text','steps','sticker','cover']],['g_sound',['music','voice','sfx']],['g_look',['color','brand','fmt']]];
+function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(g=>g[1].includes(E.tab))||TGROUPS[0];
+  const gr=document.createElement('div');gr.className='ed-grp';
+  TGROUPS.forEach(([g,ks])=>{const x=document.createElement('button');x.textContent=t('edG_'+g);x.className=cur[0]===g?'on':'';x.onclick=()=>{if(cur[0]!==g){E.tab=(E.lastIn&&E.lastIn[g])||ks[0];renderTabs();renderPanel();}};gr.appendChild(x);});b.appendChild(gr);
+  if(cur[1].length>1){const sb=document.createElement('div');sb.className='ed-sub';cur[1].forEach(k=>{const x=document.createElement('button');x.textContent=t('edT_'+k);x.className=E.tab===k?'on':'';x.onclick=()=>{E.tab=k;(E.lastIn=E.lastIn||{})[cur[0]]=k;renderTabs();renderPanel();};sb.appendChild(x);});b.appendChild(sb);}
+}
 function btn(label,fn,cls){const b=document.createElement('button');b.className='btn btn-sm '+(cls||'');b.textContent=label;b.onclick=fn;return b;}
 function row(...els){const d=document.createElement('div');d.className='ed-row';els.forEach(e=>e&&d.appendChild(e));return d;}
 function hint(txt){const s=document.createElement('span');s.className='hint';s.textContent=txt;return s;}
