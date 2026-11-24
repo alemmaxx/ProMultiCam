@@ -260,6 +260,7 @@ body.land .sheet{max-height:92vh
 .cam-tools{display:flex;gap:8px;flex-wrap:wrap}
 .cg-step{display:flex;gap:12px;align-items:flex-start}.cg-step i{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--on-gold);font:800 14px var(--f);font-style:normal}.cg-step b{display:block;font-size:15px}.cg-step span{display:block;font-size:13px;color:var(--sub);line-height:1.45}
 .bk-tip{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;background:var(--card2);font-size:13px;color:var(--sub);line-height:1.45}.bk-tip span{flex:1}
+.trans-demo{display:flex;gap:10px;align-items:center}.trans-demo canvas{width:160px;height:90px;border-radius:8px;background:#000}
 .cc-h{display:block;margin-top:6px;font-size:14px}
 .cc-seg{display:flex;gap:6px;flex-wrap:wrap}.cc-seg .btn.on,#ccBody>.btn.on{background:var(--gold);color:var(--on-gold)}.cc-seg .btn{min-height:40px;padding:8px 12px;font-size:13px}
 .cc-rng{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cc-rng input{flex:1;min-width:160px}.cc-val{min-width:44px;text-align:right;font-weight:800;color:var(--gold);font-size:13px}
@@ -600,7 +601,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
     <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
     <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optClean"><span data-i18n="cleanOpt"></span></label><span class="hint" data-i18n="cleanHint"></span></div>
-    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label></div>
+    <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label><label class="lbl" id="transRow"><span data-i18n="transT"></span><select class="input" id="transSel"></select></label><div class="trans-demo"><canvas id="transDemo" width="240" height="135"></canvas><button class="btn btn-sm" type="button" onclick="transDemo()" data-i18n="transTry"></button></div></div>
     <label class="check"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
     <div class="pro-only" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
@@ -1362,6 +1363,46 @@ function onDirTurn(need){
   const l=sources.find(x=>x.local);if(l&&!l.rotManual){setRot(l,need);renderConnList();}
   setLand();setTimeout(()=>{document.querySelectorAll('.tile video').forEach(sizeTileVid);rotateHint();},350);
 }
+/* ---------- live switch transitions (only drawn for ~0.3–0.5 s after a switch) ---------- */
+const TRANS={cut:{ms:1},fade:{ms:380},black:{ms:480},white:{ms:420},slide:{ms:360},slideup:{ms:360},zoom:{ms:380},whip:{ms:300},wipe:{ms:420},circle:{ms:460},doors:{ms:460}};
+function transKind(){const v=$('transSel').value;return TRANS[v]&&v!=='cut'?v:'fade';}
+function drawTrans(k,p,A,B,X,Y,W,H,c){c=c||ctx;
+  const e=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2,F=c.filter;
+  const clip=()=>{c.save();c.beginPath();c.rect(X,Y,W,H);c.clip();};
+  const veil=(col,a)=>{c.filter='none';c.globalAlpha=a;c.fillStyle=col;c.fillRect(X,Y,W,H);c.globalAlpha=1;c.filter=F;};
+  if(k==='fade'){A(X,Y,W,H);c.globalAlpha=p;B(X,Y,W,H);c.globalAlpha=1;}
+  else if(k==='black'||k==='white'){const col=k==='black'?'#000':'#fff';if(p<0.5){A(X,Y,W,H);veil(col,Math.min(1,p*2.2));}else{B(X,Y,W,H);veil(col,Math.min(1,(1-p)*2.2));}}
+  else if(k==='slide'){clip();A(X-W*e,Y,W,H);B(X+W*(1-e),Y,W,H);c.restore();}
+  else if(k==='slideup'){clip();A(X,Y-H*e,W,H);B(X,Y+H*(1-e),W,H);c.restore();}
+  else if(k==='zoom'){clip();const sa=1+0.35*e,sb=1.25-0.25*e;c.save();c.translate(X+W/2,Y+H/2);c.scale(sa,sa);A(-W/2,-H/2,W,H);c.restore();
+    c.globalAlpha=e;c.save();c.translate(X+W/2,Y+H/2);c.scale(sb,sb);B(-W/2,-H/2,W,H);c.restore();c.globalAlpha=1;c.restore();}
+  else if(k==='whip'){clip();const off=W*e;const ghost=(fn,x)=>{fn(x,Y,W,H);c.globalAlpha=0.35;fn(x-W*0.06,Y,W,H);fn(x+W*0.06,Y,W,H);c.globalAlpha=1;};
+    if(p<0.5)ghost(A,X-off);else ghost(B,X+W*(1-e));c.restore();}
+  else if(k==='wipe'){A(X,Y,W,H);const w=W*e;c.save();c.beginPath();c.rect(X,Y,w,H);c.clip();B(X,Y,W,H);c.restore();c.filter='none';c.fillStyle=ovCol().c;c.fillRect(X+w-2,Y,4,H);c.filter=F;}
+  else if(k==='circle'){A(X,Y,W,H);const r=Math.hypot(W,H)/2*e;c.save();c.beginPath();c.arc(X+W/2,Y+H/2,Math.max(1,r),0,Math.PI*2);c.clip();B(X,Y,W,H);c.restore();
+    c.filter='none';c.strokeStyle=ovCol().c;c.lineWidth=Math.max(2,Math.min(W,H)*0.008);c.beginPath();c.arc(X+W/2,Y+H/2,Math.max(1,r),0,Math.PI*2);c.stroke();c.filter=F;}
+  else if(k==='doors'){B(X,Y,W,H);const d=W/2*e;c.save();c.beginPath();c.rect(X,Y,W/2-d,H);c.clip();A(X-d,Y,W,H);c.restore();c.save();c.beginPath();c.rect(X+W/2+d,Y,W/2-d,H);c.clip();A(X+d,Y,W,H);c.restore();}
+  else B(X,Y,W,H);
+}
+/* small preview in Settings: two coloured "cameras" switching with the chosen transition */
+function transDemo(){
+  const cv=$('transDemo');if(!cv)return;const c=cv.getContext('2d'),W=cv.width,H=cv.height,k=$('transSel').value==='cut'?'cut':transKind();
+  const pan=(col,lab)=>(x,y,w,h)=>{c.fillStyle=col;c.fillRect(x,y,w,h);c.fillStyle='rgba(255,255,255,.9)';c.font='800 34px "Bricolage Grotesque",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(lab,x+w/2,y+h/2);};
+  const A=pan('#3a5a7a','1'),Bp=pan('#8a5a2a','2');let t0=0;cancelAnimationFrame(transDemo.r);
+  const step=ts=>{if(!t0)t0=ts;const el=ts-t0,dur=k==='cut'?1:TRANS[k].ms;c.clearRect(0,0,W,H);
+    if(el<450)A(0,0,W,H);else{const p=Math.min(1,(el-450)/dur);if(p<1)drawTrans(k,p,A,Bp,0,0,W,H,c);else Bp(0,0,W,H);}
+    if(el<450+dur+700)transDemo.r=requestAnimationFrame(step);};
+  transDemo.r=requestAnimationFrame(step);
+}
+function transSync(v){const s=$('transSel');if(!s||!s.options.length)return;if(v&&TRANS[v])s.value=v;if(!$('optFade').checked)s.value='cut';else if(s.value==='cut')s.value='fade';}
+function initTrans(){const s=$('transSel');if(s.options.length)return;
+  ['cut','fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors'].forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=t('tr_'+k);s.appendChild(o);});
+  s.value=lsGet('pmc_trans','fade');if(!s.value)s.value='fade';
+  const sync=()=>{$('optFade').checked=s.value!=='cut';lsSet('pmc_trans',s.value);};
+  s.onchange=()=>{sync();transDemo();try{saveSettings(true);}catch(e){}};
+  $('optFade').addEventListener('change',()=>{if(!$('optFade').checked)s.value='cut';else if(s.value==='cut')s.value='fade';lsSet('pmc_trans',s.value);transDemo();});
+  if(!$('optFade').checked)s.value='cut';
+}
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
@@ -1417,9 +1458,9 @@ function drawFrame(live){
     else{drawCover(m.video,X,Y,VW/2,VH,dz(m));drawCover(sc.video,X+VW/2,Y,VW/2,VH,dz(sc));ctx.filter='none';ctx.fillStyle=ovCol().c;ctx.fillRect(X+VW/2-2,Y,4,VH);}
   }else{
     if(mainId!==fadeCur){fadePrev=fadeCur;fadeCur=mainId;fadeAt=performance.now();}
-    const fp=heavy&&$('optFade').checked&&fadePrev?Math.min(1,(performance.now()-fadeAt)/350):1;
+    const tk=heavy&&$('optFade').checked&&fadePrev?transKind():'cut',fp=tk==='cut'?1:Math.min(1,(performance.now()-fadeAt)/TRANS[tk].ms);
     const pv=fp<1?sources.find(x=>x.id===fadePrev):null;
-    if(pv&&pv.stream){drawCover(pv.video,X,Y,VW,VH,dz(pv));ctx.globalAlpha=fp;drawCover(m.video,X,Y,VW,VH,dz(m));ctx.globalAlpha=1;}
+    if(pv&&pv.stream)drawTrans(tk,fp,(x,y,w,h)=>drawCover(pv.video,x,y,w,h,dz(pv)),(x,y,w,h)=>drawCover(m.video,x,y,w,h,dz(m)),X,Y,VW,VH);
     else drawCover(m.video,X,Y,VW,VH,dz(m));
     if(mode==='pip'&&sc&&sc.stream){
       const pw=Math.round(Math.min(VW,VH)*0.36),ph=Math.round(pw*(VH>VW?4/3:3/4));
@@ -1657,13 +1698,13 @@ const TPL={
   drama:{look:'drama',mode:'full',auto:'0',fade:true,noise:true,intro:false,outro:false,story:true,music:'none'}
 };
 const TPL_NAME={cook:'Cook',music:'Music',pod:'Pod',drama:'Drama'};
-function tplSnap(){return {look:look.id,mode,auto:$('autoSel').value,fade:$('optFade').checked,noise:$('optNoise').checked,intro:$('optIntro').checked,outro:$('optOutro').checked,story:$('optStory').checked,music:$('musicSel').value};}
+function tplSnap(){return {look:look.id,mode,auto:$('autoSel').value,fade:$('optFade').checked,trans:$('transSel').value,noise:$('optNoise').checked,intro:$('optIntro').checked,outro:$('optOutro').checked,story:$('optStory').checked,music:$('musicSel').value};}
 function tplApplyCfg(c){
   look=LOOKS.find(l=>l.id===c.look)||LOOKS[0];$('lblLook').textContent=t('l_'+look.id);renderLooks();
   const live=sources.filter(x=>x.stream).length;
   mode=(c.mode!=='full'&&live<2)?'full':c.mode;document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
   if(mode!=='full'&&!secId){const o=sources.find(x=>x.id!==mainId&&x.stream);if(o)secId=o.id;}
-  $('autoSel').value=c.auto;lastSwitch=Date.now();$('optFade').checked=c.fade;$('optNoise').checked=c.noise;try{applyAudio();}catch(e){}
+  $('autoSel').value=c.auto;lastSwitch=Date.now();$('optFade').checked=c.fade;transSync(c.trans);$('optNoise').checked=c.noise;try{applyAudio();}catch(e){}
   $('optIntro').checked=c.intro;$('optOutro').checked=c.outro;$('optStory').checked=c.story;$('storyBox').style.display=c.story?'flex':'none';
   if(c.music)$('musicSel').value=c.music;
   renderScenes();renderTiles();sendLive();
@@ -1926,7 +1967,7 @@ function setLogo(dataUrl){
   logoImg=new Image();logoImg.src=dataUrl;$('logoPrev').style.backgroundImage=`url(${dataUrl})`;$('logoDel').style.display='inline-flex';
 }
 function initDirectorExtras(){
-  if(initDirectorExtras.done)return;initDirectorExtras.done=true;
+  if(initDirectorExtras.done)return;initDirectorExtras.done=true;initTrans();
   // auto-switch labels
   [...$('autoSel').options].forEach(o=>{if(o.value!=='0'&&o.value[0]!=='b')o.textContent=t('autoN',{n:o.value});});
   setInterval(()=>{
@@ -2008,6 +2049,7 @@ function loadSettings(){
   $('musicFileBtn').style.display=$('musicSel').value==='custom'?'inline-flex':'none';
   if('ovFont' in o)$('ovFont').dataset.touched='1';
   try{renderOvUI();loadOvFont();}catch(e){}
+  try{transSync();}catch(e){}
 }
 /* built-in royalty-free music, generated live (no copyrighted audio) */
 const MUSIC={
@@ -2078,7 +2120,7 @@ function applyTier(){
   const pro=isPro();
   document.querySelectorAll('.pro-only').forEach(e=>e.classList.toggle('locked',!pro));
   const q=$('qualSel');if(q){const o=q.querySelector('option[value="1080"]');if(o){o.disabled=!pro;o.textContent=(pro?'':'🔒 ')+t('q1080');}if(!pro&&q.value==='1080'){q.value='720';resizeStage();}}
-  if(!pro){if(!FREE_LOOKS.includes(look.id)){look=LOOKS[0];}const hd=$('optHD');if(hd)hd.checked=false;const fd=$('optFade');if(fd)fd.checked=false;const au=$('autoSel');if(au)au.value='0';
+  if(!pro){if(!FREE_LOOKS.includes(look.id)){look=LOOKS[0];}const hd=$('optHD');if(hd)hd.checked=false;const fd=$('optFade');if(fd)fd.checked=false;transSync();const au=$('autoSel');if(au)au.value='0';
     if(typeof mode!=='undefined'&&mode!=='full'){mode='full';try{renderTiles();sendLive();}catch(e){}}}
   document.querySelectorAll('#modeSeg button').forEach(b=>{if(b.dataset.m!=='full')b.textContent=(pro?'':'🔒 ')+t(b.dataset.i18n);});
   if($('looks')&&$('looks').children.length)renderLooks();
