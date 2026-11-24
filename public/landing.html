@@ -172,10 +172,11 @@ function setLang(l){
   document.documentElement.lang=l;
   document.querySelectorAll('[data-k]').forEach(e=>{const d=l==='en'?EN:MS;if(!d[e.dataset.k])return;if(e.dataset.k==='soon'){const n=window.PMC_TRIAL??7;e.innerHTML=(l==='en'?d.soon.replace('{n}','<span class="td">'+n+'</span>'):'PERCUBAAN <span class="td">'+n+'</span> HARI');return;}e.textContent=d[e.dataset.k];});
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===l));
-  try{localStorage.setItem('pmc_lang',l);}catch(e){}
+  if(!new URLSearchParams(location.search).has('embed')){try{localStorage.setItem('pmc_lang',l);}catch(e){}}
 }
 document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
 let saved=null;try{saved=localStorage.getItem('pmc_lang');}catch(e){}
+{const q=new URLSearchParams(location.search).get('lang');if(q==='ms'||q==='en')saved=q;}
 setLang(saved==='ms'||(!saved&&(navigator.language||'').toLowerCase().startsWith('ms'))?'ms':(saved?'en':'ms'));
 document.getElementById('yr').textContent=new Date().getFullYear();
 if(new URLSearchParams(location.search).get('embed')){

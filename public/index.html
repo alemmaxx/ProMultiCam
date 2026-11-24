@@ -2301,7 +2301,7 @@ function renderRenew(){
   else bar.style.display='none';
 }
 function openAbout(){
-  const v=$('aboutView');if(!v.querySelector('iframe')){const f=document.createElement('iframe');f.src='landing.html?embed=1';f.title='About';v.appendChild(f);}
+  const v=$('aboutView');let f=v.querySelector('iframe');const want='landing.html?embed=1&lang='+(LANG==='ms'?'ms':'en');if(!f){f=document.createElement('iframe');f.title='About';v.appendChild(f);}if(f.getAttribute('src')!==want)f.setAttribute('src',want);
   v.classList.add('show');track('open_about');
 }
 function closeAbout(){$('aboutView').classList.remove('show');}
