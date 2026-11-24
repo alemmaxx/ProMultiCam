@@ -593,7 +593,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="subsec pro-only">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
       <span class="sec" data-i18n="music"></span>
-      <select class="input" id="musicSel"><option value="none" data-i18n="mNone"></option><option value="lofi" data-i18n="mLofi"></option><option value="ceria" data-i18n="mCeria"></option><option value="custom" data-i18n="mCustom"></option></select>
+      <select class="input" id="musicSel"><option value="none" data-i18n="mNone"></option><option value="lofi" data-i18n="m_lofi"></option><option value="ceria" data-i18n="m_ceria"></option><option value="korporat" data-i18n="m_korporat"></option><option value="santai" data-i18n="m_santai"></option><option value="hiphop" data-i18n="m_hiphop"></option><option value="edm" data-i18n="m_edm"></option><option value="sinematik" data-i18n="m_sinematik"></option><option value="jazz" data-i18n="m_jazz"></option><option value="raya" data-i18n="m_raya"></option><option value="kanak" data-i18n="m_kanak"></option><option value="romantik" data-i18n="m_romantik"></option><option value="suspen" data-i18n="m_suspen"></option><option value="custom" data-i18n="mCustom"></option></select>
       <label class="btn btn-sm btn-soft" id="musicFileBtn" style="display:none;cursor:pointer;align-self:flex-start"><span data-i18n="mFile"></span><input type="file" id="musicFile" accept="audio/*" style="display:none"></label>
       <div style="display:flex;gap:10px;align-items:center"><span class="hint" data-i18n="mVol"></span><input type="range" id="musicVol" min="0" max="100" value="35" style="flex:1"><button class="btn btn-sm" id="musicPrev" onclick="togglePreview()" data-i18n="mPreview"></button></div>
       <span class="hint" style="line-height:1.5" data-i18n="musicNote"></span>
@@ -867,7 +867,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="subsec">
       <span class="sec" data-i18n="seAudioT"></span>
       <select class="input" id="seAudio"><option value="orig" data-i18n="seAOrig"></option><option value="mute" data-i18n="seAMute"></option><option value="music" data-i18n="seAMusic"></option><option value="mix" data-i18n="seAMix"></option></select>
-      <select class="input" id="seMusic"><option value="lofi" data-i18n="mLofi"></option><option value="ceria" data-i18n="mCeria"></option></select>
+      <select class="input" id="seMusic"><option value="lofi" data-i18n="m_lofi"></option><option value="ceria" data-i18n="m_ceria"></option><option value="korporat" data-i18n="m_korporat"></option><option value="santai" data-i18n="m_santai"></option><option value="hiphop" data-i18n="m_hiphop"></option><option value="edm" data-i18n="m_edm"></option><option value="sinematik" data-i18n="m_sinematik"></option><option value="jazz" data-i18n="m_jazz"></option><option value="raya" data-i18n="m_raya"></option><option value="kanak" data-i18n="m_kanak"></option><option value="romantik" data-i18n="m_romantik"></option><option value="suspen" data-i18n="m_suspen"></option></select>
     </div>
     <div class="se-prog" id="seProg"><div><i id="seBar"></i></div><span id="seProgTx"></span></div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding-bottom:20px">
@@ -2054,8 +2054,19 @@ function loadSettings(){
 /* built-in royalty-free music, generated live (no copyrighted audio) */
 const MUSIC={
   lofi:{bpm:72,chords:[[60,64,67,71],[57,60,64,67],[53,57,60,64],[55,59,62,65]],cut:900,kick:[0,2.5],snare:[1,3],arp:false},
-  ceria:{bpm:108,chords:[[55,59,62],[62,66,69],[64,67,71],[60,64,67]],cut:2400,kick:[0,1,2,3],snare:[1,3],arp:true}
+  ceria:{bpm:108,chords:[[55,59,62],[62,66,69],[64,67,71],[60,64,67]],cut:2400,kick:[0,1,2,3],snare:[1,3],arp:true},
+  korporat:{bpm:112,chords:[[60,64,67],[55,59,62],[57,60,64],[53,57,60]],cut:3200,kick:[0,1,2,3],snare:[1,3],arp:true,hat:'off'},
+  santai:{bpm:88,chords:[[55,59,62],[52,55,59],[48,52,55],[50,54,57]],cut:2200,kick:[0,2],snare:[3],arp:true,arpEvery:2,hat:'off',snareHp:3000},
+  hiphop:{bpm:86,chords:[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]],cut:1100,kick:[0,1.75,2.5],snare:[1,3],arp:false,swing:0.12,bassGain:0.2},
+  edm:{bpm:124,chords:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]],cut:3800,pad:'sawtooth',padGain:0.022,kick:[0,1,2,3],snare:[1,3],arp:true,arpWave:'square',arpGain:0.025,hat:'off'},
+  sinematik:{bpm:66,chords:[[50,53,57,62],[46,50,53,58],[53,57,60,65],[48,52,55,60]],cut:1300,pad:'sawtooth',padGain:0.03,kick:[0],snare:[],arp:false,hat:'none',boom:true},
+  jazz:{bpm:96,chords:[[62,65,69,72],[55,59,62,65],[60,64,67,71],[57,61,64,67]],cut:1800,kick:[0,2.5],snare:[],arp:false,swing:0.18,hatGain:0.6,mel:0.3},
+  raya:{bpm:118,chords:[[60,64,67],[53,57,60],[55,59,62],[60,64,67]],cut:2600,kick:[0,1.5,2,3],snare:[1,3],snareHp:900,arp:false,bell:[72,74,76,79,81,84],hat:'off'},
+  kanak:{bpm:130,chords:[[60,64,67],[53,57,60],[55,59,62],[60,64,67]],cut:3000,kick:[0,2],snare:[1,3],arp:true,arpWave:'square',arpGain:0.022,arpEvery:1},
+  romantik:{bpm:64,chords:[[60,64,67,71],[57,60,64,67],[53,57,60,64],[55,59,62,65]],cut:1600,kick:[],snare:[],arp:true,arpEvery:2,arpWave:'sine',arpGain:0.05,hat:'none'},
+  suspen:{bpm:84,chords:[[57,60,64],[57,60,64],[53,57,60],[52,56,59]],cut:900,kick:[0,2],snare:[],arp:false,pulse:true,hat:'all',hatGain:0.5}
 };
+const MUSIC_KEYS=Object.keys(MUSIC);
 let mTimer=null,mNext=0,mStep=0,mStyle=null,noiseBuf=null,mStart=0;
 const mf=n=>440*Math.pow(2,(n-69)/12);
 function mNote(freq,t0,dur,type,gain,cut){const o=actx.createOscillator(),g=actx.createGain(),f=actx.createBiquadFilter();o.type=type;o.frequency.value=freq;f.type='lowpass';f.frequency.value=cut;g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(gain,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);o.connect(f);f.connect(g);g.connect(musicGain);o.start(t0);o.stop(t0+dur+0.05);}
@@ -2067,14 +2078,17 @@ function mNoise(t0,dur,gain,hp){
 function mSchedule(){
   const st=MUSIC[mStyle];if(!st)return;const spb=60/st.bpm,step=spb/2;
   while(mNext<actx.currentTime+0.3){
-    const bar=Math.floor(mStep/8)%4,beat=(mStep%8)/2,ch=st.chords[bar];
-    if(mStep%8===0){ch.forEach(n=>mNote(mf(n),mNext,spb*4,'sine',0.045,st.cut));mNote(mf(ch[0]-24),mNext,spb*2,'sine',0.16,400);}
-    if(mStep%8===4)mNote(mf(ch[0]-24),mNext,spb*1.5,'sine',0.12,400);
-    if(st.arp)mNote(mf(ch[mStep%ch.length]+12),mNext,step*0.9,'triangle',0.04,st.cut);
-    else if(mStep%2===1&&Math.random()<0.35)mNote(mf(ch[Math.floor(Math.random()*ch.length)]+12),mNext,spb,'sine',0.03,1500);
-    if(st.kick.includes(beat))mKick(mNext);
-    if(st.snare.includes(beat))mNoise(mNext,0.18,0.1,1500);
-    mNoise(mNext,0.04,mStep%2?0.02:0.035,7000);
+    const bar=Math.floor(mStep/8)%4,beat=(mStep%8)/2,ch=st.chords[bar],sw=(mStep%2&&st.swing)?st.swing*step:0,tt=mNext+sw;
+    if(mStep%8===0){ch.forEach(n=>mNote(mf(n),tt,spb*4,st.pad||'sine',st.padGain||0.045,st.cut));mNote(mf(ch[0]-24),tt,spb*2,'sine',st.bassGain||0.16,400);if(st.boom)mKick(tt);}
+    if(mStep%8===4)mNote(mf(ch[0]-24),tt,spb*1.5,'sine',(st.bassGain||0.16)*0.75,400);
+    if(st.pulse)mNote(mf(ch[0]-12),tt,step*0.7,'triangle',0.06,700);
+    if(st.arp){if(mStep%(st.arpEvery||1)===0)mNote(mf(ch[(mStep/(st.arpEvery||1))%ch.length|0]+12),tt,step*(st.arpEvery||1)*0.9,st.arpWave||'triangle',st.arpGain||0.04,st.cut);}
+    else if(st.bell){if(Math.random()<0.55)mNote(mf(st.bell[Math.floor(Math.random()*st.bell.length)]),tt,step*1.6,'sine',0.05,5000);}
+    else if(mStep%2===1&&Math.random()<(st.mel||0.35))mNote(mf(ch[Math.floor(Math.random()*ch.length)]+12),tt,spb,'sine',0.03,1500);
+    if(st.kick.includes(beat))mKick(tt);
+    if(st.snare.includes(beat))mNoise(tt,0.18,0.1,st.snareHp||1500);
+    const hat=st.hat||'all',hg=st.hatGain||1;
+    if(hat==='all')mNoise(tt,0.04,(mStep%2?0.02:0.035)*hg,7000);else if(hat==='off'&&mStep%2===1)mNoise(tt,0.05,0.035*hg,7000);
     mNext+=step;mStep++;
   }
 }

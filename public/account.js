@@ -35,6 +35,7 @@ try {
     createBill: (plan, promo, phone) => call('pmc_createBill', { plan, promo, phone }),
     checkPayment: (id) => call('pmc_checkPayment', { id }),
     redeem: (code) => call('pmc_redeemPromo', { code }),
+    tts: (o) => call('pmc_tts', o),
     call,
     chatListen: (cb) => {
       const u = auth.currentUser; if (!u) return () => {};

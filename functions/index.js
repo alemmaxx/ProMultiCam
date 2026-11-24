@@ -240,3 +240,58 @@ exports.pmc_adminUser = onCall({ region: REGION }, async (req) => {
   }
   throw new HttpsError('invalid-argument', 'Tindakan tidak sah.');
 });
+
+// ---------------------------------------------------------------- AI voice (text to speech) for the Editor — Pro only, with a daily limit per user
+const TTS_VOICES = {
+  'ms-F': { languageCode: 'ms-MY', name: 'ms-MY-Wavenet-A' }, 'ms-M': { languageCode: 'ms-MY', name: 'ms-MY-Wavenet-B' },
+  'ms-F2': { languageCode: 'ms-MY', name: 'ms-MY-Wavenet-C' }, 'ms-M2': { languageCode: 'ms-MY', name: 'ms-MY-Wavenet-D' },
+  'en-F': { languageCode: 'en-US', name: 'en-US-Wavenet-F' }, 'en-M': { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
+  'id-F': { languageCode: 'id-ID', name: 'id-ID-Wavenet-A' }, 'id-M': { languageCode: 'id-ID', name: 'id-ID-Wavenet-B' }
+};
+const TTS_DAY = 3000;          // characters per user per day
+const TTS_MONTH = 900000;      // characters for the whole app per month (stays inside the provider's free monthly allowance)
+async function gToken() {
+  const r = await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', { headers: { 'Metadata-Flavor': 'Google' } });
+  return (await r.json()).access_token;
+}
+exports.pmc_tts = onCall({ region: REGION, timeoutSeconds: 60 }, async (req) => {
+  const a = requireAuth(req);
+  const text = String(req.data?.text || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+  if (!text) throw new HttpsError('invalid-argument', 'Tiada teks.');
+  const v = TTS_VOICES[req.data?.voice] || TTS_VOICES['ms-F'];
+  const rate = Math.max(0.75, Math.min(1.35, Number(req.data?.rate) || 1));
+  const pitch = Math.max(-6, Math.min(6, Number(req.data?.pitch) || 0));
+  const u = (await db.doc(`users/${a.uid}`).get()).data() || {};
+  const pro = a.uid === SUPER_UID || (u.status !== 'suspended' && (u.expiry?.toMillis?.() || 0) > Date.now());
+  if (!pro) throw new HttpsError('permission-denied', 'Ciri Pro.');
+  const now = new Date(Date.now() + 8 * 3600000); // Malaysia day
+  const day = now.toISOString().slice(0, 10), month = day.slice(0, 7);
+  const dayRef = db.doc(`ttsUse/${a.uid}_${day}`), monRef = db.doc(`ttsUse/_month_${month}`);
+  await db.runTransaction(async (t) => {
+    const [d, m] = await Promise.all([t.get(dayRef), t.get(monRef)]);
+    const used = d.data()?.chars || 0, mused = m.data()?.chars || 0;
+    if (a.uid !== SUPER_UID && used + text.length > TTS_DAY) throw new HttpsError('resource-exhausted', `Had harian suara AI dicapai (baki ${Math.max(0, TTS_DAY - used)} aksara). Cuba esok.`);
+    if (mused + text.length > TTS_MONTH) throw new HttpsError('resource-exhausted', 'Had bulanan suara AI app dicapai. Cuba bulan depan.');
+    t.set(dayRef, { uid: a.uid, day, chars: FieldValue.increment(text.length) }, { merge: true });
+    t.set(monRef, { month, chars: FieldValue.increment(text.length) }, { merge: true });
+  });
+  const refund = () => Promise.all([dayRef.set({ chars: FieldValue.increment(-text.length) }, { merge: true }), monRef.set({ chars: FieldValue.increment(-text.length) }, { merge: true })]).catch(() => {});
+  const tok = await gToken();
+  const body = JSON.stringify({ input: { text }, voice: v, audioConfig: { audioEncoding: 'MP3', speakingRate: rate, pitch, effectsProfileId: ['handset-class-device'] } });
+  let r = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize', { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json', 'x-goog-user-project': projectId() }, body });
+  if (r.status === 403) {
+    const err = await r.text();
+    if (/SERVICE_DISABLED|has not been used|is disabled/i.test(err)) {
+      // first use: switch the speech service on for this project, then ask the user to try again shortly
+      try { await fetch(`https://serviceusage.googleapis.com/v1/projects/${projectId()}/services/texttospeech.googleapis.com:enable`, { method: 'POST', headers: { Authorization: `Bearer ${tok}` } }); } catch (e) { /* ignore */ }
+      await refund();
+      throw new HttpsError('unavailable', 'Suara AI sedang dihidupkan buat kali pertama. Cuba lagi dalam 2 minit.');
+    }
+    console.error('TTS 403', err); await refund();
+    throw new HttpsError('internal', 'Suara AI tidak dapat dijana.');
+  }
+  if (!r.ok) { console.error('TTS', r.status, await r.text()); await refund(); throw new HttpsError('internal', 'Suara AI tidak dapat dijana.'); }
+  const j = await r.json();
+  const left = a.uid === SUPER_UID ? 99999 : Math.max(0, TTS_DAY - (((await dayRef.get()).data()?.chars) || 0));
+  return { audio: j.audioContent, left };
+});
