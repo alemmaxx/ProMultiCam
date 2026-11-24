@@ -926,7 +926,7 @@ function initLang(){
   const nav=(navigator.language||'en').toLowerCase().slice(0,2);
   LANG=saved&&codes.includes(saved)?saved:(codes.includes(nav)?nav:'en');
   const sel=$('langSel');LANGS.forEach(([c,n])=>{const o=document.createElement('option');o.value=c;o.textContent=n;sel.appendChild(o);});
-  sel.value=LANG;sel.onchange=()=>{LANG=sel.value;try{localStorage.setItem('pmc_lang',LANG);}catch(e){}applyI18n();try{window.edRelang&&edRelang();}catch(e){}try{if($('subEd').classList.contains('show'))seStyUI();}catch(e){}};
+  sel.value=LANG;sel.onchange=()=>{LANG=sel.value;try{localStorage.setItem('pmc_lang',LANG);}catch(e){}applyI18n();try{window.edRelang&&edRelang();}catch(e){}try{if($('subEd').classList.contains('show'))seStyUI();}catch(e){}try{if($('studioHelp').classList.contains('show'))renderStudioHelp();if($('guide').classList.contains('show'))paintGuide();}catch(e){}};
 }
 /* install as web app */
 let deferredPrompt=null;
