@@ -8,9 +8,9 @@ const H=`
   <div class="topbar">
     <button class="icon-btn" aria-label="Close" onclick="edClose()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="t"><span class="k" data-i18n="edK"></span><span class="n" id="edName"></span></div>
-    <button class="btn btn-sm btn-gold" style="margin-left:auto" onclick="edExportAsk()" data-i18n="edExport"></button>
+    <button class="btn btn-sm btn-gold" onclick="edExportAsk()" data-i18n="edExport"></button>
   </div>
-  <div class="ed-body">
+  <div class="ed-top">
     <div class="ed-stage" id="edStage"><canvas id="edCv"></canvas></div>
     <div class="se-ctl">
       <button class="btn btn-sm btn-gold" id="edPlay" onclick="edToggle()" style="min-width:72px"></button>
@@ -18,8 +18,10 @@ const H=`
       <button class="btn btn-sm" onclick="edUndo()" data-i18n="edUndo"></button>
     </div>
     <div class="ed-tl" id="edTl"><div class="ed-thumbs" id="edThumbs"></div><div id="edSegs"></div><div class="ed-ph" id="edPh"></div></div>
-    <span class="hint" data-i18n="edTlHint"></span>
     <div class="ed-tabs" id="edTabs"></div>
+  </div>
+  <div class="ed-body">
+    <span class="hint" data-i18n="edTlHint"></span>
     <div class="ed-panel" id="edPanel"></div>
     <div class="se-prog" id="edProg"><div><i id="edBar"></i></div><span id="edProgTx"></span></div>
   </div>
@@ -28,9 +30,12 @@ const H=`
 const CSS=`
 .eds{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;flex-direction:column}
 .eds.show{display:flex}
-.ed-body{flex:1;overflow-y:auto;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+.ed-top{flex:0 0 auto;padding:8px 14px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);background:var(--bg)}
+.ed-top>*{flex-shrink:0}
+.ed-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+.eds .topbar .t{flex:1;min-width:0}.eds .topbar .n{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.eds .topbar .btn,.se-ctl .btn{flex-shrink:0;white-space:nowrap}
 .ed-body>*{flex-shrink:0}
-.ed-stage{flex:0 0 auto;height:40vh;display:flex;align-items:center;justify-content:center;background:#000;border-radius:14px;overflow:hidden}
+.ed-stage{flex:0 0 auto;height:34vh;display:flex;align-items:center;justify-content:center;background:#000;border-radius:14px;overflow:hidden}
 .ed-stage canvas{max-width:100%;max-height:100%;display:block}
 .ed-tl{position:relative;height:64px;border-radius:10px;overflow:hidden;background:#0e0e0f;touch-action:none;cursor:pointer}
 .ed-thumbs{position:absolute;inset:0;display:flex}.ed-thumbs img{flex:1;min-width:0;height:100%;object-fit:cover;opacity:.75}
@@ -51,6 +56,7 @@ const CSS=`
 let E=null; /* the open project */
 const st=document.createElement('style');st.textContent=CSS;document.head.appendChild(st);
 document.body.insertAdjacentHTML('beforeend',H);
+const edI18n=()=>{if(typeof t!=='function')return;document.querySelectorAll('#edScreen [data-i18n]').forEach(e=>{e.textContent=t(e.dataset.i18n);});};edI18n();
 const V=()=>document.getElementById('edVid'),CV=()=>document.getElementById('edCv'),G=id=>document.getElementById(id);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const fm=x=>{x=Math.max(0,x||0);const m=Math.floor(x/60),s=Math.floor(x%60);return m+':'+String(s).padStart(2,'0');};
@@ -453,8 +459,13 @@ function renderTl(){
   (E.p.sugs||[]).filter(g=>g.st==='new').forEach(g=>{const d=document.createElement('div');d.className='ed-seg sug';d.style.left=(g.a/E.dur*100)+'%';d.style.width=((g.b-g.a)/E.dur*100)+'%';d.style.borderLeft='0';box.appendChild(d);});
 }
 (function(){const tl=G('edTl');let down=false;
-  const go=e=>{if(!E)return;const r=tl.getBoundingClientRect(),x=clamp((e.clientX-r.left)/r.width,0,1)*E.dur;V().currentTime=x;if(!E.playing)setTimeout(drawAt,60);renderPanel();};
-  tl.addEventListener('pointerdown',e=>{down=true;tl.setPointerCapture(e.pointerId);go(e);});tl.addEventListener('pointermove',e=>{if(down)go(e);});tl.addEventListener('pointerup',()=>down=false);})();
+  /* one seek at a time (the next waits for the last to land), so dragging stays smooth */
+  let want=null,busy=false;const v=V();
+  const seek=()=>{if(want==null||busy)return;busy=true;const x=want;want=null;v.currentTime=x;};
+  v.addEventListener('seeked',()=>{busy=false;if(want!=null)seek();});
+  const go=e=>{if(!E)return;const r=tl.getBoundingClientRect(),x=clamp((e.clientX-r.left)/r.width,0,1)*E.dur;want=x;uiAt(x);seek();};
+  const end=()=>{if(!down)return;down=false;if(!E)return;setTimeout(()=>{if(!E)return;if(E.playing){const x=v.currentTime,s=segAt(x);dnStart(x,s?s.speed:1);musicPlay(x);sfxLastX=x;}else drawAt();renderPanel();},120);};
+  tl.addEventListener('pointerdown',e=>{down=true;tl.setPointerCapture(e.pointerId);go(e);});tl.addEventListener('pointermove',e=>{if(down)go(e);});tl.addEventListener('pointerup',end);tl.addEventListener('pointercancel',end);})();
 
 CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.stickers||[]).find(q=>q.id===E.sel);if(!sk)return;const r=CV().getBoundingClientRect();sk.x=clamp((e.clientX-r.left)/r.width,0,1);sk.y=clamp((e.clientY-r.top)/r.height,0,1);save();drawAt();});
 /* ---------- tools ---------- */
@@ -972,6 +983,11 @@ document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" o
   <div class="se-prog" id="joinProg"><div><i id="joinBar"></i></div><span id="joinTx"></span></div></div></div>`);
 window.G_=id=>document.getElementById(id);
 let joinSel=[];
+/* used by drafts: join the given parts in order, then offer to delete the parts */
+window.joinParts=function(items,name){
+  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
+  joinRun(items,name,ok=>{if(!ok)return;ask(t('draftDelT'),t('draftDelD',{n:items.length}),t('del'),async()=>{const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});});
+};
 window.openJoin=async function(){
   if(!isPro()){openPro();return;}
   const root=await recRoot();const items=[];for await(const [n,h] of root.entries()){if(h.kind!=='directory')continue;let done=false;for await(const [k] of h.entries())if(k==='_done')done=true;if(done)items.push({name:n,h});}
@@ -982,7 +998,7 @@ window.openJoin=async function(){
   G_('joinGo').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)));};
   G_('joinProg').classList.remove('show');paint();document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinBox').classList.add('show');
 };
-async function joinRun(list){
+async function joinRun(list,outName,after){
   const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');
   try{ensureAudio();if(actx.state==='suspended')await actx.resume();
     const vids=[];for(const it of list){const b=await savedBlob(it.h,mimeOf(it.name));const v=document.createElement('video');v.src=URL.createObjectURL(b);v.playsInline=true;v.preload='auto';await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});vids.push(v);}
@@ -991,7 +1007,7 @@ async function joinRun(list){
     vids.forEach(v=>{try{actx.createMediaElementSource(v).connect(dest);}catch(e){}});
     const out=c.captureStream(30);dest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
     const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm',rec=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:W*H>=1900000?8000000:5000000,audioBitsPerSecond:160000}:{});
-    const sv=new Saver(`Gabung_${stamp()}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
+    const sv=new Saver(`${outName||('Gabung_'+stamp())}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
     const tot=vids.reduce((a,v)=>a+(v.duration||0),0)||1;let done=0;
     const draw=v=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;g.fillStyle='#000';g.fillRect(0,0,W,H);
       if(Math.abs(vw/vh-W/H)>0.02){g.save();g.filter='blur(28px) brightness(0.55)';const kk=Math.max(W/vw,H/vh)*1.1;g.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);g.restore();}
@@ -1002,8 +1018,8 @@ async function joinRun(list){
         const f=()=>{if(fin)return;draw(v);const p=(done+v.currentTime)/tot;G_('joinBar').style.width=Math.round(p*100)+'%';G_('joinTx').textContent=t('seMaking',{n:Math.round(p*100)});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
       rec.pause();done+=v.duration||0;}
     rec.stop();await new Promise(r=>rec.onstop=r);const r=await sv.finish(rec.mimeType||mime||'video/webm');
-    vids.forEach(v=>URL.revokeObjectURL(v.src));G_('joinTx').textContent=t('seDone');toast(t('saved',{w:r.where}),5000);G_('joinBox').classList.remove('show');listSaved('files');
-  }catch(e){console.error('join',e);toast(t('seFail'),4000);}
+    vids.forEach(v=>URL.revokeObjectURL(v.src));G_('joinTx').textContent=t('seDone');toast(t('saved',{w:r.where}),5000);G_('joinBox').classList.remove('show');listSaved('files');if(after)after(true);
+  }catch(e){if(after)after(false);console.error('join',e);toast(t('seFail'),4000);}
   go.disabled=false;
 }
 window.addEventListener('pmc-lang',()=>{if(E)renderAll();});
