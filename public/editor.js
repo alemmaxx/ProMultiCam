@@ -48,6 +48,7 @@ const CSS=`
 .rng-h{position:absolute;top:-2px;bottom:-2px;width:26px;margin-left:-13px;pointer-events:auto;touch-action:none;cursor:ew-resize;display:flex;align-items:center;justify-content:center}
 .rng-h::before{content:'';width:12px;height:70%;border-radius:6px;background:var(--gold);box-shadow:0 0 0 2px #111}
 .rng-lb{position:absolute;top:-1px;transform:translateX(-50%);font-size:10px;font-weight:800;background:var(--gold);color:#111;border-radius:5px;padding:0 4px;white-space:nowrap;pointer-events:none}
+.bg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.bg-opt{display:flex;flex-direction:column;gap:4px;padding:4px;border-radius:12px;border:2px solid transparent;background:var(--card2);color:var(--ink);font:700 11px var(--f);cursor:pointer}.bg-opt i{display:block;aspect-ratio:3/4;border-radius:9px}.bg-opt.on{border-color:var(--gold)}
 .ed-more{border:1px solid var(--line);border-radius:12px;padding:8px 10px}.ed-more>summary{cursor:pointer;font-weight:700;color:var(--muted);font-size:13px;padding:4px 0}.ed-more[open]{display:flex;flex-direction:column;gap:10px}
 .ed-card.rsel{outline:2px solid var(--gold);outline-offset:1px}
 .ed-ph{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 4px #000;pointer-events:none}
@@ -480,9 +481,9 @@ function renderTl(){
 
 CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.stickers||[]).find(q=>q.id===E.sel);if(!sk)return;const r=CV().getBoundingClientRect();sk.x=clamp((e.clientX-r.left)/r.width,0,1);sk.y=clamp((e.clientY-r.top)/r.height,0,1);save();drawAt();});
 /* ---------- tools ---------- */
-const TABS=['tpl','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
+const TABS=['tpl','bg','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
 /* five simple groups; a group with more than one tool shows small chips underneath */
-const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker','cover']],['g_sound',['music','voice','sfx']],['g_look',['color','brand','fmt']]];
+const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker','cover']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
 function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(g=>g[1].includes(E.tab))||TGROUPS[0];
   const gr=document.createElement('div');gr.className='ed-grp';
   TGROUPS.forEach(([g,ks])=>{const x=document.createElement('button');x.textContent=t('edG_'+g);x.className=cur[0]===g?'on':'';x.onclick=()=>{if(cur[0]!==g){E.tab=(E.lastIn&&E.lastIn[g])||ks[0];renderTabs();renderPanel();}};gr.appendChild(x);});b.appendChild(gr);
@@ -597,6 +598,13 @@ function renderPanel(){
     /* everything else about a part is tucked away so the cut stays simple */
     {const d=document.createElement('details');d.className='ed-more';const sm=document.createElement('summary');sm.textContent=t('cutMore');d.appendChild(sm);
       d.open=!!E.cutMoreOpen;d.ontoggle=()=>{E.cutMoreOpen=d.open;};const kids=[...P.children].slice(startAdv);kids.forEach(n=>d.appendChild(n));P.appendChild(d);}
+  }
+  if(k==='bg'){
+    P.appendChild(hint(t('bgT')));
+    const g=document.createElement('div');g.className='bg-grid';
+    const opts=[['none',t('bg_none'),''],['blur',t('bg_blur'),'linear-gradient(135deg,#6a7a8a,#3a4450)'],['dark',t('bg_dark'),'#111']].concat(BG_IMGS.map(n=>['img:'+n,t('bgi_'+n),`url(${bgSrc(n)}) center/cover`]));
+    opts.forEach(([v,l,bgcss])=>{const b=document.createElement('button');b.type='button';b.className='bg-opt'+((E.p.bg||'none')===v?' on':'');b.innerHTML='<i></i><span></span>';b.querySelector('i').style.background=bgcss||'repeating-linear-gradient(45deg,#2a2a2d 0 8px,#1f1f21 8px 16px)';b.querySelector('span').textContent=l;b.onclick=()=>bgEnable(v);g.appendChild(b);});
+    P.appendChild(g);P.appendChild(hint(t('bgHint')));
   }
   if(k==='color'){
     const g=E.p.col=E.p.col||{b:0,c:0,s:0,t:0};
@@ -744,10 +752,6 @@ function renderPanel(){
     P.appendChild(row(hint(t('edFill')),sel([['blur',t('edFill_blur')],['black',t('edFill_black')]],E.p.fill,v=>{E.p.fill=v;save();drawAt();})));
     const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('edFollow');const i=cb.querySelector('input');i.checked=!!E.p.follow;
     i.onchange=()=>{if(i.checked&&!(E.p.track&&E.p.track.length)){trackSubject();}else{E.p.follow=i.checked;save();drawAt();}};P.appendChild(cb);P.appendChild(hint(t('edFollowHint')));
-    {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t('bgT')));
-      c.appendChild(row(sel([['none',t('bg_none')],['blur',t('bg_blur')],['dark',t('bg_dark')],['color',t('bg_color')]],E.p.bg||'none',v=>bgEnable(v)),
-        (E.p.bg==='color')?sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),E.p.bgCol||'gold',v=>{E.p.bgCol=v;save();drawAt();}):null));
-      c.appendChild(hint(t('bgHint')));P.appendChild(c);}
     {const c=document.createElement('div');c.className='ed-card';const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('fastT');const i=cb.querySelector('input');i.checked=fastOn();i.onchange=()=>{localStorage.setItem('pmc_fast',i.checked?'1':'0');};c.appendChild(cb);c.appendChild(hint(t('fastHint')));P.appendChild(c);}
   }
   if(k==='cover'){
@@ -828,6 +832,9 @@ async function needSeg(){
   try{window._edSeg=await m.ImageSegmenter.createFromOptions(fs,opt('GPU'));}catch(e){window._edSeg=await m.ImageSegmenter.createFromOptions(fs,opt('CPU'));}
 }
 let segTs=0;const BGC={};
+const BG_IMGS=['hills','beach','city','office','cafe','garden','studio','gold','dusk','kitchen','podcast'],BGIMG={};
+function bgSrc(n){return ['hills','dusk','kitchen','podcast'].includes(n)?`art/${n}.svg`:`art/bg/${n}.svg`;}
+function bgImg(n){let im=BGIMG[n];if(!im){im=BGIMG[n]=new Image();im.onload=()=>{if(E&&!E.playing)drawAt();};im.src=bgSrc(n);}return im;}
 function bgCanvas(k,w,h){let c=BGC[k];if(!c){c=BGC[k]=document.createElement('canvas');}if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return c;}
 /* person stays sharp; what is behind them is blurred, darkened or replaced by a colour */
 function bgProcess(v){
@@ -841,13 +848,14 @@ function bgProcess(v){
   const O=bgCanvas('o',w,h),og=O.getContext('2d'),b=E.p.bg;og.filter='none';
   if(b==='blur'){og.filter='blur(14px)';og.drawImage(v,-10,-10,w+20,h+20);og.filter='none';}
   else if(b==='dark'){og.drawImage(v,0,0,w,h);og.fillStyle='rgba(0,0,0,.7)';og.fillRect(0,0,w,h);}
+  else if(b&&b.startsWith('img:')){const im=bgImg(b.slice(4));og.fillStyle='#111';og.fillRect(0,0,w,h);if(im.complete&&im.naturalWidth){const kk=Math.max(w/im.naturalWidth,h/im.naturalHeight),iw=im.naturalWidth*kk,ih=im.naturalHeight*kk;og.drawImage(im,(w-iw)/2,(h-ih)/2,iw,ih);}}
   else{const col=(OV_COLORS[E.p.bgCol]||OV_COLORS.gold).c,gr=og.createLinearGradient(0,0,0,h);gr.addColorStop(0,col);gr.addColorStop(1,'#0e0e0f');og.fillStyle=gr;og.fillRect(0,0,w,h);}
   og.drawImage(P,0,0);return O;
 }
 async function bgEnable(mode){
   if(mode!=='none'&&!window._edSeg){const prog=G('edProg');prog.classList.add('show');G('edProgTx').textContent=t('bgLoading');G('edBar').style.width='30%';
     try{await needSeg();}catch(e){prog.classList.remove('show');toast(t('bgFail'),5000);E.p.bg='none';renderPanel();return;}prog.classList.remove('show');}
-  E.p.bg=mode;save();drawAt();renderPanel();
+  if(mode&&mode.startsWith('img:'))bgImg(mode.slice(4));E.p.bg=mode;save();drawAt();renderPanel();
 }
 /* RNNoise: AI noise removal of the original sound (runs on the phone, no upload) */
 async function needRnn(){
