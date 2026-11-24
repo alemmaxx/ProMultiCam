@@ -563,6 +563,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="codebox"><div><div class="hint" data-i18n="code"></div><big id="roomCode">------</big></div></div>
     <div id="connList" style="display:flex;flex-direction:column;gap:8px"></div>
     <button class="btn" id="localBtn" onclick="addLocalCam()" data-i18n="useLocal"></button>
+    <button class="btn" id="scrBtn" onclick="addScreen()" style="display:none"><span>🖥️</span><span data-i18n="scrAdd"></span></button>
     <span class="hint" style="line-height:1.5" data-i18n="connHint"></span>
   </div>
 </div>
@@ -738,6 +739,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="g3">
       <button class="btn" onclick="camFlip()" data-i18n="flip"></button>
       <button class="btn" id="torchBtn" onclick="camTorch()" data-i18n="torch"></button>
+      <button class="btn" id="camScrBtn" onclick="camScreen()" style="display:none" data-i18n="scrShare"></button>
       <button class="btn btn-danger" onclick="leave()" data-i18n="disconnect"></button>
     </div>
     <span class="hint" style="text-align:center;line-height:1.5"><span id="camAngleLbl"></span><br><span data-i18n="savedLine"></span></span>
@@ -1217,7 +1219,19 @@ function removeSrc(id){
   if(secId===id)secId=null;
   renderTiles();renderConnList();refreshAudio();sendLive();
 }
-function viaLabel(v){return v==='data'?t('data'):v==='local'?t('thisPhone'):'Wi-Fi';}
+function viaLabel(v){return v==='data'?t('data'):v==='local'?t('thisPhone'):v==='screen'?t('scrVia'):'Wi-Fi';}
+/* ---------- screen as an angle (computers only): share a screen, window or tab; add as many as needed ---------- */
+const CAN_SCREEN=!!(navigator.mediaDevices&&navigator.mediaDevices.getDisplayMedia)&&!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+let scrN=0;
+async function addScreen(){
+  if(!CAN_SCREEN){toast(t('scrNo'),5000);return;}
+  if(!isPro()&&sources.filter(x=>!x.local).length>=FREE_MAX){openPro();return;}
+  let st;try{st=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});}catch(e){return;}
+  scrN++;const id='scr'+scrN+'_'+Date.now(),s=getSrc(id,t('scrN',{n:scrN}));s.screen=true;s.via='screen';s.video._fit='contain';s.video.style.objectFit='contain';s.video.style.background='#000';
+  setStream(s,st);renderConnList();track('screen_add');
+  st.getVideoTracks()[0].addEventListener('ended',()=>{if(sources.some(x=>x.id===id))removeSrc(id);});
+}
+function stopScreen(id){const s=sources.find(x=>x.id===id);if(!s)return;try{s.stream.getTracks().forEach(tr=>tr.stop());}catch(e){}removeSrc(id);}
 function renderTiles(){
   const box=$('tiles');box.innerHTML='';
   $('camCount').textContent=t('camsLive',{n:sources.length});
@@ -1251,7 +1265,7 @@ function pick(id){
 }
 function sendLive(){logSwitch();sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
 function renderConnList(){
-  const box=$('connList');if(!box)return;box.innerHTML='';
+  const box=$('connList');if(!box)return;box.innerHTML='';if($('scrBtn'))$('scrBtn').style.display=CAN_SCREEN?'inline-flex':'none';
   if(!sources.length){box.innerHTML='<div class="hint">'+t('noCams')+'</div>';return;}
   sources.forEach(s=>{
     const d=document.createElement('div');d.className='item';
@@ -1259,8 +1273,8 @@ function renderConnList(){
     d.innerHTML=`<span class="dot ok"></span><div class="tx"><b></b><span>${s.stream?t('live'):t('loading')}</span></div><span class="chip ${chipCls}">${viaLabel(s.via)}</span>`;
     d.querySelector('b').textContent=s.name;
     if(!s.local&&s.caps&&s.caps.lock){const lk=document.createElement('button');lk.className='btn btn-sm'+(s.locked?' btn-gold':'');lk.textContent=s.locked?'🔒':'🔓';lk.setAttribute('aria-label',t('lockLbl'));lk.onclick=()=>{s.locked=!s.locked;try{s.conn.send({t:'lock',on:s.locked});}catch(e){}renderConnList();};d.appendChild(lk);}
-    {const f=document.createElement('button');f.className='btn btn-sm'+(s.rot?' btn-gold':'');f.textContent='⟳ '+(s.rot||0)+'°';f.setAttribute('aria-label',t('flipLbl'));f.onclick=()=>{s.rotManual=true;setRot(s,(s.rot||0)+90);renderConnList();};d.appendChild(f);}
-    if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
+    if(!s.screen){const f=document.createElement('button');f.className='btn btn-sm'+(s.rot?' btn-gold':'');f.textContent='⟳ '+(s.rot||0)+'°';f.setAttribute('aria-label',t('flipLbl'));f.onclick=()=>{s.rotManual=true;setRot(s,(s.rot||0)+90);renderConnList();};d.appendChild(f);}
+    if(!s.local){const x=document.createElement('button');x.className='btn btn-sm btn-danger';x.textContent=t('remove');x.onclick=()=>{if(s.screen){stopScreen(s.id);return;}try{s.conn&&s.conn.send({t:'kick'});s.call&&s.call.close();s.conn&&s.conn.close();}catch(e){}removeSrc(s.id);};d.appendChild(x);}
     box.appendChild(d);
   });
 }
@@ -1425,6 +1439,7 @@ function initTrans(){const s=$('transSel');if(s.options.length)return;
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
+  if(v._fit==='contain'){const k=Math.min(w/vw,h/vh)*(zoom||1),dw=vw*k,dh=vh*k;ctx.save();ctx.fillStyle='#000';ctx.fillRect(x,y,w,h);ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(v,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();return;}
   const rot=v._rot||0,swap=rot===90||rot===270,tw=swap?h:w,th=swap?w:h;
   let sw,sh;const r=tw/th;if(vw/vh>r){sh=vh;sw=vh*r;}else{sw=vw;sh=vw/r;}
   sw/=zoom;sh/=zoom;
@@ -2718,6 +2733,14 @@ function camCaps(){
 }
 async function camZoom(v){const t=sStream&&sStream.getVideoTracks()[0];if(!t)return;try{await t.applyConstraints({advanced:[{zoom:Number(v)}]});ccDo(t,'zoomed');$('camZoom').value=v;$('camZoomVal').textContent=Number(v).toFixed(1)+'×';}catch(e){}}
 async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk)return;sTorch=!sTorch;try{await trk.applyConstraints({advanced:[{torch:sTorch}]});}catch(e){sTorch=false;toast(t('torchFail'));}$('torchBtn').classList.toggle('on',sTorch);}
+let sScr=null;
+async function camSend(st){if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(s.track&&s.track.kind==='video'){const nt=st.getVideoTracks()[0];if(nt)await s.replaceTrack(nt);}}}
+async function camScreen(){
+  if(sScr){const old=sScr;sScr=null;old.getTracks().forEach(tr=>tr.stop());$('camVideo').srcObject=sStream;$('camVideo').style.objectFit='';await camSend(sStream);$('camScrBtn').classList.remove('on');$('camScrBtn').textContent=t('scrShare');tuneSender();return;}
+  let st;try{st=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:false});}catch(e){return;}
+  sScr=st;$('camVideo').srcObject=st;$('camVideo').style.objectFit='contain';await camSend(st);$('camScrBtn').classList.add('on');$('camScrBtn').textContent=t('scrBack');tuneSender();toast(t('scrSending'),4000);
+  st.getVideoTracks()[0].addEventListener('ended',()=>{if(sScr===st)camScreen();});
+}
 async function camFlip(){
   sFacing=sFacing==='environment'?'user':'environment';
   try{
@@ -2821,7 +2844,7 @@ async function startSlaveCam(target,via){
   show('slavecam');keepAwake();
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
-  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();
+  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();if($('camScrBtn'))$('camScrBtn').style.display=CAN_SCREEN?'inline-flex':'none';
   if(ccBeautyOn()){const tr=sStream&&sStream.getVideoTracks()[0];setTimeout(()=>ccBeauty(tr,$('camVideo')),300);}
   freeMB().then(f=>{if(f!=null&&f<600)toast(t('stoCam',{mb:Math.round(f)}),6000);});
   if(!$('slavecam')._cc){$('slavecam')._cc=1;$('slavecam').addEventListener('click',e=>{const tg=e.target;if(tg!==$('camVideo')&&tg!==$('slavecam'))return;const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;ccTapFocus($('camVideo'),e,(op,v)=>ccDo(tr,op,v),sFacing==='user');});}
