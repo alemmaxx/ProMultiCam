@@ -419,12 +419,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .dm .person{position:relative;overflow:hidden}.dm .person::before{content:'';position:absolute;left:50%;top:28%;width:28%;aspect-ratio:1;border-radius:50%;background:#e8c39e;transform:translateX(-50%)}.dm .person::after{content:'';position:absolute;left:50%;top:62%;width:60%;height:50%;border-radius:40% 40% 0 0;background:var(--shirt);transform:translateX(-50%)}
 .dm .talk{position:absolute;right:8px;top:10px;width:5px;height:5px;border-radius:99px;background:#5fb38c;animation:dmBeat 1s infinite}
 .dm .chip{position:absolute;left:6px;top:13%;z-index:4;background:#c8a45c;color:#17130b;font-size:8px;font-weight:800;border-radius:99px;padding:2px 6px}
-.dm .tp{position:absolute;inset:0;background:#070707;overflow:hidden}
+.dm .tp{position:absolute;inset:0;background:rgba(7,7,7,.55);overflow:hidden}
 .dm .tp div{position:absolute;left:0;right:0;padding:0 8px;color:#fff;font-size:10px;font-weight:700;line-height:1.5;text-align:center;animation:dmTp 8s linear infinite}
 .dm .tp::after{content:'';position:absolute;left:0;right:0;top:34%;height:1px;background:#c8a45c}
 @keyframes dmTp{0%{transform:translateY(60%)}100%{transform:translateY(-110%)}}
-.dm .list{position:absolute;inset:0;background:#171718;padding:10px 8px;display:flex;flex-direction:column;gap:5px}
-.dm .list span{display:block;border-radius:6px;background:#1f1f21;color:#c8c4bb;font-size:8px;font-weight:700;padding:5px 6px;border:1.5px solid transparent}
+.dm .list{position:absolute;inset:0;background:transparent;padding:10px 8px;display:flex;flex-direction:column;gap:5px}
+.dm .list span{display:block;border-radius:6px;background:rgba(23,23,24,.82);color:#c8c4bb;font-size:8px;font-weight:700;padding:5px 6px;border:1.5px solid transparent}
 .dm .list span.on{border-color:#c8a45c;color:#fff;animation:dmPick 4s infinite}
 @keyframes dmPick{0%,100%{background:#1f1f21}50%{background:#262117}}
 .imp-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.imp-row .btn{width:100%;text-align:center;justify-content:center}
@@ -1660,15 +1660,17 @@ function drawCardStyle(W,H,S,m,barH,title,price,phone,C){
 /* ================= STUDIO (Pro): templates, story mode, teleprompter, beat switch, title cards ================= */
 let introAt=0,outroAt=0,scenes=[],sceneIx=0;
 /* Studio help: short manual with animated example previews */
-const ANG=[['Kuali','radial-gradient(circle at 50% 50%,#c48a3e,#4a2f14 70%)','#f2d9a0'],['Atas','linear-gradient(160deg,#3d5a3a,#141d12)','#d9a45a'],['Sisi','linear-gradient(160deg,#5a3d22,#1b130b)','#9c6a2e']];
-function dmAngles(step,cyc){return ANG.map((a,i)=>`<div class="ang" style="--i:${i};--step:${step};--cyc:${cyc};background:${a[1]}"><div class="pan" style="width:${[70,50,60][i]}%;aspect-ratio:1;background:radial-gradient(circle,${a[2]},#2b1d12 70%)"></div><span class="lb">${esc(t('cam'))} ${i+1}</span></div>`).join('');}
+/* example pictures are our own drawings (art/*.svg): no outside images, nothing to license */
+const ART=n=>`url(art/${n}.svg) center/cover no-repeat`;
+const ANG=[ART('kitchen'),ART('food'),ART('hills')],ANG_DRAMA=[ART('dusk'),ART('hills'),ART('dusk')];
+function dmAngles(step,cyc,set){return (set||ANG).map((bg,i)=>`<div class="ang" style="--i:${i};--step:${step};--cyc:${cyc};background:${bg}${set===ANG_DRAMA&&i===2?';background-position:30% 70%;background-size:180%':''}"><span class="lb">${esc(t('cam'))} ${i+1}</span></div>`).join('');}
 const SH=[
-  {k:'cook',demo:()=>`<div class="dm">${dmAngles('3s','9s')}<div class="pip" style="background:linear-gradient(160deg,#4a4060,#15121d)"></div><div class="card end" style="--cyc:9s"><i></i>${esc(t('shOutroDemo'))}<small>RM5.00</small></div></div>`},
+  {k:'cook',demo:()=>`<div class="dm">${dmAngles('3s','9s')}<div class="pip" style="background:url(art/hills.svg) center/cover"></div><div class="card end" style="--cyc:9s"><i></i>${esc(t('shOutroDemo'))}<small>RM5.00</small></div></div>`},
   {k:'music',demo:()=>`<div class="dm cbars">${dmAngles('0.8s','2.4s')}<div class="beat"><i></i><i></i><i></i><i></i></div></div>`},
-  {k:'pod',demo:()=>`<div class="dm"><div class="split"><div class="person" style="--shirt:#3a5f9e;background:#1d2636"><span class="talk"></span></div><div class="person" style="--shirt:#9e3a5f;background:#261d2a"></div></div><div class="card" style="--cyc:8s"><i></i>${esc(t('shPodDemo'))}<small>${esc(t('shEp'))}</small></div></div>`},
-  {k:'drama',demo:()=>`<div class="dm cbars" style="filter:contrast(1.3) brightness(.85)">${dmAngles('3s','9s')}<span class="chip">${esc(t('sceneTag2',{n:1,k:2}))}</span></div>`},
-  {k:'story',demo:()=>`<div class="dm"><div class="list"><span>1. ${esc(t('shSc1'))}</span><span class="on">2. ${esc(t('shSc2'))}</span><span>3. ${esc(t('shSc3'))}</span><span style="background:transparent;color:#c8a45c">${esc(t('takeN',{n:3}))}</span></div></div>`},
-  {k:'tp',demo:()=>`<div class="dm"><div class="tp"><div>${esc(t('shTpDemo'))}</div></div></div>`},
+  {k:'pod',demo:()=>`<div class="dm"><div class="split"><div class="person" style="--shirt:#3a5f9e;background:url(art/podcast.svg) 20% 40%/220% no-repeat"><span class="talk"></span></div><div class="person" style="--shirt:#9e3a5f;background:url(art/podcast.svg) 90% 40%/220% no-repeat"></div></div><div class="card" style="--cyc:8s"><i></i>${esc(t('shPodDemo'))}<small>${esc(t('shEp'))}</small></div></div>`},
+  {k:'drama',demo:()=>`<div class="dm cbars" style="filter:contrast(1.15) brightness(.9)">${dmAngles('3s','9s',ANG_DRAMA)}<span class="chip">${esc(t('sceneTag2',{n:1,k:2}))}</span></div>`},
+  {k:'story',demo:()=>`<div class="dm" style="background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.6)),${ART('dusk')}"><div class="list"><span>1. ${esc(t('shSc1'))}</span><span class="on">2. ${esc(t('shSc2'))}</span><span>3. ${esc(t('shSc3'))}</span><span style="background:transparent;color:#c8a45c">${esc(t('takeN',{n:3}))}</span></div></div>`},
+  {k:'tp',demo:()=>`<div class="dm" style="background:${ART('kitchen')}"><div class="tp"><div>${esc(t('shTpDemo'))}</div></div></div>`},
   {k:'cards',demo:()=>`<div class="dm">${dmAngles('3s','9s')}<div class="card" style="--cyc:9s"><i></i>${esc(t('shTitleDemo'))}<small>${esc(t('shEp'))}</small></div><div class="card end" style="--cyc:9s"><i></i>${esc(t('outroDef'))}</div></div>`}
 ];
 const SH_TPL={cook:'cook',music:'music',pod:'pod',drama:'drama'};
@@ -2030,10 +2032,13 @@ function initDirectorExtras(){
   setLogo(lsGet('pmc_logo',''));
   if(logoImg&&lsGet('pmc_logo_v2','')!=='1'){const im=logoImg;im.onload=()=>{try{const d=processLogo(im,true);lsSet('pmc_logo',d);lsSet('pmc_logo_v2','1');setLogo(d);}catch(e){}};if(im.complete&&im.naturalWidth)im.onload();}
   $('logoPos').value=lsGet('pmc_logo_pos','tr');$('logoPos').onchange=()=>lsSet('pmc_logo_pos',$('logoPos').value);
-  $('logoDel').onclick=()=>{lsSet('pmc_logo','');setLogo('');};
+  $('logoDel').onclick=()=>{lsSet('pmc_logo','');lsSet('pmc_logo_src','');setLogo('');};
+  /* the untouched logo is kept too, so the background option can be switched on and off at any time */
+  $('optLogoBg').addEventListener('change',()=>{const src=lsGet('pmc_logo_src','');if(!src){if(logoImg)toast(t('logoReup'),5000);return;}
+    const im=new Image();im.onload=()=>{const d=processLogo(im,$('optLogoBg').checked);lsSet('pmc_logo',d);setLogo(d);toast(t('logoReady'));};im.src=src;try{saveSettings(true);}catch(e){}});
   $('logoFile').onchange=e=>{
     const f=e.target.files[0];if(!f)return;const r=new FileReader();
-    r.onload=()=>{const img=new Image();img.onload=()=>{const d=processLogo(img,$('optLogoBg').checked);lsSet('pmc_logo',d);lsSet('pmc_logo_v2','1');setLogo(d);track('logo_set');toast(t('logoReady'));};img.src=r.result;};
+    r.onload=()=>{const img=new Image();img.onload=()=>{const src=processLogo(img,false);try{lsSet('pmc_logo_src',src);}catch(e){}const d=$('optLogoBg').checked?processLogo(img,true):src;lsSet('pmc_logo',d);lsSet('pmc_logo_v2','1');setLogo(d);track('logo_set');toast(t('logoReady'));};img.src=r.result;};
     r.readAsDataURL(f);e.target.value='';
   };
   // recipe card fields

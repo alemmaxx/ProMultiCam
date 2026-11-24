@@ -43,7 +43,10 @@ h1{margin:0;font-size:clamp(40px,7vw,64px);line-height:1;letter-spacing:-1.5px;f
 .hero p{margin:0;font-size:18px;color:var(--sub);max-width:540px}
 .cta{display:flex;gap:10px;flex-wrap:wrap}
 .phone{flex:0 1 300px;margin:0 auto;aspect-ratio:9/18;border-radius:34px;border:2px solid var(--gold);background:#070707;position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
-.phone .main{position:absolute;inset:0;background:radial-gradient(ellipse 60% 30% at 50% 48%,#c9862f 0 60%,#2b2b2e 61% 72%,transparent 73%),#3a2a16}
+.phone .main{position:absolute;inset:0;background:url(art/kitchen.svg) center/cover no-repeat;animation:phSw 9s infinite}
+.phone .main::after{content:'';position:absolute;inset:0;background:url(art/food.svg) center/cover;opacity:0;animation:phFade 9s infinite}
+@keyframes phFade{0%,30%{opacity:0}36%,64%{opacity:1}70%,100%{opacity:0}}
+@keyframes phSw{0%{transform:scale(1)}100%{transform:scale(1.06)}}
 .phone .dots span{position:absolute;border-radius:50%}
 .phone .chip{position:absolute;top:18px;left:14px;background:rgba(14,14,15,.85);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--gold)}
 .phone .rec{position:absolute;top:18px;right:14px;background:#d9776b;color:#1a0705;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
@@ -98,9 +101,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
   </div>
   <div class="phone" aria-hidden="true">
     <div class="main"></div>
-    <div class="dots"><span style="left:38%;top:44%;width:22px;height:22px;background:#d8402f"></span><span style="left:54%;top:41%;width:18px;height:18px;background:#3f9b45"></span><span style="left:60%;top:49%;width:24px;height:24px;background:#f2c43d"></span></div>
     <span class="chip">Kuali · Sinematik</span><span class="rec">● REC 00:42</span>
-    <div class="strip"><i style="background:#3a2a16"></i><i style="background:#2c3a4f"></i><i style="background:#2f3b2c"></i></div>
+    <div class="strip"><i style="background:url(art/kitchen.svg) center/cover"></i><i style="background:url(art/food.svg) center/cover"></i><i style="background:url(art/hills.svg) center/cover"></i></div>
     <div class="btnr">■ 00:42</div>
   </div>
 </div></div>
