@@ -2099,9 +2099,9 @@ function getDraft(){try{const d=JSON.parse(lsGet('pmc_draft','null'));return d&&
 function setDraft(d){if(d)lsSet('pmc_draft',JSON.stringify(d));else{try{localStorage.removeItem('pmc_draft');}catch(e){}}}
 function saveDraft(){if(!recorder||recorder.state==='inactive')return;recToDraft=true;stopRec();}
 function paintDraft(){const b=$('draftBar');if(!b)return;const d=getDraft();if(!d||recActive()){b.classList.remove('show');return;}
-  b.innerHTML='<span></span><button class="btn btn-sm btn-gold" type="button"></button><button class="btn btn-sm" type="button" aria-label="x">✕</button>';
+  b.innerHTML='<span></span><button class="btn btn-sm btn-gold" type="button"></button><button class="btn btn-sm" type="button"></button><button class="btn btn-sm" type="button" aria-label="x">✕</button>';
   b.querySelector('span').textContent=t('draftBar',{n:d.parts.length,tm:fmt(Math.round(d.sec||0))});
-  const [go,x]=b.querySelectorAll('button');go.textContent=t('draftFinish');go.onclick=()=>{setDraft(null);finishDraft(d);paintDraft();};
+  const [cn,go,x]=b.querySelectorAll('button');cn.textContent='⏺ '+t('draftContBtn');cn.onclick=()=>toggleRec('cont');go.textContent=t('draftFinish');go.onclick=()=>{setDraft(null);finishDraft(d);paintDraft();};
   x.onclick=()=>ask(t('draftDropT'),t('draftDropD'),t('draftDrop'),()=>{setDraft(null);paintDraft();});b.classList.add('show');}
 async function finishDraft(d){
   const root=await recRoot();if(!root){toast(t('seFail'));return;}const items=[];
