@@ -1619,7 +1619,7 @@ function drawOverlays(W,H){
   const shop=PRO&&$('shopTxt')?$('shopTxt').value.trim():'',desc=PRO&&$('descTxt')?$('descTxt').value.trim():'';
   const st=ovStyle(),C=ovCol(),info=[price,phone?phoneLine(phone):''].filter(Boolean).join('  ·  ');
   if(!PRO)drawWatermark(W,H,S,m,barH);
-  const low=H-barH-Math.round(H*(P?0.1:0.05));   /* keep clear of on-screen buttons on phones */
+  const low=H-barH-m;   /* bottom items sit right at the bottom edge (one margin in) */
   ctx.textAlign='left';
   if(st==='band'){
     const bh=Math.round(S*0.17),y=low-bh;ctx.fillStyle='rgba(14,14,15,.9)';ctx.fillRect(0,y,W,bh);ctx.fillStyle=C.c;ctx.fillRect(0,y,W,Math.max(3,S*0.008));
@@ -1698,15 +1698,15 @@ function drawCardStyle(W,H,S,m,barH,title,price,phone,C){
   if(hasCard){
     const fs=Math.round(S/17),fs2=Math.round(S/24),pad=Math.round(fs*0.6);
     const cardW=W-m*2,cardH=pad*2+(title?fs*1.3:0)+(price?fs*1.55:0)+(phone?fs2*1.6:0);
-    card={fs,fs2,pad,x:m,w:cardW,h:cardH,y:H-barH-m-cardH-Math.round(H*(H>W?0.1:0.04))};
+    card={fs,fs2,pad,x:m,w:cardW,h:cardH,y:H-barH-m-cardH};
   }
+  /* a bottom logo sits in the very corner; the card moves up above it so they never overlap */
   if(logoOk()){
-    const pos=$('logoPos').value,big=Math.round(S*(hasCard&&pos[0]==='b'?0.24:0.2));
+    const pos=$('logoPos').value,big=Math.round(S*0.2);
     const ar=logoImg.naturalWidth/logoImg.naturalHeight;let lw=big,lh=Math.round(big/ar);if(lh>big*1.2){lh=Math.round(big*1.2);lw=Math.round(lh*ar);}
-    let x=pos[1]==='l'?m:W-m-lw,y;
+    const x=pos[1]==='l'?m:W-m-lw;let y;
     if(pos[0]==='t')y=m+barH+(title&&!hasCard?Math.round(S*0.13):0);
-    else if(card){y=card.y-Math.round(S*0.025)-lh;x=pos[1]==='l'?card.x+Math.round(card.pad*0.4):card.x+card.w-lw-Math.round(card.pad*0.4);}
-    else y=H-m-barH-lh-Math.round(H*(H>W?0.1:0.04));
+    else{y=H-barH-m-lh;if(card)card.y=y-Math.round(S*0.025)-card.h;}
     ctx.drawImage(logoImg,x,y,lw,lh);
   }
   if(card){
