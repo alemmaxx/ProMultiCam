@@ -339,7 +339,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .roles .role .tx b{letter-spacing:.3px}
 .roles .role .tx b{font-size:15px}.roles .role .tx span{font-size:12px;line-height:1.35}
 .tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:64px;padding:8px 4px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:700 11px var(--f);text-align:center;text-decoration:none;line-height:1.2}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:64px;min-width:0;padding:8px 4px;overflow:hidden;overflow-wrap:anywhere;hyphens:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:700 11px var(--f);text-align:center;text-decoration:none;line-height:1.2}
 .tool svg{color:var(--sub)}
 .tool-gold{background:var(--gold2);border-color:var(--gold);color:var(--gold)}.tool-gold svg{color:var(--gold)}
 @media (max-height:680px){#home .hero p{display:none}}
@@ -486,11 +486,11 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="tools">
       <button class="tool tool-gold" id="adminBtn" style="display:none" onclick="openAdmin()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Admin</span></button>
       <button class="tool tool-gold" id="installBtn" style="display:none" onclick="doInstall()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span data-i18n="install"></span></button>
-      <button class="tool tool-gold" onclick="openPro()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span data-i18n="subT"></span></button>
+      <button class="tool tool-gold" onclick="openPro()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg><span data-i18n="subTile"></span></button>
       <button class="tool" onclick="runTest()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="testBtn"></span></button>
       <button class="tool" onclick="openSupport()" style="position:relative"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="support"></span><span class="dotu" id="supDot" style="display:none;position:absolute;top:8px;right:10px"></span></button>
       <button class="tool" onclick="openGuide()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span data-i18n="guide"></span></button>
-      <button class="tool" onclick="openAbout()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="about"></span></button>
+      <button class="tool" onclick="openAbout()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="aboutTile"></span></button>
     </div>
     <span class="hint" id="iosHint" style="display:none;text-align:center" data-i18n="installIos"></span>
   </div>
@@ -2191,7 +2191,7 @@ function applyTier(){
   try{updateSceneTag();}catch(e){}
   renderAcctBtn();
 }
-function fitTools(){const n=[...document.querySelectorAll('.tools .tool')].filter(e=>e.style.display!=='none').length;const tl=document.querySelector('.tools');if(tl)tl.style.gridTemplateColumns=`repeat(${Math.min(Math.max(n,1),5)},minmax(0,1fr))`;}
+function fitTools(){const n=[...document.querySelectorAll('.tools .tool')].filter(e=>e.style.display!=='none').length;const tl=document.querySelector('.tools');if(tl)tl.style.gridTemplateColumns=`repeat(${n<=4?Math.max(n,1):n<=6?3:4},minmax(0,1fr))`;}
 function isAdmin(){return !!(window.PMC&&PMC.isAdmin&&PMC.isAdmin());}
 /* ---------- Super Admin notifications ---------- */
 let notifItems=[],notifKnown=null,npopTarget='support';
