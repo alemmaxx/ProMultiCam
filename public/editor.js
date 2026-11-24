@@ -491,7 +491,7 @@ function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(
 function btn(label,fn,cls){const b=document.createElement('button');b.className='btn btn-sm '+(cls||'');b.textContent=label;b.onclick=fn;return b;}
 /* ---------- pick times on the strip (like other editors): tap 📍, then drag the gold handles on the timeline ---------- */
 function selRange(o,mode,list){E.rsel={o,mode,list};renderRange();renderPanel();toast(t(mode==='range'?'rngHint':'rngHint1'),3500);}
-function rselAlive(){const r=E&&E.rsel;if(!r)return false;if(r.list==='_cut')return r.o===E.cutSel&&E.tab==='cut';return (E.p[r.list]||[]).includes(r.o);}
+function rselAlive(){const r=E&&E.rsel;if(!r)return false;if(r.list==='_cut')return r.o===E.cutSel&&E.tab==='cut';if(r.list==='_tts')return r.o===E.ttsPos&&E.tab==='voice';return (E.p[r.list]||[]).includes(r.o);}
 function renderRange(){const L=G('edRng');if(!L)return;if(!rselAlive()||!E.dur){L.classList.remove('on');L.innerHTML='';return;}
   const {o,mode}=E.rsel,D=E.dur,pc=x=>(clamp(x,0,D)/D*100)+'%';L.classList.add('on');L.innerHTML='';
   const a=mode==='range'?o.s:o.t,b=mode==='range'?o.e:mode==='len'?o.t+(o.d||0):null;
@@ -708,15 +708,18 @@ function renderPanel(){
       const vs=sel([['ms-F',t('tts_msF')],['ms-M',t('tts_msM')],['ms-F2',t('tts_msF2')],['ms-M2',t('tts_msM2')],['en-F',t('tts_enF')],['en-M',t('tts_enM')],['id-F',t('tts_idF')],['id-M',t('tts_idM')]],E.ttsVoice||lsGet('pmc_tts_v','ms-F'),v=>{E.ttsVoice=v;lsSet('pmc_tts_v',v);});
       c.appendChild(row(vs,cnt));
       E.ttsRate=E.ttsRate||1;c.appendChild(row(hint(t('ttsRate')),range(0.75,1.35,E.ttsRate,v=>{E.ttsRate=v;},0.05)));
+      /* where the voice starts: a gold handle on the strip, like text */
+      if(!E.ttsPos)E.ttsPos={t:+V().currentTime.toFixed(2)};if(!E.rsel||E.rsel.list!=='_tts'&&!(E.rsel.list==='voices'))E.rsel={o:E.ttsPos,mode:'point',list:'_tts'};
+      c.appendChild(row(hint(t('ttsAt')),btn('📍 '+fm1(E.ttsPos.t),()=>{E.rsel={o:E.ttsPos,mode:'point',list:'_tts'};renderRange();renderPanel();toast(t('rngHint1'),3000);},E.rsel&&E.rsel.o===E.ttsPos?'btn-gold':'')));
       const go=btn(t('ttsGo'),async()=>{const txt=ta.value.trim();if(!txt){toast(t('ttsEmpty'));return;}
         if(!isPro()){openPro();return;}if(!window.PMC||!PMC.tts){toast(t('eGeneric'));return;}
         go.disabled=true;go.textContent=t('ttsBusy');
         try{const r=await PMC.tts({text:txt,voice:E.ttsVoice||lsGet('pmc_tts_v','ms-F'),rate:E.ttsRate});
           const bin=atob(r.audio),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const blob=new Blob([u8],{type:'audio/mpeg'});
           const dur=await new Promise(res=>{const a=new Audio();a.preload='metadata';a.onloadedmetadata=()=>{res(a.duration);URL.revokeObjectURL(a.src);};a.onerror=()=>res(3);a.src=URL.createObjectURL(blob);});
-          const id='tts_'+Date.now()+'.mp3',st=V().currentTime,vc={id,t:+st.toFixed(2),d:+Math.max(0.3,isFinite(dur)?dur:3).toFixed(2),tts:1};
+          const id='tts_'+Date.now()+'.mp3',st=E.ttsPos?E.ttsPos.t:V().currentTime,vc={id,t:+st.toFixed(2),d:+Math.max(0.3,isFinite(dur)?dur:3).toFixed(2),tts:1};
           try{const dir=await voiceDir();const fh=await dir.getFileHandle(id,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();}catch(e){}
-          snap();E.p.voices.push(vc);mkVoiceEl(vc,blob);save();toast(t('ttsDone',{n:r.left}),4000);E.ttsDraft='';E.rsel={o:vc,mode:'len',list:'voices'};renderRange();renderPanel();
+          snap();E.p.voices.push(vc);mkVoiceEl(vc,blob);save();toast(t('ttsDone',{n:r.left}),4000);E.ttsDraft='';E.ttsPos=null;E.rsel={o:vc,mode:'len',list:'voices'};renderRange();renderPanel();
         }catch(e){toast((e&&e.message)||t('eGeneric'),6000);go.disabled=false;go.textContent=t('ttsGo');}
       },'btn-gold');c.appendChild(row(go));c.appendChild(hint(t('ttsHint')));P.appendChild(c);}
     P.appendChild(row(btn(E.vrec?t('edVoStop'):t('edVoRec'),()=>{if(E.vrec)stopVoiceRec();else startVoiceRec();},E.vrec?'btn-danger':'btn-gold')));
