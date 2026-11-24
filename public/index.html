@@ -152,6 +152,10 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .sheet{background:var(--card);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:18px 16px;padding-bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;max-height:85vh;overflow-y:auto}
 .sheet h3{margin:0;font-size:17px;font-weight:800}
 #styleSheet .sheet>*{flex-shrink:0}
+#lbgGrid,#ffxGrid{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none}#lbgGrid::-webkit-scrollbar,#ffxGrid::-webkit-scrollbar{display:none}
+#lbgGrid .bg-opt,#ffxGrid .bg-opt{flex:0 0 58px;padding:3px;gap:2px;font-size:9.5px;line-height:1.1;text-align:center}
+#lbgGrid .bg-opt i{aspect-ratio:auto;height:46px}#ffxGrid .bg-opt i{aspect-ratio:auto!important;height:40px;font-size:22px!important}
+#lbgGrid .bg-opt span,#ffxGrid .bg-opt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:12px;padding:12px}
 .item .tx{display:flex;flex-direction:column;flex:1;min-width:0}
 .item .tx b{font-size:15px}
@@ -1503,28 +1507,33 @@ function initTrans(){const s=$('transSel');if(s.options.length)return;
 let liveBg=lsGet('pmc_livebg','none'),lbgTs=0,lbgAt=0;const LBG={};
 function lbgCv(k,w,h){let c=LBG[k];if(!c)c=LBG[k]=document.createElement('canvas');if(c.width!==w||c.height!==h){c.width=w;c.height=h;}return c;}
 function lbgImg(n){let im=LBG['i'+n];if(!im){im=LBG['i'+n]=new Image();im.src=window.PMC_BG?PMC_BG.src(n):'';}return im;}
+/* small copy of the main picture for the AI (it works at ~256px anyway) — shared by background and face stickers */
+function lbgSmall(m,W,H,w){const now=performance.now(),h=Math.max(8,Math.round(w*H/W)),k='s'+w,C=lbgCv(k,w,h);
+  if(LBG[k+'t']&&now-LBG[k+'t']<25)return C;LBG[k+'t']=now;
+  const keep=ctx;ctx=C.getContext('2d');try{ctx.filter='none';drawCover(m.video,0,0,w,h,dz(m));}finally{ctx=keep;}return C;}
 function drawLiveBg(m,X,Y,W,H){
-  W=Math.round(W);H=Math.round(H);const V=lbgCv('v',W,H),vg=V.getContext('2d');
-  {const keep=ctx;ctx=vg;try{ctx.filter='none';drawCover(m.video,0,0,W,H,dz(m));}finally{ctx=keep;}}
-  const now=performance.now();
-  if(now-lbgAt>66||!LBG.m){lbgAt=now;try{lbgTs=Math.max(lbgTs+1,Math.round(now));const r=window._edSeg.segmentForVideo(V,lbgTs),mk=r.confidenceMasks&&r.confidenceMasks[0];
-    if(mk){const mw=mk.width,mh=mk.height,f=mk.getAsFloat32Array(),mc=lbgCv('m',mw,mh),mg=mc.getContext('2d'),id=mg.createImageData(mw,mh);
-      for(let i=0;i<f.length;i++){const a=f[i];id.data[i*4+3]=a>0.65?255:a<0.3?0:Math.round((a-0.3)/0.35*255);}mg.putImageData(id,0,0);LBG.m=mc;}
+  drawCover(m.video,X,Y,W,H,dz(m));
+  const now=performance.now();let upd=false;
+  if((now-lbgAt>110&&now-ffAt>30)||!LBG.m){lbgAt=now;try{const S=lbgSmall(m,W,H,256);lbgTs=Math.max(lbgTs+1,Math.round(now));const r=window._edSeg.segmentForVideo(S,lbgTs),mk=r.confidenceMasks&&r.confidenceMasks[0];
+    if(mk){const mw=mk.width,mh=mk.height,f=mk.getAsFloat32Array(),mc=lbgCv('m',mw,mh),mg=mc.getContext('2d');let id=LBG.id;if(!id||id.width!==mw||id.height!==mh)id=LBG.id=mg.createImageData(mw,mh);const D=id.data;
+      for(let i=0,n=f.length;i<n;i++){const a=f[i];D[i*4+3]=a>0.65?255:a<0.3?0:((a-0.3)*728)|0;}mg.putImageData(id,0,0);LBG.m=mc;upd=true;}
     r.close&&r.close();}catch(e){}}
-  const F=ctx.filter;ctx.filter='none';
-  if(liveBg==='blur'){const sm=lbgCv('s',Math.max(8,W>>4),Math.max(8,H>>4));sm.getContext('2d').drawImage(V,0,0,sm.width,sm.height);ctx.imageSmoothingQuality='high';ctx.drawImage(sm,X,Y,W,H);}
-  else{const im=lbgImg(liveBg);ctx.fillStyle='#111';ctx.fillRect(X,Y,W,H);if(im.complete&&im.naturalWidth){const k=Math.max(W/im.naturalWidth,H/im.naturalHeight),iw=im.naturalWidth*k,ih=im.naturalHeight*k;ctx.save();ctx.beginPath();ctx.rect(X,Y,W,H);ctx.clip();ctx.drawImage(im,X+(W-iw)/2,Y+(H-ih)/2,iw,ih);ctx.restore();}}
-  ctx.filter=F;
-  if(LBG.m){const P=lbgCv('p',W,H),pg=P.getContext('2d');pg.globalCompositeOperation='source-over';pg.clearRect(0,0,W,H);pg.drawImage(V,0,0);pg.globalCompositeOperation='destination-in';pg.drawImage(LBG.m,0,0,W,H);pg.globalCompositeOperation='source-over';ctx.drawImage(P,X,Y);}
-  else ctx.drawImage(V,X,Y);
+  if(!LBG.m)return;
+  const q=liveBg==='blur'?4:2,lw=Math.max(8,Math.round(W/q)),lh=Math.max(8,Math.round(H/q)),Lc=lbgCv('L',lw,lh),lg=Lc.getContext('2d'),key=liveBg+lw+'x'+lh;
+  if(liveBg==='blur'||upd||LBG.lk!==key){
+    const im=liveBg==='blur'?null:lbgImg(liveBg);if(im&&!(im.complete&&im.naturalWidth))return;
+    LBG.lk=key;lg.globalCompositeOperation='source-over';lg.clearRect(0,0,lw,lh);
+    if(im){const k=Math.max(lw/im.naturalWidth,lh/im.naturalHeight),iw=im.naturalWidth*k,ih=im.naturalHeight*k;lg.drawImage(im,(lw-iw)/2,(lh-ih)/2,iw,ih);}
+    else{const b=lbgSmall(m,W,H,24);lg.imageSmoothingEnabled=true;lg.imageSmoothingQuality='high';lg.drawImage(b,0,0,lw,lh);}
+    lg.globalCompositeOperation='destination-out';lg.drawImage(LBG.m,0,0,lw,lh);lg.globalCompositeOperation='source-over';}
+  const F=ctx.filter;ctx.filter='none';ctx.drawImage(Lc,X,Y,W,H);ctx.filter=F;
 }
 /* ---------- face stickers (AI, live): follow each face while recording ---------- */
 let faceFx=lsGet('pmc_facefx','none'),ffTs=0,ffAt=0,ffFaces=[],ffSeen=0;
 const FFX=[['mus','🥸'],['shades','😎'],['mask','🎭'],['clown','🤡'],['cat','🐱'],['crown','👑']];
 function drawFaceFx(m,X,Y,W,H){
   const now=performance.now();
-  if(now-ffAt>90){ffAt=now;try{const w=Math.min(360,Math.round(W)),h=Math.max(8,Math.round(w*H/W)),C=lbgCv('f',w,h),g=C.getContext('2d');
-    {const keep=ctx;ctx=g;try{ctx.filter='none';drawCover(m.video,0,0,w,h,dz(m));}finally{ctx=keep;}}
+  if(now-ffAt>120&&now-lbgAt>30){ffAt=now;try{const C=lbgSmall(m,W,H,256);
     ffTs=Math.max(ffTs+1,Math.round(now));const r=window._faceLm.detectForVideo(C,ffTs),L=(r&&r.faceLandmarks)||[];
     if(L.length){ffSeen=now;ffFaces=L.map((lm,i)=>{const P=k=>({x:lm[k].x,y:lm[k].y}),f={eL:mid(P(33),P(133)),eR:mid(P(362),P(263)),nose:P(1),sub:P(2),lip:P(0),top:P(10)},o=ffFaces[i];
       if(o)for(const k in f){f[k].x=o[k].x+(f[k].x-o[k].x)*.6;f[k].y=o[k].y+(f[k].y-o[k].y)*.6;}return f;});}

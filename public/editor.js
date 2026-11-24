@@ -835,7 +835,7 @@ async function needFace(){
   if(window._faceLm)return;
   const m=await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`);
   const fs=await m.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`);
-  const opt=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',delegate:d},runningMode:'VIDEO',numFaces:3});
+  const opt=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',delegate:d},runningMode:'VIDEO',numFaces:2});
   try{window._faceLm=await m.FaceLandmarker.createFromOptions(fs,opt('GPU'));}catch(e){window._faceLm=await m.FaceLandmarker.createFromOptions(fs,opt('CPU'));}
 }
 let segTs=0;const BGC={};
