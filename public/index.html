@@ -500,7 +500,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       <button class="tool" onclick="openVideos()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span data-i18n="vidTile"></span></button>
       <button class="tool" onclick="runTest()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span data-i18n="testBtn"></span></button>
       <button class="tool" onclick="openSupport()" style="position:relative"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="support"></span><span class="dotu" id="supDot" style="display:none;position:absolute;top:8px;right:10px"></span></button>
-      <button class="tool" onclick="openGuide()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span data-i18n="guide"></span></button>
+      <button class="tool" onclick="openManual()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span data-i18n="manT"></span></button>
       <button class="tool" onclick="openAbout()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="aboutTile"></span></button>
     </div>
     <span class="hint" id="iosHint" style="display:none;text-align:center" data-i18n="installIos"></span>
@@ -611,8 +611,8 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       </div>
       <label class="check adv"><input type="checkbox" id="optLogoBg" checked><span data-i18n="logoBgOpt"></span></label>
       <label class="lbl adv"><span data-i18n="logoPos"></span><select class="input" id="logoPos"><option value="tr" data-i18n="posTR"></option><option value="tl" data-i18n="posTL"></option><option value="br" data-i18n="posBR"></option><option value="bl" data-i18n="posBL"></option></select></label>
-      <label class="lbl"><span data-i18n="price"></span><input class="input" id="priceTxt" maxlength="20" data-i18n-ph="pricePh"></label>
-      <label class="lbl"><span data-i18n="phone"></span><input class="input" id="phoneTxt" maxlength="24" inputmode="tel" data-i18n-ph="phonePh"></label>
+      <label class="lbl"><span data-i18n="price"></span><input class="input" id="priceTxt" maxlength="40" data-i18n-ph="pricePh"></label>
+      <label class="lbl"><span data-i18n="phone"></span><input class="input" id="phoneTxt" maxlength="40" data-i18n-ph="phonePh"></label>
     </div>
     <div class="subsec pro-only">
       <div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div>
@@ -945,7 +945,7 @@ function initLang(){
   const nav=(navigator.language||'en').toLowerCase().slice(0,2);
   LANG=saved&&codes.includes(saved)?saved:(codes.includes(nav)?nav:'en');
   const sel=$('langSel');LANGS.forEach(([c,n])=>{const o=document.createElement('option');o.value=c;o.textContent=n;sel.appendChild(o);});
-  sel.value=LANG;sel.onchange=()=>{LANG=sel.value;try{localStorage.setItem('pmc_lang',LANG);}catch(e){}applyI18n();try{window.edRelang&&edRelang();}catch(e){}try{if($('subEd').classList.contains('show'))seStyUI();}catch(e){}try{if($('studioHelp').classList.contains('show'))renderStudioHelp();if($('guide').classList.contains('show'))paintGuide();}catch(e){}};
+  sel.value=LANG;sel.onchange=()=>{LANG=sel.value;try{localStorage.setItem('pmc_lang',LANG);}catch(e){}applyI18n();try{window.edRelang&&edRelang();}catch(e){}try{if($('subEd').classList.contains('show'))seStyUI();}catch(e){}try{window.manualRelang&&manualRelang();if($('studioHelp').classList.contains('show'))renderStudioHelp();if($('guide').classList.contains('show'))paintGuide();}catch(e){}};
 }
 /* install as web app */
 let deferredPrompt=null;
@@ -1588,6 +1588,8 @@ function fT(px){const f=OV_FONTS[ovFontKey()];return `${f.w} ${Math.round(px)}px
 function fI(px,w){const f=OV_FONTS[ovFontKey()];const g=f.script?OV_FONTS.poppins:f;return `${w||g.w} ${Math.round(px)}px ${g.fam},"Bricolage Grotesque",sans-serif`;}
 function capT(x){return OV_FONTS[ovFontKey()].caps?x.toUpperCase():x;}
 function loadOvFont(){const f=OV_FONTS[ovFontKey()];try{document.fonts.load(`${f.w} 40px ${f.fam}`);document.fonts.load(`700 40px Poppins`);}catch(e){}}
+/* the contact line: a phone number gets "Order:" in front; any other words are shown as typed */
+function phoneLine(p){p=String(p||'').trim();return /^[+\d][\d\s\-()+.]{5,}$/.test(p)&&(p.match(/\d/g)||[]).length>=7?t('orderVia',{p}):p;}
 function renderOvUI(){
   const g=$('ovGrid');if(!g)return;const cur=$('ovStyle').value||'card';
   if(!g.children.length){OV_STYLES.forEach((k,i)=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.innerHTML='<b></b><span></span>';b.onclick=()=>{$('ovStyle').value=k;const f=$('ovFont');if(!f.dataset.touched)f.value=OV_DEF_FONT[k];renderOvUI();loadOvFont();};g.appendChild(b);});
@@ -1596,6 +1598,7 @@ function renderOvUI(){
     fs.onchange=()=>{fs.dataset.touched='1';loadOvFont();};}
   [...g.children].forEach((b,i)=>{const k=b.dataset.k;b.classList.toggle('on',k===cur);b.querySelector('b').textContent=(i+1)+'. '+t('ov_'+k);b.querySelector('span').textContent=t('ovd_'+k);});
   [...$('ovColors').children].forEach(b=>b.classList.toggle('on',b.dataset.k===($('ovColor').value||'gold')));
+  {const lp=$('logoPos');if(lp){const std=cur==='card';lp.disabled=!std;lp.title=std?'':t('logoPosStd');const lb=lp.closest('label');if(lb){lb.style.opacity=std?'':'.5';let h=lb.querySelector('.lp-h');if(!h){h=document.createElement('span');h.className='hint lp-h';lb.appendChild(h);}h.textContent=std?'':t('logoPosStd');}}}
   [...$('ovFont').options].forEach(o=>o.textContent=t('font_'+o.value));if(!$('ovFont').value)$('ovFont').value='bricolage';
   $('shopRow').style.display=['band','menu','minimal','polaroid','gold','panel'].includes(cur)?'flex':'none';
   $('descRow').style.display=cur==='panel'?'flex':'none';$('menuRow').style.display=cur==='menu'?'flex':'none';$('spkHint').style.display=cur==='speaker'?'block':'none';
@@ -1615,7 +1618,7 @@ function drawOverlays(W,H){
   const S=Math.min(W,H),m=Math.round(S*0.045),barH=look.bars?Math.round(H*0.08):0,PRO=isPro(),P=H>W;
   const title=$('titleTxt').value.trim(),price=PRO?$('priceTxt').value.trim():'',phone=PRO?$('phoneTxt').value.trim():'';
   const shop=PRO&&$('shopTxt')?$('shopTxt').value.trim():'',desc=PRO&&$('descTxt')?$('descTxt').value.trim():'';
-  const st=ovStyle(),C=ovCol(),info=[price,phone?t('orderVia',{p:phone}):''].filter(Boolean).join('  ·  ');
+  const st=ovStyle(),C=ovCol(),info=[price,phone?phoneLine(phone):''].filter(Boolean).join('  ·  ');
   if(!PRO)drawWatermark(W,H,S,m,barH);
   const low=H-barH-Math.round(H*(P?0.1:0.05));   /* keep clear of on-screen buttons on phones */
   ctx.textAlign='left';
@@ -1630,7 +1633,7 @@ function drawOverlays(W,H){
     if(price){const r=Math.round(S*0.14),cx=W-m-r,cy=m+barH+r;ctx.save();ctx.translate(cx,cy);ctx.rotate(-0.17);ctx.fillStyle=C.c;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
       ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.font=fI(r*0.26,800);ctx.fillText(t('ovPromo'),0,-r*0.28);ctx.font=fT(r*0.5);ctx.fillText(fitText(capT(price),r*1.7),0,r*0.32);ctx.restore();}
     ctx.save();shadowOn(S);ctx.fillStyle='#fff';ctx.font=fT(S/12);ctx.fillText(fitText(capT(title),W-m*2),m,low-(phone?S*0.08:0));
-    if(phone){ctx.font=fI(S/24);ctx.fillText(fitText(t('orderVia',{p:phone}),W-m*2),m,low);}ctx.restore();return;
+    if(phone){ctx.font=fI(S/24);ctx.fillText(fitText(phoneLine(phone),W-m*2),m,low);}ctx.restore();return;
   }
   if(st==='menu'){
     drawLogoAt(W-m-Math.round(S*0.18),m+barH,Math.round(S*0.18));
@@ -1639,13 +1642,13 @@ function drawOverlays(W,H){
     ctx.fillStyle='rgba(14,14,15,.88)';rr(m,y,w,h,fs*0.6);ctx.fill();ctx.strokeStyle=C.c;ctx.lineWidth=Math.max(2,S*0.004);rr(m,y,w,h,fs*0.6);ctx.stroke();
     let cy=y+pad+fs;ctx.fillStyle=C.c;ctx.font=fT(fs*1.05);ctx.fillText(fitText(capT(shop||t('ovMenu')),w-pad*2),m+pad,cy);cy+=fs*1.4;
     items.forEach(([n,pr])=>{ctx.fillStyle='#fff';ctx.font=fI(fs,600);ctx.textAlign='left';ctx.fillText(fitText(n,w*0.62),m+pad,cy);ctx.textAlign='right';ctx.fillStyle=C.c;ctx.font=fI(fs,800);ctx.fillText(pr,m+w-pad,cy);cy+=rowH;});
-    if(phone){ctx.textAlign='left';ctx.fillStyle='#c8c4bb';ctx.font=fI(fs*0.85,600);ctx.fillText(fitText(t('orderVia',{p:phone}),w-pad*2),m+pad,cy);}return;
+    if(phone){ctx.textAlign='left';ctx.fillStyle='#c8c4bb';ctx.font=fI(fs*0.85,600);ctx.fillText(fitText(phoneLine(phone),w-pad*2),m+pad,cy);}return;
   }
   if(st==='flash'){
     const bh=Math.round(S*0.11);ctx.fillStyle=C.c;ctx.fillRect(0,barH,W,bh);ctx.fillStyle=C.ink;ctx.textAlign='center';ctx.font=fT(bh*0.5);
     ctx.fillText(fitText(capT(t('ovFlash')+(price?'  ·  '+price:'')),W-m*2),W/2,barH+bh*0.68);
     ctx.font=fI(S/30,700);const tg=t('ovStock'),tw=ctx.measureText(tg).width+S*0.04;ctx.fillStyle='rgba(14,14,15,.85)';rr(W-m-tw,barH+bh+m*0.5,tw,S*0.06,S*0.015);ctx.fill();ctx.fillStyle=C.c==='#ffffff'?'#c8a45c':C.c;ctx.fillText(tg,W-m-tw/2,barH+bh+m*0.5+S*0.042);
-    const ch=Math.round(S*0.12),cy=low-ch;ctx.fillStyle=C.c;rr(m,cy,W-m*2,ch,ch*0.25);ctx.fill();ctx.fillStyle=C.ink;ctx.font=fI(ch*0.36,800);ctx.fillText(fitText(phone?t('orderVia',{p:phone}):(title||''),W-m*4),W/2,cy+ch*0.63);
+    const ch=Math.round(S*0.12),cy=low-ch;ctx.fillStyle=C.c;rr(m,cy,W-m*2,ch,ch*0.25);ctx.fill();ctx.fillStyle=C.ink;ctx.font=fI(ch*0.36,800);ctx.fillText(fitText(phone?phoneLine(phone):(title||''),W-m*4),W/2,cy+ch*0.63);
     if(title&&phone){ctx.save();shadowOn(S);ctx.fillStyle='#fff';ctx.font=fT(S/13);ctx.fillText(fitText(capT(title),W-m*2),W/2,cy-S*0.04);ctx.restore();}
     ctx.textAlign='left';return;
   }
@@ -1714,7 +1717,7 @@ function drawCardStyle(W,H,S,m,barH,title,price,phone,C){
     if(title){ctx.font=fT(fs);ctx.fillStyle='#ffffff';ctx.fillText(fitText(capT(title),maxW),lx,cy+fs*0.95);cy+=fs*1.3;}
     if(price){const pf=Math.round(fs*0.9);ctx.font=fI(pf,800);const pt=fitText(price,maxW-pad),pw=ctx.measureText(pt).width+pad*1.2;
       ctx.fillStyle=C.c;rr(lx,cy+fs*0.05,pw,pf*1.35,pf*0.3);ctx.fill();ctx.save();ctx.shadowColor='transparent';ctx.fillStyle=C.ink;ctx.fillText(pt,lx+pad*0.6,cy+fs*0.05+pf*0.98);ctx.restore();cy+=fs*1.55;}
-    if(phone){ctx.font=fI(fs2,800);ctx.fillStyle='#ffffff';ctx.fillText(fitText(t('orderVia',{p:phone}),maxW),lx,cy+fs2*1.05);}
+    if(phone){ctx.font=fI(fs2,800);ctx.fillStyle='#ffffff';ctx.fillText(fitText(phoneLine(phone),maxW),lx,cy+fs2*1.05);}
     ctx.restore();
   }else if(title){
     const fs=Math.round(S/15);ctx.font=fT(fs);ctx.textAlign='center';
@@ -1878,7 +1881,7 @@ function drawCards(W,H){
     const txt=$('outroTxt').value.trim()||t('outroDef'),ph=$('phoneTxt').value.trim(),pr=$('priceTxt').value.trim();
     ctx.font=fT(S/13);ctx.fillStyle='#fff';ctx.fillText(fitText(txt,W*0.88),W/2,y);y+=S*0.09;
     if(pr){ctx.font=`800 ${Math.round(S/20)}px ${F}`;ctx.fillStyle='#c8a45c';ctx.fillText(fitText(pr,W*0.88),W/2,y);y+=S*0.075;}
-    if(ph){ctx.font=`700 ${Math.round(S/22)}px ${F}`;ctx.fillStyle='#ebe9e4';ctx.fillText(fitText(t('orderVia',{p:ph}),W*0.88),W/2,y);}
+    if(ph){ctx.font=`700 ${Math.round(S/22)}px ${F}`;ctx.fillStyle='#ebe9e4';ctx.fillText(fitText(phoneLine(ph),W*0.88),W/2,y);}
   }
   ctx.restore();
 }
@@ -2519,6 +2522,7 @@ function ask(title,desc,okTxt,fn){const rp=$('askReplace');if(rp)rp.style.displa
 function askClose(){$('askBox').classList.remove('show');askFn=null;}
 function armBack(){try{if(!history.state||!history.state.pmcGuard)history.pushState({pmcGuard:1},'');}catch(e){}}
 function onBack(){
+  if($('manBox')&&$('manBox').classList.contains('show')){closeManual();return;}
   if($('cropBox').classList.contains('show')){closeCrop(false);return;}
   if($('askBox').classList.contains('show')){askClose();return;}
   if($('studioHelp').classList.contains('show')){closeStudioHelp();return;}
@@ -2962,6 +2966,7 @@ if('serviceWorker' in navigator){
 </script>
 <script src="textfx.js"></script>
 <script src="camctl.js"></script>
+<script src="manual.js"></script>
 <script src="editor.js"></script>
 </body>
 </html>
