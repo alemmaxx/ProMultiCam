@@ -837,7 +837,6 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="row-between"><h3 data-i18n="subT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('proSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <span class="hint" id="subNow" style="font-size:14px"></span>
     <div id="planCards" class="plan-list"></div>
-    <details class="sub-feat"><summary data-i18n="subAllPro"></summary><div class="feat-list"><span data-i18n="pf1"></span><span data-i18n="pf2"></span><span data-i18n="pf3"></span><span data-i18n="pf4"></span><span data-i18n="pf5"></span><span data-i18n="pf6"></span><span data-i18n="pf7"></span><span data-i18n="pf8"></span></div></details>
     <div id="payBox" style="display:none;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px"><b id="payFor"></b>
     <label class="lbl" style="display:none"><span data-i18n="promo"></span><input class="input" id="pPromo" style="text-transform:uppercase" data-i18n-ph="promoPh"></label>
     <label class="lbl"><span data-i18n="payPhone"></span><input class="input" id="pPhone" type="tel" inputmode="tel" maxlength="15" data-i18n-ph="payPhonePh"></label>
@@ -2693,9 +2692,9 @@ function openPro(){
   box.innerHTML='';$('payBox').style.display='none';
   const save=(pl.monthly&&pl.yearly)?Math.round((1-pl.yearly/(pl.monthly*12))*100):0;
   const plans=[
-    {id:'free',name:t('subFree'),price:0,per:'',feats:['subF1','subF2','subF3']},
-    {id:'monthly',name:t('monthly'),price:Number(pl.monthly||0),per:t('perMonth'),feats:['subP1','subP2','subP3','subP4']},
-    {id:'yearly',name:t('yearly'),price:Number(pl.yearly||0),per:t('perYear'),feats:['subP1','subP2','subP3','subP4'],save}
+    {id:'free',name:t('subFree'),price:0,per:'',feats:['subF1','subF2','subF3','subF4']},
+    {id:'monthly',name:t('monthly'),price:Number(pl.monthly||0),per:t('perMonth'),feats:['subP1','subP2','subP3','subP4','subP5','subP6','subP7','subP8']},
+    {id:'yearly',name:t('yearly'),price:Number(pl.yearly||0),per:t('perYear'),feats:['subYAll'],save}
   ];
   plans.forEach(pp=>{
     const row=document.createElement('div');row.className='plan-row'+(cur===pp.id?' cur':'');
@@ -2705,7 +2704,7 @@ function openPro(){
     if(cur===pp.id){const c=document.createElement('span');c.className='badge b-free';c.textContent=t('subCurrent');top.appendChild(c);}
     row.appendChild(top);
     const pr=document.createElement('div');pr.className='pr';pr.innerHTML=pp.id==='free'?'RM0':(pp.price?money(pp.price):'—')+' <small></small>';if(pp.per)pr.querySelector('small').textContent=pp.per;row.appendChild(pr);
-    const ul=document.createElement('ul');pp.feats.forEach(k=>{const li=document.createElement('li');li.textContent=t(k);ul.appendChild(li);});row.appendChild(ul);
+    const ul=document.createElement('ul');pp.feats.forEach(k=>{const li=document.createElement('li');li.textContent=t(k);if(k==='subP5')li.style.cssText='color:var(--gold);font-weight:700';ul.appendChild(li);});row.appendChild(ul);
     /* what the button says, and whether it can be pressed */
     let label='',on=false;
     if(adm){label=t('subAdminBtn');}
