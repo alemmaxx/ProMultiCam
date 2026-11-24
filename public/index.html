@@ -1099,7 +1099,6 @@ async function listSaved(boxId){
     const dl=document.createElement('button');dl.className='btn btn-sm btn-gold';dl.textContent=t('saveToPhone');
     dl.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));saveToPhone(b,it.name);};
     acts.appendChild(dl);
-    if(mc>0){const mk=document.createElement('button');mk.className='btn btn-sm';mk.textContent='📍';mk.setAttribute('aria-label',t('mark'));mk.onclick=()=>downloadBlob(new Blob([it.marks],{type:'text/plain'}),it.name.replace(/\.\w+$/,'')+'_markers.txt');acts.appendChild(mk);}
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
       sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};acts.appendChild(sh);}
     if(box.id==='files'&&it.done&&sources.some(s=>!s.local&&s.conn&&s.conn.open)){const ab=document.createElement('button');ab.className='btn btn-sm';ab.textContent=t('angBtn');ab.onclick=()=>collectAngles(it);acts.appendChild(ab);}
