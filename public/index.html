@@ -185,11 +185,11 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .eco{position:absolute;inset:0;z-index:2;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#6f6b64;text-align:center;padding:24px}
 .eco b{color:#9b978e;font-size:16px}.eco span{font-size:13px}
 #slavecam.ecoon .eco{display:flex}#slavecam.ecoon #camVideo{visibility:hidden}
-.cam-top{position:absolute;top:0;left:0;right:0;padding:16px 16px 40px;padding-top:max(16px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px;background:linear-gradient(rgba(14,14,15,.92),rgba(14,14,15,0))}
+.cam-top{position:absolute;top:0;left:0;right:0;padding:16px 16px 40px;padding-top:max(16px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px;background:transparent;text-shadow:0 1px 3px rgba(0,0,0,.9)}
 .cam-top .st{display:inline-flex;align-items:center;gap:6px;background:rgba(14,14,15,.85);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
 .onair{align-self:flex-start;background:var(--gold);color:var(--on-gold);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;display:none}
 .onair.show{display:block}
-.cam-bot{position:absolute;left:0;right:0;bottom:0;padding:40px 16px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;background:linear-gradient(rgba(14,14,15,0),rgba(14,14,15,.95) 35%)}
+.cam-bot{position:absolute;left:0;right:0;bottom:0;padding:40px 16px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;background:transparent;text-shadow:0 1px 3px rgba(0,0,0,.9)}
 .cam-bot .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cam-bot .g3 .btn{background:rgba(235,233,228,.12);font-size:13px;padding:8px}
 input[type=range]{accent-color:var(--gold);width:100%}
@@ -197,10 +197,11 @@ input[type=range]{accent-color:var(--gold);width:100%}
 /* Director: full-phone main view */
 #master.show{position:fixed;inset:0;background:#000}
 .stage-full{position:absolute;inset:0;overflow:hidden;background:#000}
-.stage-full #stage{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
-#stageOv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;display:none}
+/* the picture sits between the top bar and the bottom controls, so nothing in the video is hidden or darkened */
+.stage-full #stage{position:absolute;left:0;right:0;top:var(--ovt,0px);bottom:var(--ovb,0px);width:100%;height:calc(100% - var(--ovt,0px) - var(--ovb,0px));object-fit:contain;display:block}
+#stageOv{position:absolute;left:0;right:0;top:var(--ovt,0px);bottom:var(--ovb,0px);width:100%;height:calc(100% - var(--ovt,0px) - var(--ovb,0px));object-fit:contain;pointer-events:none;display:none}
 #stageOv.on{display:block}
-.ov-top{position:absolute;top:0;left:0;right:0;padding:10px 12px 26px;padding-top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;background:linear-gradient(rgba(14,14,15,.88),rgba(14,14,15,0));z-index:3}
+.ov-top{position:absolute;top:0;left:0;right:0;padding:10px 12px 10px;padding-top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;align-items:center;background:#0e0e0f;z-index:3}
 .ov-top .icon-btn{background:rgba(14,14,15,.55);width:40px;height:40px}
 .ov-tags{position:absolute;left:12px;top:calc(max(10px,env(safe-area-inset-top)) + 54px);display:flex;gap:6px;flex-wrap:wrap;z-index:3}
 .ov-tags span{background:rgba(14,14,15,.8);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
@@ -209,7 +210,7 @@ input[type=range]{accent-color:var(--gold);width:100%}
 .zoomv{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:44px;height:200px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:3}
 .zoomv span{font-size:11px;font-weight:800;color:var(--gold);background:rgba(14,14,15,.75);border-radius:8px;padding:2px 5px}
 .zoomv input{width:170px;transform:rotate(-90deg) translateX(-80px);transform-origin:center;margin-top:70px}
-.ov-bot{position:absolute;left:0;right:0;bottom:0;padding-top:28px;background:linear-gradient(rgba(14,14,15,0),rgba(14,14,15,.92) 38%);z-index:3}
+.ov-bot{position:absolute;left:0;right:0;bottom:0;padding-top:8px;background:#0e0e0f;z-index:3}
 #tileHint{display:block;padding:0 12px 6px;font-size:11px;color:var(--sub)}
 .strip{display:flex;gap:8px;overflow-x:auto;padding:0 12px 8px;scrollbar-width:none}
 .strip::-webkit-scrollbar{display:none}
@@ -223,12 +224,12 @@ input[type=range]{accent-color:var(--gold);width:100%}
 #master #recBtn{min-height:54px}
 /* Director held sideways (widescreen): compact controls so the video fills the screen */
 /* Director sideways (widescreen): compact controls. body.land = real or sensor landscape */
-body.land .ov-top{padding:6px 10px 18px;padding-top:max(6px,env(safe-area-inset-top))}
+body.land .ov-top{padding:6px 10px 6px;padding-top:max(6px,env(safe-area-inset-top))}
 body.land .ov-top .icon-btn{width:38px;height:38px}
 body.land .ov-tags{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
 body.land #master .recbadge{top:calc(max(6px,env(safe-area-inset-top)) + 46px)}
 body.land #tileHint{display:none}
-body.land .ov-bot{display:flex;align-items:flex-end;gap:10px;padding:14px 10px 0;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));background:linear-gradient(rgba(14,14,15,0),rgba(14,14,15,.85) 45%)}
+body.land .ov-bot{display:flex;align-items:flex-end;gap:10px;padding:14px 10px 0;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));background:#0e0e0f}
 body.land .ov-bot .strip{flex:1;min-width:0;padding:0 0 10px}
 body.land .strip .tile,body.land .tile-add{flex:0 0 84px;height:58px}
 body.land .strip .tile .nb{bottom:18px}
@@ -1239,7 +1240,7 @@ function viaLabel(v){return v==='data'?t('data'):v==='local'?t('thisPhone'):v===
 const CAN_SCREEN=!!(navigator.mediaDevices&&navigator.mediaDevices.getDisplayMedia)&&!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 let scrN=0;
 async function addScreen(){
-  if(!CAN_SCREEN){toast(t('scrNo'),5000);return;}
+  if(!CAN_SCREEN){ask(t('scrNoT'),t('scrNo'),t('gotIt'),()=>{});$('askOk').className='btn btn-gold';return;}
   if(!isPro()&&sources.filter(x=>!x.local).length>=FREE_MAX){openPro();return;}
   let st;try{st=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});}catch(e){return;}
   scrN++;const id='scr'+scrN+'_'+Date.now(),s=getSrc(id,t('scrN',{n:scrN}));s.screen=true;s.via='screen';s.video._fit='contain';s.video.style.objectFit='contain';s.video.style.background='#000';
@@ -1270,6 +1271,11 @@ function closeCrop(save){$('cropBox').classList.remove('show');$('cropVid').srcO
     cropBox=b;cropPaint();});
   const up=()=>{drag=null;};document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
   window.addEventListener('resize',()=>{if($('cropBox').classList.contains('show'))cropPaint();});})();
+/* keep the Director's picture clear of the top bar and bottom controls */
+(function(){const m=()=>{const f=$('stageFull');if(!f)return;const top=f.querySelector('.ov-top'),bot=f.querySelector('.ov-bot');
+  f.style.setProperty('--ovt',(top?top.offsetHeight:0)+'px');f.style.setProperty('--ovb',(bot?bot.offsetHeight:0)+'px');};
+  if(window.ResizeObserver){const ro=new ResizeObserver(m);document.addEventListener('DOMContentLoaded',()=>{},{once:true});setTimeout(()=>{const f=$('stageFull');if(!f)return;[f,f.querySelector('.ov-top'),f.querySelector('.ov-bot')].forEach(e=>e&&ro.observe(e));m();},0);}
+  window.addEventListener('resize',m);})();
 function stopScreen(id){const s=sources.find(x=>x.id===id);if(!s)return;try{s.stream.getTracks().forEach(tr=>tr.stop());}catch(e){}removeSrc(id);}
 function renderTiles(){
   const box=$('tiles');box.innerHTML='';
@@ -1304,7 +1310,7 @@ function pick(id){
 }
 function sendLive(){logSwitch();sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
 function renderConnList(){
-  const box=$('connList');if(!box)return;box.innerHTML='';if($('scrBtn'))$('scrBtn').style.display=CAN_SCREEN?'inline-flex':'none';
+  const box=$('connList');if(!box)return;box.innerHTML='';if($('scrBtn'))$('scrBtn').style.display='inline-flex';
   if(!sources.length){box.innerHTML='<div class="hint">'+t('noCams')+'</div>';return;}
   sources.forEach(s=>{
     const d=document.createElement('div');d.className='item';
