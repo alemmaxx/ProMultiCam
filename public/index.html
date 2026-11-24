@@ -467,6 +467,16 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .npop .ic{font-size:22px}.npop .tx{display:flex;flex-direction:column;min-width:0}.npop b{font-size:14px}.npop span{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .req{background:var(--card2);border-radius:12px;padding:12px;font-size:13px;color:var(--sub);line-height:1.5}
 .req b{color:var(--ink)}.req ul{margin:6px 0 0;padding-left:18px}
+/* ---- 3D raised buttons (pure CSS: no effect on recording speed) ---- */
+:root{--b3-hi:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.32);--b3-up:0 3px 0 rgba(0,0,0,.55),0 6px 12px rgba(0,0,0,.35);--b3-dn:0 1px 0 rgba(0,0,0,.55),0 2px 4px rgba(0,0,0,.3);--b3-gold:0 3px 0 #6e5524,0 6px 14px rgba(0,0,0,.4);--b3-goldd:0 1px 0 #6e5524,0 2px 5px rgba(0,0,0,.35);--b3-sh:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 50%,rgba(0,0,0,.16))}
+.btn,.icon-btn,.tool,.role,.m-foot .side,#recBtn,.seg button,.tabs button.on,.ed-tabs button,.ed-sub button.on,.bg-opt,.master-item,.btnr{background-image:var(--b3-sh);box-shadow:var(--b3-hi),var(--b3-up);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
+.btn-gold,#recBtn,.seg button.on,.tabs button.on,.ed-tabs button.on,.m-foot .side.resume,.tool-gold,.role.master{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.22),var(--b3-gold)}
+.btn:active,.icon-btn:active,.tool:active,.role:active,.m-foot .side:active,.seg button:active,.tabs button:active,.ed-tabs button:active,.ed-sub button:active,.bg-opt:active,.master-item:active,.btnr:active{transform:translateY(2px);box-shadow:var(--b3-hi),var(--b3-dn)}
+.btn-gold:active,#recBtn:active,.seg button.on:active,.ed-tabs button.on:active,.tool-gold:active,.role.master:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(0,0,0,.2),var(--b3-goldd)}
+#recBtn.recording{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.22),0 3px 0 #7a2a22,0 6px 14px rgba(0,0,0,.4)}
+.btn:disabled,.btn[disabled]{box-shadow:none;background-image:none;transform:none}
+.ed-sub button:not(.on){box-shadow:none}
+#edScreen .ed-tabs button,#edScreen .btn,.bg-opt{background-image:var(--b3-sh)}
 </style>
 </head>
 <body>
@@ -886,10 +896,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
     <div class="se-row">
       <button class="btn btn-sm" onclick="seAddHere()" data-i18n="seAdd"></button>
-      <button class="btn btn-sm btn-soft" id="seAutoBtn" onclick="seAuto()" data-i18n="seAuto"></button>
-      <select class="input" id="seLang" style="width:auto;min-height:40px"><option value="ms-MY">Bahasa Melayu</option><option value="en-US">English</option><option value="id-ID">Bahasa Indonesia</option><option value="zh-CN">中文</option><option value="ta-IN">தமிழ்</option></select>
     </div>
-    <span class="hint" id="seAutoHint" data-i18n="seAutoHint"></span>
     <div id="seList" style="display:flex;flex-direction:column;gap:8px"></div>
 
     <div class="subsec">
@@ -2430,12 +2437,10 @@ async function openSubEditor(it){
     v.addEventListener('loadedmetadata',()=>{$('seStage').classList.toggle('land',v.videoWidth>v.videoHeight);seTick();});
     v.addEventListener('play',()=>{$('sePlay').textContent=t('tpPause');cancelAnimationFrame(se.raf);se.raf=requestAnimationFrame(seLoop);});
     v.addEventListener('pause',()=>{$('sePlay').textContent=t('sePlay');});
-    v.addEventListener('ended',()=>{if(se.rec)seAutoStop();});
     v.addEventListener('seeked',seTick);}
   let st={};try{st=JSON.parse(localStorage.getItem(seKey())||'null')||JSON.parse(localStorage.getItem('pmc_sub_style')||'{}')||{};}catch(e){}
   se.lines=Array.isArray(st.lines)?st.lines:[];$('seFont').value=OV_FONTS[st.font]?st.font:'poppins';se.sty={col:st.col||'white',style:st.style||(st.box===false?'outline':'darkbox'),cs:st.cs||(Array.isArray(st.lines)?'asis':'title')};
   $('sePos').value=st.pos||'b';$('seSize').value=st.size||6;$('seBox').checked=st.box!==false;$('seAudio').value=st.audio||'orig';$('seMusic').value=st.music||'lofi';
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;$('seAutoBtn').style.display=SR?'inline-flex':'none';$('seLang').style.display=SR?'block':'none';$('seAutoHint').textContent=t(SR?'seAutoHint':'seNoAuto');
   $('sePlay').textContent=t('sePlay');$('seProg').classList.remove('show');seColUI();seAudioUI();seRenderList();
   $('subEd').classList.add('show');try{OV_FONTS&&document.fonts.load(`700 30px ${OV_FONTS[$('seFont').value].fam}`);}catch(e){}
 }
@@ -2445,7 +2450,7 @@ function seStyUI(){
   $('seColors').replaceChildren(txSwatches(se.sty.col,k=>{se.sty.col=k;seSave();seStyUI();seCapRender(true);}));
   $('seCaseBox').replaceChildren(txCaseSel(se.sty.cs,v=>{se.sty.cs=v;seSave();seCapRender(true);}));}
 function seAudioUI(){const a=$('seAudio').value;$('seMusic').style.display=(a==='music'||a==='mix')?'block':'none';}
-function seClose(){if(se.busy){toast(t('seBusy'));return;}seAutoStop();const v=$('seVid');v.pause();$('subEd').classList.remove('show');cancelAnimationFrame(se.raf);seSave();}
+function seClose(){if(se.busy){toast(t('seBusy'));return;}const v=$('seVid');v.pause();$('subEd').classList.remove('show');cancelAnimationFrame(se.raf);seSave();}
 function seToggle(){const v=$('seVid');if(v.paused)v.play().catch(()=>{});else v.pause();}
 function seLoop(){seTick();if(!$('seVid').paused)se.raf=requestAnimationFrame(seLoop);}
 let seLastIx=-2;
@@ -2489,23 +2494,6 @@ function seAddHere(){
   const ix=se.lines.findIndex(l=>l.s===+s0.toFixed(2));const ta=$('seList').children[ix]&&$('seList').children[ix].querySelector('textarea');if(ta)ta.focus();
 }
 /* speech to text with the browser's own recogniser while the video plays out loud */
-function seAuto(){
-  if(se.rec){seAutoStop();return;}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast(t('seNoAuto'));return;}
-  const v=$('seVid'),r=new SR();r.lang=$('seLang').value;r.continuous=true;r.interimResults=true;se.rec=r;let segStart=null;
-  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++){const res=e.results[i];if(segStart===null)segStart=Math.max(0,v.currentTime-0.6);
-    if(res.isFinal){const txt=res[0].transcript.trim();const end=v.currentTime;if(txt)seAddSpeech(segStart,end,txt);segStart=null;}}};
-  r.onend=()=>{if(se.rec===r&&!v.paused&&!v.ended){try{r.start();}catch(e){}}};
-  r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){toast(t('seMicNeed'),4000);seAutoStop();}};
-  try{r.start();}catch(e){toast(t('seNoAuto'));se.rec=null;return;}
-  v.currentTime=0;v.muted=false;v.volume=1;v.play().catch(()=>{});$('seAutoBtn').textContent=t('seAutoStop');toast(t('seAutoRun'),4500);
-}
-function seAutoStop(){const r=se.rec;se.rec=null;if(r){try{r.stop();}catch(e){}}$('seAutoBtn').textContent=t('seAuto');}
-function seAddSpeech(s0,e0,txt){
-  const words=txt.split(/\s+/),per=8,parts=Math.ceil(words.length/per),dur=Math.max(0.8,e0-s0);
-  for(let p=0;p<parts;p++){const w=words.slice(p*per,(p+1)*per).join(' ');const a=s0+dur*p/parts,b=s0+dur*(p+1)/parts;se.lines.push({s:+a.toFixed(2),e:+b.toFixed(2),txt:w});}
-  seSave();seRenderList();
-}
 function seSrt(){
   if(!se.lines.length){toast(t('seEmpty'));return;}
   const ts=x=>{const h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=Math.floor(x%60),ms=Math.round((x%1)*1000);const p=(n,l)=>String(n).padStart(l||2,'0');return `${p(h)}:${p(m)}:${p(s)},${p(ms,3)}`;};
@@ -2519,7 +2507,7 @@ function seDrawCap(c,W,H,l,ct){
 async function seExport(){
   if(se.busy)return;if(!isPro()){openPro();return;}
   const aud=$('seAudio').value;if(!se.lines.some(l=>l.txt.trim())&&aud==='orig'){toast(t('seEmpty'));return;}
-  seAutoStop();const pv=$('seVid');pv.pause();se.busy=true;$('seMake').disabled=true;
+  const pv=$('seVid');pv.pause();se.busy=true;$('seMake').disabled=true;
   try{
     const v=document.createElement('video');v.src=se.url;v.playsInline=true;v.preload='auto';
     await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=rej;});
