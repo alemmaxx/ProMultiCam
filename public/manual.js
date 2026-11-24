@@ -32,6 +32,7 @@ const EN=[
  {ic:'👑',t:'Plans & Promo Codes',b:['Home page → <b>Plans</b>: see your current plan and days left.','Basic (free), Pro Monthly, Pro Yearly. Upgrading to yearly keeps your remaining days.','Have a promo code? Account → <b>Promo code</b> → Redeem for free Pro days.','Payment by online banking; Pro switches on straight away.']},
  {ic:'💡',t:'Tips & Common Problems',b:['Cannot connect? Check the Studio ID, that both phones have internet, and the app is open on screen.','Phone hot? Charge it and keep it away from the stove; use <b>Clean recording</b> on weaker phones.','Use a tripod or phone clamp for a steady picture.','New version out? Tap the <b>🔄 New version</b> button when it appears.','Need help? Home page → <b>Support</b>.']}
 ];
+const PICS={"1": [["start", ["Pengarah", "Kamera"], ["Director", "Camera"]]], "2": [["connect", ["ID Studio", "Kod QR"], ["Studio ID", "QR code"]], ["join", ["Taip ID Studio (telefon Kamera)", "Sertai"], ["Type the Studio ID (Camera phone)", "Join"]]], "3": [["record", ["Jeda / Sambung", "Tamat rakaman", "Simpan draf"], ["Pause / Resume", "Stop recording", "Save draft"]]], "4": [["switch", ["Kotak sudut: tekan untuk tukar", "Zum"], ["Angle tiles: tap to switch", "Zoom"]]], "5": [["looks", ["Gaya warna", "Penuh / Belah / PiP"], ["Looks", "Full / Split / PiP"]], ["brand", ["Logo", "Harga atau ayat", "No. telefon atau ayat"], ["Logo", "Price or selling line", "Phone or selling line"]]], "6": [["studio", ["Templat pantas"], ["Quick templates"]]], "7": [["camctl", ["Auto Cantik", "Fokus"], ["Auto beautify", "Focus"]]], "8": [["screen", ["Tambah skrin komputer"], ["Add a computer screen"]]], "9": [["videos", ["Simpan · Edit · Sari Kata · Padam", "Masukkan video dari galeri"], ["Save · Edit · Subtitles · Delete", "Import from gallery"]]], "10": [["editor", ["Kumpulan alat", "Jalur masa (seret pemegang emas)", "Simpan video"], ["Tool groups", "Timeline (drag the gold handles)", "Save video"]]], "11": [["subs", ["Kesan suara automatik", "Gaya teks"], ["Detect speech", "Text style"]]], "12": [["plans0", ["Butang Pelan"], ["Plans button"]], ["plans", ["Pelan semasa & baki hari", "Naik taraf"], ["Current plan & days left", "Upgrade"]]], "13": [["tips", ["Video", "Sokongan", "Manual"], ["Videos", "Support", "Manual"]]]};
 let pg=0;
 const H=`<div class="man-wrap" id="manBox" onclick="if(event.target===this)closeManual()"><div class="man-book" role="dialog" aria-modal="true">
   <div class="man-head"><span class="man-n" id="manN"></span><button class="icon-btn" aria-label="Close" onclick="closeManual()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
@@ -42,6 +43,8 @@ const CSS=`.man-wrap{position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.7
 .man-book{width:min(520px,100%);height:min(720px,100%);background:var(--card);border:1px solid var(--line);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .man-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}.man-n{font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.5px;text-transform:uppercase}
 .man-page{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.man-shot{display:flex;flex-direction:column;gap:6px}.man-shot img{width:100%;max-width:320px;align-self:center;border-radius:14px;border:1px solid var(--line);display:block;background:#000}
+.man-cap{display:flex;flex-direction:column;gap:4px}.man-cap span{font-size:13px;color:var(--sub)}.man-cap b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#ffd54a;color:#111;font-size:12px;margin-right:6px}
 .man-art{height:120px;border-radius:14px;background-size:cover;background-position:center;flex:0 0 auto}
 .man-ic{font-size:34px;line-height:1}.man-page h3{margin:0;font-size:21px}
 .man-page ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px;color:var(--sub);font-size:14.5px;line-height:1.5}.man-page ul b{color:var(--ink)}
@@ -55,9 +58,13 @@ const book=()=>(typeof LANG!=='undefined'&&LANG==='ms')?MS:EN;
 function paint(){
   const B=book(),p=B[pg],el=$m('manPage');el.innerHTML='';el.scrollTop=0;
   $m('manN').textContent=t('manT')+' · '+(pg+1)+' / '+B.length;
-  if(p.art){const a=document.createElement('div');a.className='man-art';a.style.backgroundImage=`url(art/${p.art}.svg)`;el.appendChild(a);}
   const ic=document.createElement('div');ic.className='man-ic';ic.textContent=p.ic;el.appendChild(ic);
   const h=document.createElement('h3');h.textContent=p.t;el.appendChild(h);
+  /* real screenshots of the app with the place to tap marked 1, 2, 3 */
+  const ms=(typeof LANG!=='undefined'&&LANG==='ms'),pics=PICS[pg]||[];
+  if(pics.length)pics.forEach(([name,cms,cen])=>{const w=document.createElement('div');w.className='man-shot';const im=document.createElement('img');im.loading='lazy';im.alt=p.t;im.src=`manual/${name}_${ms?'ms':'en'}.jpg`;w.appendChild(im);
+    const cp=document.createElement('div');cp.className='man-cap';(ms?cms:cen).forEach((c,i)=>{const sp=document.createElement('span');sp.innerHTML='<b></b>';sp.querySelector('b').textContent=i+1;sp.appendChild(document.createTextNode(c));cp.appendChild(sp);});w.appendChild(cp);el.appendChild(w);});
+  else if(p.art){const a=document.createElement('div');a.className='man-art';a.style.backgroundImage=`url(art/${p.art}.svg)`;el.appendChild(a);}
   if(p.toc){const g=document.createElement('div');g.className='man-toc';B.forEach((q,i)=>{if(!i)return;const b=document.createElement('button');b.type='button';b.innerHTML='<i></i><span></span>';b.querySelector('i').textContent=q.ic;b.querySelector('span').textContent=q.t;b.onclick=()=>{pg=i;paint();};g.appendChild(b);});el.appendChild(g);}
   else{const ul=document.createElement('ul');p.b.forEach(x=>{const li=document.createElement('li');li.innerHTML=x;ul.appendChild(li);});el.appendChild(ul);}
   $m('manDots').innerHTML=B.map((_,i)=>`<i class="${i===pg?'on':''}"></i>`).join('');
