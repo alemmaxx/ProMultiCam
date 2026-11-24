@@ -130,7 +130,7 @@ window.openEditor=async function(it){
   setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
   v.addEventListener('loadeddata',()=>drawAt(),{once:true});v.currentTime=firstKept()+0.001;drawAt();setTimeout(()=>{if(E)drawAt();},600);
 };
-window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl)freeAudio(E.musEl);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}}E=null;};
+window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl)freeAudio(E.musEl);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}try{cancelAnimationFrame(E.raf);}catch(e){}}E=null;try{G('edThumbs').innerHTML='';G('edSegs').innerHTML='';const c=CV();c.width=2;c.height=2;}catch(e){}if(window.PMC_after_edit)PMC_after_edit();};
 
 /* ---------- segments (all times are in the original video's time) ---------- */
 function segAt(x){return E.p.segs.find(s=>x>=s.a&&x<s.b)||E.p.segs[E.p.segs.length-1];}
@@ -477,6 +477,7 @@ async function thumbs(){
   const box=G('edThumbs');box.innerHTML='';const v=document.createElement('video');v.src=E.url;v.muted=true;v.playsInline=true;
   await new Promise(r=>{v.onloadeddata=r;v.onerror=r;});const n=10,c=document.createElement('canvas');c.width=96;c.height=Math.round(96*(v.videoHeight||16)/(v.videoWidth||9));
   for(let i=0;i<n;i++){if(!E)return;v.currentTime=Math.min(E.dur-0.05,(i+0.5)*E.dur/n);await new Promise(r=>{v.onseeked=r;setTimeout(r,1500);});c.getContext('2d').drawImage(v,0,0,c.width,c.height);const im=new Image();im.src=c.toDataURL('image/jpeg',0.5);box.appendChild(im);}
+  try{v.removeAttribute('src');v.load();}catch(e){}
 }
 function renderTl(){
   const box=G('edSegs');box.innerHTML='';
@@ -596,28 +597,9 @@ function renderPanel(){
     if(!E.rsel||E.rsel.o!==E.cutSel)E.rsel={o:E.cutSel,mode:'range',list:'_cut'};
     {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t('cutHint')));
       c.appendChild(row(btn('✂️ '+t('cutDo',{a:fm1(E.cutSel.s),b:fm1(E.cutSel.e)}),()=>{snap();removeRange(E.cutSel.s,E.cutSel.e);const n=nextKeptFrom(E.cutSel.e);E.cutSel=null;changed();if(n!=null)V().currentTime=n;toast(t('cutDone'),3000);renderPanel();},'btn-danger'),
+        btn('＋ '+t('cutNew'),()=>{const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));E.cutSel={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};E.rsel=null;renderPanel();renderRange();}),
         btn('↶ '+t('edUndo'),()=>{edUndo();})));
       P.appendChild(c);}
-    const startAdv=P.children.length;
-    P.appendChild(row(btn(t('edSplit'),()=>{snap();if(split(V().currentTime)){changed();renderPanel();toast(t('edSplitDone'));}else toast(t('edSplitNo'));}),
-      btn(s.keep?t('edRemove'):t('edRestore'),()=>{snap();const q=segAt(V().currentTime);q.keep=!q.keep;changed();renderPanel();},s.keep?'btn-danger':'btn-gold')));
-    P.appendChild(row(btn(t('edTrimS'),()=>{snap();removeRange(0,V().currentTime);changed();renderPanel();}),btn(t('edTrimE'),()=>{snap();removeRange(V().currentTime,E.dur);changed();renderPanel();})));
-    if(s.keep){
-      P.appendChild(row(hint(t('edSpeed')),sel([['0.5','0.5x'],['0.75','0.75x'],['1','1x'],['1.5','1.5x'],['2','2x'],['3','3x']],String(s.speed),v=>{snap();segAt(V().currentTime).speed=Number(v);changed();renderPanel();})));
-      const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('edZoom');const i=cb.querySelector('input');i.checked=!!s.zoom;i.onchange=()=>{snap();segAt(V().currentTime).zoom=i.checked;changed();};P.appendChild(cb);
-    }
-    if(s.keep){
-      P.appendChild(row(hint(t('edTin')),sel([['none',t('edTin_none')],['fade',t('edTin_fade')],['black',t('edTin_black')],['zoom',t('edTin_zoom')],['slide',t('edTin_slide')]],s.tin||'none',v=>{snap();segAt(V().currentTime).tin=v;changed();})));
-      P.appendChild(row(hint(t('edFreeze')),sel([['0',t('edFreeze0')],['1','1s'],['2','2s'],['3','3s']],String(s.freeze||0),v=>{snap();segAt(V().currentTime).freeze=Number(v);changed();})));
-      const KB=[['wide',t('kb_wide')],['center',t('kb_center')],['left',t('kb_left')],['right',t('kb_right')],['top',t('kb_top')],['bottom',t('kb_bottom')]];
-      P.appendChild(row(hint(t('edKb')),sel([['none',t('edFreeze0')]].concat(KB),s.kb?s.kb.from:'none',v=>{snap();const q=segAt(V().currentTime);q.kb=v==='none'?null:{from:v,to:(q.kb&&q.kb.to)||'center'};changed();renderPanel();}),
-        s.kb?hint('→'):null,s.kb?sel(KB,s.kb.to,v=>{snap();segAt(V().currentTime).kb.to=v;changed();}):null));
-      P.appendChild(row(hint(t('edFx')),sel([['none',t('edFreeze0')],['rev',t('fx_rev')],['boom',t('fx_boom')]],s.fx||'none',async v=>{const q=segAt(V().currentTime);if(v!=='none'&&q.b-q.a>4.05){toast(t('fxTooLong'),4000);renderPanel();return;}snap();q.fx=v;changed();if(v!=='none')await buildFx(q);renderPanel();})));
-    }
-    P.appendChild(hint(t('edCutHint',{a:fm1(s.a),b:fm1(s.b)})));
-    /* everything else about a part is tucked away so the cut stays simple */
-    {const d=document.createElement('details');d.className='ed-more';const sm=document.createElement('summary');sm.textContent=t('cutMore');d.appendChild(sm);
-      d.open=!!E.cutMoreOpen;d.ontoggle=()=>{E.cutMoreOpen=d.open;};const kids=[...P.children].slice(startAdv);kids.forEach(n=>d.appendChild(n));P.appendChild(d);}
   }
   if(k==='bg'){
     P.appendChild(hint(t('bgT')));
@@ -1071,7 +1053,7 @@ let joinSel=[];
 /* used by drafts: join the given parts in order, then offer to delete the parts */
 window.joinParts=function(items,name){
   document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
-  joinRun(items,name,ok=>{if(!ok)return;ask(t('draftDelT'),t('draftDelD',{n:items.length}),t('del'),async()=>{const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});});
+  joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
 };
 window.openJoin=async function(){
   if(!isPro()){openPro();return;}
@@ -1103,6 +1085,7 @@ async function joinRun(list,outName,after){
         const f=()=>{if(fin)return;draw(v);const p=(done+v.currentTime)/tot;G_('joinBar').style.width=Math.round(p*100)+'%';G_('joinTx').textContent=t('seMaking',{n:Math.round(p*100)});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
       rec.pause();done+=v.duration||0;}
     rec.stop();await new Promise(r=>rec.onstop=r);const r=await sv.finish(rec.mimeType||mime||'video/webm');
+    for(const nm of ['_brand.json','_switches.json']){try{const src=await (await list[0].h.getFileHandle(nm)).getFile();if(sv.dir){const w=await (await sv.dir.getFileHandle(nm,{create:true})).createWritable();await w.write(await src.text());await w.close();}}catch(e){}}
     vids.forEach(v=>URL.revokeObjectURL(v.src));G_('joinTx').textContent=t('seDone');toast(t('saved',{w:r.where}),5000);G_('joinBox').classList.remove('show');listSaved('files');if(after)after(true);
   }catch(e){if(after)after(false);console.error('join',e);toast(t('seFail'),4000);}
   go.disabled=false;

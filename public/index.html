@@ -1098,6 +1098,7 @@ async function listSaved(boxId){
     let marks=null,clean=false;
     for await(const [k,f] of h.entries()){if(k==='_brand.json')clean=true;if(k==='_done')done=true;else if(k==='_markers.txt'){try{marks=await (await f.getFile()).text();}catch(e){}}else if(f.kind==='file'&&k[0]!=='_'){count++;try{size+=(await f.getFile()).size;}catch(e){}}}
     if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
+    if(draftNames().includes(name))continue;
     items.push({name,h,size,done,marks,clean});
   }
   items.sort((a,b)=>a.name<b.name?1:-1);
@@ -1615,8 +1616,9 @@ function getGrain(){
 }
 let lastDraw=0,stageFx='';
 const perf={ema:0,light:false,warned:false};
+window.PMC_after_edit=()=>{perf.ema=0;perf.n=0;if(!recActive())perf.light=false;lastDraw=0;};
 function draw(){
-  const live=recActive(),n=performance.now();
+  const live=recActive()&&recorder.state!=='paused',n=performance.now();
   if(!live){
     if(document.hidden)return;                                  /* app in background: draw nothing */
     if(document.querySelector('.eds.show,.subed.show'))return;      /* editor open: Director preview not visible */
@@ -2074,7 +2076,7 @@ async function toggleRec(force){
     try{if(sv.dir){const fh=await sv.dir.getFileHandle('_switches.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(swLog));await w.close();}}catch(e){}
     if(wasClean){try{if(sv.dir){const meta={look:look.id,bv:{titleTxt:$('titleTxt').value,priceTxt:$('priceTxt').value,phoneTxt:$('phoneTxt').value,shopTxt:$('shopTxt').value,descTxt:$('descTxt').value,menuTxt:$('menuTxt').value,ovStyle:$('ovStyle').value,ovColor:$('ovColor').value,ovFont:$('ovFont').value,logoPos:$('logoPos').value}};
       const fh=await sv.dir.getFileHandle('_brand.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(meta));await w.close();}}catch(e){}}
-    stageOv.classList.remove('on');cleanRec=false;
+    stageOv.classList.remove('on');cleanRec=false;draftHold=false;
   };
   recorder.start(3000);recStart=Date.now();paintDraft();
   previewing=false;previewGain.gain.value=0;$('musicPrev').textContent=t('mPreview');startMusic(false);
@@ -2097,7 +2099,11 @@ let recToDraft=false,recFromDraft=false;
 function draftNames(){const d=getDraft();return d?d.parts:[];}
 function getDraft(){try{const d=JSON.parse(lsGet('pmc_draft','null'));return d&&Array.isArray(d.parts)&&d.parts.length?d:null;}catch(e){return null;}}
 function setDraft(d){if(d)lsSet('pmc_draft',JSON.stringify(d));else{try{localStorage.removeItem('pmc_draft');}catch(e){}}}
-function saveDraft(){if(!recorder||recorder.state==='inactive')return;recToDraft=true;stopRec();}
+let draftHold=false;
+window.addEventListener('pagehide',()=>{if(draftHold&&recorder&&recorder.state!=='inactive'){recToDraft=true;try{stopRec();}catch(e){}}});
+function saveDraft(){if(!recorder||recorder.state==='inactive')return;
+  if(recorder.state==='recording')togglePause();try{recorder.requestData();}catch(e){}
+  draftHold=true;toast(t('draftHeld'),6000);}
 function paintDraft(){const b=$('draftBar');if(!b)return;const d=getDraft();if(!d||recActive()){b.classList.remove('show');return;}
   b.innerHTML='<span></span><button class="btn btn-sm btn-gold" type="button"></button><button class="btn btn-sm" type="button"></button><button class="btn btn-sm" type="button" aria-label="x">✕</button>';
   b.querySelector('span').textContent=t('draftBar',{n:d.parts.length,tm:fmt(Math.round(d.sec||0))});
@@ -2121,7 +2127,7 @@ function togglePause(){
     recorder.pause();pausedAt=Date.now();tellCams({t:'pause'});stopMusic();try{lhd&&lhd.state==='recording'&&lhd.pause();}catch(e){}$('pauseBtn').classList.add('resume');$('mFoot').classList.add('paused');
     $('recLbl').textContent='II '+t('paused');$('recBadge').classList.add('paused');$('pauseLbl').textContent=t('resume');
   }else{
-    recorder.resume();pausedTotal+=Date.now()-pausedAt;pausedAt=0;tellCams({t:'resume'});startMusic(false);try{lhd&&lhd.state==='paused'&&lhd.resume();}catch(e){}$('pauseBtn').classList.remove('resume');$('mFoot').classList.remove('paused');
+    draftHold=false;recorder.resume();pausedTotal+=Date.now()-pausedAt;pausedAt=0;tellCams({t:'resume'});startMusic(false);try{lhd&&lhd.state==='paused'&&lhd.resume();}catch(e){}$('pauseBtn').classList.remove('resume');$('mFoot').classList.remove('paused');
     $('recLbl').textContent='● REC';$('recBadge').classList.remove('paused');$('pauseLbl').textContent=t('pause');
   }
 }
@@ -2625,7 +2631,7 @@ function onBack(){
   for(const id of ['adminView','legalView','aboutView']){const v=$(id);if(v&&v.classList.contains('show')){v.classList.remove('show');return;}}
   if($('guide').classList.contains('show')){closeGuide();return;}
   const recOn=typeof recorder!=='undefined'&&recorder&&recorder.state!=='inactive';
-  if($('master').classList.contains('show')){ask(t('bkDirT'),t(recOn?'bkRecD':'bkDirD'),t('bkLeave'),()=>{if(recOn){try{stopRec();}catch(e){}setTimeout(leave,isPro()&&$('optOutro').checked?4800:1500);}else leave();});return;}
+  if($('master').classList.contains('show')){ask(t('bkDirT'),t(recOn?'bkRecD':'bkDirD'),t('bkLeave'),()=>{if(recOn){try{if(draftHold)recToDraft=true;stopRec();}catch(e){}setTimeout(leave,isPro()&&$('optOutro').checked?4800:1500);}else leave();});return;}
   if($('slavecam').classList.contains('show')){ask(t('bkCamT'),t('bkCamD'),t('bkLeave'),leave);return;}
   if($('slave').classList.contains('show')){leave();return;}
   ask(t('bkExitT'),t('bkExitD'),t('bkExit'),()=>{exiting=true;history.go(-2);});
