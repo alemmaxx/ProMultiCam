@@ -203,18 +203,20 @@ function srcFor(label){if(label==null||label===-1)return{v:V(),label:-1};const a
 function drawVideo(c,W,H,x,src,force){
   let ag=null,lab=-1;if(!src){if(force!==undefined){const f=srcFor(force);src=null;ag=f.label!==-1?{v:f.v,label:f.label}:null;}else ag=angleAt(x);}
   let v=src||(ag&&ag.v.readyState>=2?ag.v:V());lab=ag?ag.label:-1;if(!dimsOf(v)[0])return;
-  const base=(c.filter&&c.filter!=='none')?c.filter:'',co=colOf(lab),cf=(base+colFilter(co)).trim()||'none';
+  const base=(c.filter&&c.filter!=='none')?c.filter:'',co=colOf(lab);let cf=(base+colFilter(co)).trim()||'none';c.filter='none';
   if(E.p.bg&&E.p.bg!=='none'&&window._edSeg){try{v=bgProcess(v);}catch(e){}}
   const [vw,vh]=dimsOf(v);
+  /* colour (look + sliders) through the fast GL pass when the phone can; the canvas filter stays as the fallback */
+  let D=v;if(cf!=='none'&&window.PMCFX){const r=PMCFX.src(v,cf,Math.max(W,H)*1.25);if(r){D=r.img;cf='none';}}
   const s=segAt(x);let z=1;if(s&&s.zoom){const p=clamp((x-s.a)/Math.max(0.1,s.b-s.a),0,1);z=1+0.18*p;}
   const kb=kbAt(s,x);
-  if(kb){const k=Math.max(W/vw,H/vh)*kb.z,dw=vw*k,dh=vh*k;const ox=clamp(W/2-kb.x*dw,W-dw,0),oy=clamp(H/2-kb.y*dh,H-dh,0);c.filter=cf;c.drawImage(v,ox,oy,dw,dh);c.filter='none';tempOver(c,0,0,W,H,co.t);return;}
+  if(kb){const k=Math.max(W/vw,H/vh)*kb.z,dw=vw*k,dh=vh*k;const ox=clamp(W/2-kb.x*dw,W-dw,0),oy=clamp(H/2-kb.y*dh,H-dh,0);c.filter=cf;c.drawImage(D,ox,oy,dw,dh);c.filter='none';tempOver(c,0,0,W,H,co.t);return;}
   const sameShape=Math.abs(vw/vh-W/H)<0.02,tk=!sameShape&&!ag?trackAt(x):null;
-  if(tk){const k=Math.max(W/vw,H/vh)*z,dw=vw*k,dh=vh*k;const ox=clamp(W/2-tk.x*dw,W-dw,0),oy=clamp(H/2-tk.y*dh,H-dh,0);c.filter=cf;c.drawImage(v,ox,oy,dw,dh);c.filter='none';tempOver(c,0,0,W,H,co.t);return;}
-  if(!sameShape&&E.p.fill==='blur'){c.save();c.filter='blur(28px) brightness(0.55)';const k=Math.max(W/vw,H/vh)*1.1;c.drawImage(v,(W-vw*k)/2,(H-vh*k)/2,vw*k,vh*k);c.restore();}
+  if(tk){const k=Math.max(W/vw,H/vh)*z,dw=vw*k,dh=vh*k;const ox=clamp(W/2-tk.x*dw,W-dw,0),oy=clamp(H/2-tk.y*dh,H-dh,0);c.filter=cf;c.drawImage(D,ox,oy,dw,dh);c.filter='none';tempOver(c,0,0,W,H,co.t);return;}
+  if(!sameShape&&E.p.fill==='blur'){c.save();c.filter='none';const T=bgCanvas('fb',32,Math.max(8,Math.round(32*vh/vw)));T.getContext('2d').drawImage(v,0,0,T.width,T.height);const k=Math.max(W/vw,H/vh)*1.1;c.imageSmoothingQuality='high';c.drawImage(T,(W-vw*k)/2,(H-vh*k)/2,vw*k,vh*k);c.fillStyle='rgba(0,0,0,.45)';c.fillRect(0,0,W,H);c.restore();}
   else if(!sameShape){c.fillStyle='#000';c.fillRect(0,0,W,H);}
   const k=(sameShape?Math.max(W/vw,H/vh):Math.min(W/vw,H/vh))*z,dw=vw*k,dh=vh*k;
-  c.filter=cf;c.drawImage(v,(W-dw)/2,(H-dh)/2,dw,dh);c.filter='none';tempOver(c,Math.max(0,(W-dw)/2),Math.max(0,(H-dh)/2),Math.min(W,dw),Math.min(H,dh),co.t);
+  c.filter=cf;c.drawImage(D,(W-dw)/2,(H-dh)/2,dw,dh);c.filter='none';tempOver(c,Math.max(0,(W-dw)/2),Math.max(0,(H-dh)/2),Math.min(W,dw),Math.min(H,dh),co.t);
 }
 function layoutAt(x){if(!E.p.cuts||!E.p.cuts.length)return null;let c0=null;for(const c of E.p.cuts){if(c.t<=x+1e-3)c0=c;else break;}return c0&&c0.lay&&c0.lay!=='full'?c0:null;}
 function drawText(c,W,H,tx,x){
@@ -849,14 +851,18 @@ function bgCanvas(k,w,h){let c=BGC[k];if(!c){c=BGC[k]=document.createElement('ca
 /* person stays sharp; what is behind them is blurred, darkened or replaced by a colour */
 function bgProcess(v){
   const [vw,vh]=dimsOf(v),k=Math.min(1,720/Math.max(vw,vh)),w=Math.round(vw*k),h=Math.round(vh*k);
-  segTs=Math.max(segTs+1,Math.round(performance.now()));
-  const res=window._edSeg.segmentForVideo(v,segTs);const mk=res.confidenceMasks&&res.confidenceMasks[0];if(!mk){res.close&&res.close();return v;}
-  const mw=mk.width,mh=mk.height,f=mk.getAsFloat32Array(),mc=bgCanvas('m',mw,mh),mg=mc.getContext('2d'),id=mg.createImageData(mw,mh);
-  for(let i=0;i<f.length;i++){const a=f[i];id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=255;id.data[i*4+3]=a>0.6?255:a<0.3?0:Math.round((a-0.3)/0.3*255);}
-  mg.putImageData(id,0,0);res.close&&res.close();
+  const now=performance.now();let mc=BGC.m;
+  /* the AI works at ~256px anyway; while previewing, a new mask ~11 times a second is enough (export does every frame) */
+  if(!mc||E.busy||now-(E.segAt||0)>90){E.segAt=now;
+    const sw=256,sh=Math.max(8,Math.round(256*vh/vw)),S=bgCanvas('s',sw,sh);S.getContext('2d').drawImage(v,0,0,sw,sh);
+    segTs=Math.max(segTs+1,Math.round(now));
+    const res=window._edSeg.segmentForVideo(S,segTs);const mk=res.confidenceMasks&&res.confidenceMasks[0];if(!mk){res.close&&res.close();if(!mc)return v;}
+    else{const mw=mk.width,mh=mk.height,f=mk.getAsFloat32Array();mc=bgCanvas('m',mw,mh);const mg=mc.getContext('2d');let id=BGC.id;if(!id||id.width!==mw||id.height!==mh){id=BGC.id=mg.createImageData(mw,mh);id.data.fill(255);}const D=id.data;
+      for(let i=0,n=f.length;i<n;i++){const a=f[i];D[i*4+3]=a>0.6?255:a<0.3?0:((a-0.3)*850)|0;}
+      mg.putImageData(id,0,0);res.close&&res.close();}}
   const P=bgCanvas('p',w,h),pg=P.getContext('2d');pg.globalCompositeOperation='source-over';pg.clearRect(0,0,w,h);pg.drawImage(v,0,0,w,h);pg.globalCompositeOperation='destination-in';pg.drawImage(mc,0,0,w,h);pg.globalCompositeOperation='source-over';
   const O=bgCanvas('o',w,h),og=O.getContext('2d'),b=E.p.bg;og.filter='none';
-  if(b==='blur'){og.filter='blur(14px)';og.drawImage(v,-10,-10,w+20,h+20);og.filter='none';}
+  if(b==='blur'){const T=bgCanvas('t',24,Math.max(8,Math.round(24*h/w)));T.getContext('2d').drawImage(v,0,0,T.width,T.height);og.imageSmoothingQuality='high';og.drawImage(T,0,0,w,h);}
   else if(b==='dark'){og.drawImage(v,0,0,w,h);og.fillStyle='rgba(0,0,0,.7)';og.fillRect(0,0,w,h);}
   else if(b&&b.startsWith('img:')){const im=bgImg(b.slice(4));og.fillStyle='#111';og.fillRect(0,0,w,h);if(im.complete&&im.naturalWidth){const kk=Math.max(w/im.naturalWidth,h/im.naturalHeight),iw=im.naturalWidth*kk,ih=im.naturalHeight*kk;og.drawImage(im,(w-iw)/2,(h-ih)/2,iw,ih);}}
   else{const col=(OV_COLORS[E.p.bgCol]||OV_COLORS.gold).c,gr=og.createLinearGradient(0,0,0,h);gr.addColorStop(0,col);gr.addColorStop(1,'#0e0e0f');og.fillStyle=gr;og.fillRect(0,0,w,h);}
@@ -1077,7 +1083,7 @@ async function joinRun(list,outName,after){
     const sv=new Saver(`${outName||('Gabung_'+stamp())}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
     const tot=vids.reduce((a,v)=>a+(v.duration||0),0)||1;let done=0;
     const draw=v=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;g.fillStyle='#000';g.fillRect(0,0,W,H);
-      if(Math.abs(vw/vh-W/H)>0.02){g.save();g.filter='blur(28px) brightness(0.55)';const kk=Math.max(W/vw,H/vh)*1.1;g.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);g.restore();}
+      if(Math.abs(vw/vh-W/H)>0.02){const T=draw.t||(draw.t=document.createElement('canvas'));T.width=32;T.height=Math.max(8,Math.round(32*vh/vw));T.getContext('2d').drawImage(v,0,0,T.width,T.height);const kk=Math.max(W/vw,H/vh)*1.1;g.imageSmoothingQuality='high';g.drawImage(T,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);g.fillStyle='rgba(0,0,0,.45)';g.fillRect(0,0,W,H);}
       const kk=Math.abs(vw/vh-W/H)>0.02?Math.min(W/vw,H/vh):Math.max(W/vw,H/vh);g.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);};
     rec.start(2000);rec.pause();
     for(const v of vids){v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,800);});draw(v);rec.resume();await v.play().catch(()=>{});

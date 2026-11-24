@@ -1088,6 +1088,7 @@ function watchBattery(){
     b.addEventListener('levelchange',f);b.addEventListener('chargingchange',f);f();}).catch(()=>{});
 }
 function mimeOf(name){return name.endsWith('.mp4')?'video/mp4':'video/webm';}
+const SIZE_CACHE={};
 async function listSaved(boxId){
   const box=$(boxId||($('slave').classList.contains('show')?'sfiles':'files'));if(!box)return;
   const root=await recRoot();if(!root){return;}
@@ -1096,7 +1097,11 @@ async function listSaved(boxId){
     if(h.kind!=='directory')continue;
     let size=0,done=false,count=0;
     let marks=null,clean=false;
-    for await(const [k,f] of h.entries()){if(k==='_brand.json')clean=true;if(k==='_done')done=true;else if(k==='_markers.txt'){try{marks=await (await f.getFile()).text();}catch(e){}}else if(f.kind==='file'&&k[0]!=='_'){count++;try{size+=(await f.getFile()).size;}catch(e){}}}
+    const parts=[];
+    for await(const [k,f] of h.entries()){if(k==='_brand.json')clean=true;if(k==='_done')done=true;else if(k==='_markers.txt'){try{marks=await (await f.getFile()).text();}catch(e){}}else if(f.kind==='file'&&k[0]!=='_'){count++;parts.push(f);}}
+    /* a finished recording never changes: remember its size instead of opening every piece each time the list is shown */
+    if(done&&SIZE_CACHE[name]&&SIZE_CACHE[name][0]===count)size=SIZE_CACHE[name][1];
+    else{for(const f of parts){try{size+=(await f.getFile()).size;}catch(e){}}if(done)SIZE_CACHE[name]=[count,size];}
     if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
     if(draftNames().includes(name))continue;
     items.push({name,h,size,done,marks,clean});
@@ -1395,10 +1400,14 @@ function refreshAudio(){
 }
 let micGain=null,musicGain=null,previewGain=null,hpf=null,comp=null,analyser=null;
 const vuBuf=new Uint8Array(512);
+let vuLit=-1,vuAt=0;
 function vuLoop(){
-  if(analyser){analyser.getByteTimeDomainData(vuBuf);let sum=0;for(let i=0;i<vuBuf.length;i++){const v=(vuBuf[i]-128)/128;sum+=v*v;}
-    const lvl=Math.min(1,Math.sqrt(sum/vuBuf.length)*4);const bars=$('vu').children;
-    for(let i=0;i<bars.length;i++){const on=lvl>i/bars.length;bars[i].style.height=on?(4+i*2)+'px':'4px';bars[i].style.background=on?(i>=5?'#d9776b':i>=4?'#c8a45c':'#5fb38c'):'#3d3b37';}}
+  const now=performance.now();
+  /* the level meter only needs ~12 updates a second, and none when it cannot be seen */
+  if(analyser&&now-vuAt>80&&!document.hidden&&$('master').classList.contains('show')&&!document.querySelector('.eds.show')){vuAt=now;
+    analyser.getByteTimeDomainData(vuBuf);let sum=0;for(let i=0;i<vuBuf.length;i+=2){const v=(vuBuf[i]-128)/128;sum+=v*v;}
+    const lvl=Math.min(1,Math.sqrt(sum/(vuBuf.length/2))*4);const bars=$('vu').children,lit=Math.ceil(lvl*bars.length);
+    if(lit!==vuLit){vuLit=lit;for(let i=0;i<bars.length;i++){const on=i<lit;bars[i].style.height=on?(4+i*2)+'px':'4px';bars[i].style.background=on?(i>=5?'#d9776b':i>=4?'#c8a45c':'#5fb38c'):'#3d3b37';}}}
   requestAnimationFrame(vuLoop);
 }
 function ensureAudio(){
@@ -1596,14 +1605,18 @@ async function setLiveBg(v){
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
+  /* look colours through the fast GL pass instead of the slow canvas filter */
+  let I=v,q=1;const F=ctx.filter;if(F&&F!=='none'&&window.PMCFX){const r=PMCFX.src(v,F,Math.max(w,h)*1.25);if(r){I=r.img;q=r.k;ctx.filter='none';}}
+  try{
   /* crop box (part of the screen/picture to show), as fractions; full picture when not set */
   const C=v._crop,cx0=C?C.x*vw:0,cy0=C?C.y*vh:0,cw=C?Math.max(8,C.w*vw):vw,ch=C?Math.max(8,C.h*vh):vh;
-  if(v._fit==='contain'){const k=Math.min(w/cw,h/ch)*(zoom||1),dw=cw*k,dh=ch*k;ctx.save();ctx.fillStyle='#000';ctx.fillRect(x,y,w,h);ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(v,cx0,cy0,cw,ch,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();return;}
+  if(v._fit==='contain'){const k=Math.min(w/cw,h/ch)*(zoom||1),dw=cw*k,dh=ch*k;ctx.save();ctx.fillStyle='#000';ctx.fillRect(x,y,w,h);ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(I,cx0*q,cy0*q,cw*q,ch*q,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();return;}
   const rot=v._rot||0,swap=rot===90||rot===270,tw=swap?h:w,th=swap?w:h;
   let sw,sh;const r=tw/th;if(cw/ch>r){sh=ch;sw=ch*r;}else{sw=cw;sh=cw/r;}
   sw/=zoom;sh/=zoom;const sx=cx0+(cw-sw)/2,sy=cy0+(ch-sh)/2;
-  if(rot){ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(rot*Math.PI/180);ctx.drawImage(v,sx,sy,sw,sh,-tw/2,-th/2,tw,th);ctx.restore();}
-  else ctx.drawImage(v,sx,sy,sw,sh,x,y,w,h);
+  if(rot){ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(rot*Math.PI/180);ctx.drawImage(I,sx*q,sy*q,sw*q,sh*q,-tw/2,-th/2,tw,th);ctx.restore();}
+  else ctx.drawImage(I,sx*q,sy*q,sw*q,sh*q,x,y,w,h);
+  }finally{ctx.filter=F;}
 }
 const dz=s=>(s.caps&&s.caps.zoom)?1:s.zoom;
 let grainCanvas=null;
@@ -2970,11 +2983,15 @@ async function setLock(on){
 }
 function toggleLock(){if(!lockSupported()){toast(t('lockFail'));return;}setLock(!sLocked);}
 function toggleGrid(){gridOn=!gridOn;$('gridBtn').classList.toggle('on',gridOn);$('gridOv').classList.toggle('show',gridOn);$('levelOv').classList.toggle('show',gridOn);}
+let tiltAt=0,tiltLast=999,tiltPortrait=window.innerHeight>=window.innerWidth;
+window.addEventListener('resize',()=>{tiltPortrait=window.innerHeight>=window.innerWidth;});
 function onTilt(e){
   if(e.gamma==null)return;
-  const portrait=window.innerHeight>=window.innerWidth;let roll=portrait?e.gamma:e.beta;
+  /* sensor fires ~60 times a second; the level only needs ~15 calm updates, and only when the screen is on */
+  const now=performance.now();if(now-tiltAt<66||document.hidden)return;tiltAt=now;
+  const portrait=tiltPortrait;let roll=portrait?e.gamma:e.beta;
   if(!portrait&&(screen.orientation&&screen.orientation.angle===270))roll=-roll;
-  roll=Math.max(-45,Math.min(45,roll||0));
+  roll=Math.max(-45,Math.min(45,roll||0));if(Math.abs(roll-tiltLast)<0.4)return;tiltLast=roll;
   const lv=$('levelOv');lv.style.transform=`translate(-50%,-50%) rotate(${-roll}deg)`;lv.classList.toggle('ok',Math.abs(roll)<2);
   $('levelTxt').textContent=Math.abs(roll)<2?'✓ '+t('level'):Math.round(Math.abs(roll))+'°';
 }
@@ -3096,6 +3113,7 @@ if('serviceWorker' in navigator){
       b.textContent=t('updNow');b.onclick=()=>location.reload();document.body.appendChild(b);};go();});
 }
 </script>
+<script src="fxgl.js"></script>
 <script src="textfx.js"></script>
 <script src="camctl.js"></script>
 <script src="manual.js"></script>
