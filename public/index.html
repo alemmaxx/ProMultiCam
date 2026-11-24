@@ -1258,6 +1258,7 @@ function viaLabel(v){return v==='data'?t('data'):v==='local'?t('thisPhone'):v===
 const CAN_SCREEN=!!(navigator.mediaDevices&&navigator.mediaDevices.getDisplayMedia)&&!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 let scrN=0;
 async function addScreen(){
+  if(!isPro()){openPro();return;}
   if(!CAN_SCREEN){ask(t('scrNoT'),t('scrNo'),t('gotIt'),()=>{});$('askOk').className='btn btn-gold';return;}
   if(!isPro()&&sources.filter(x=>!x.local).length>=FREE_MAX){openPro();return;}
   let st;try{st=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});}catch(e){return;}
@@ -1330,7 +1331,7 @@ function pick(id){
 }
 function sendLive(){logSwitch();sources.forEach(s=>{try{if(s.conn&&s.conn.open)s.conn.send({t:'live',on:s.id===mainId||(mode!=='full'&&s.id===secId)});}catch(e){}});}
 function renderConnList(){
-  const box=$('connList');if(!box)return;box.innerHTML='';if($('scrBtn'))$('scrBtn').style.display='inline-flex';
+  const box=$('connList');if(!box)return;box.innerHTML='';if($('scrBtn'))$('scrBtn').style.display=isPro()?'inline-flex':'none';
   if(!sources.length){box.innerHTML='<div class="hint">'+t('noCams')+'</div>';return;}
   sources.forEach(s=>{
     const d=document.createElement('div');d.className='item';
@@ -2373,6 +2374,9 @@ function applyTier(){
   if($('looks')&&$('looks').children.length)renderLooks();
   if(!pro&&$('autoSel')&&$('autoSel').value[0]==='b')$('autoSel').value='0';
   try{updateSceneTag();}catch(e){}
+  if($('scrBtn')&&$('connList'))$('scrBtn').style.display=pro?'inline-flex':'none';
+  if($('camScrBtn'))$('camScrBtn').style.display=CAN_SCREEN&&pro?'inline-flex':'none';
+  if(!pro&&typeof sources!=='undefined')sources.filter(x=>x.screen).forEach(x=>{try{stopScreen(x.id);}catch(e){}});
   renderAcctBtn();
 }
 function fitTools(){const n=[...document.querySelectorAll('.tools .tool')].filter(e=>e.style.display!=='none').length;const tl=document.querySelector('.tools');if(tl)tl.style.gridTemplateColumns=`repeat(${n<=4?Math.max(n,1):n<=6?3:4},minmax(0,1fr))`;}
@@ -2883,6 +2887,7 @@ async function camTorch(){const trk=sStream&&sStream.getVideoTracks()[0];if(!trk
 let sScr=null;
 async function camSend(st){if(sCall&&sCall.peerConnection)for(const s of sCall.peerConnection.getSenders()){if(s.track&&s.track.kind==='video'){const nt=st.getVideoTracks()[0];if(nt)await s.replaceTrack(nt);}}}
 async function camScreen(){
+  if(!sScr&&!isPro()){openPro();return;}
   if(sScr){const old=sScr;sScr=null;old.getTracks().forEach(tr=>tr.stop());$('camVideo').srcObject=sStream;$('camVideo').style.objectFit='';await camSend(sStream);$('camScrBtn').classList.remove('on');$('camScrBtn').textContent=t('scrShare');tuneSender();return;}
   let st;try{st=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:false});}catch(e){return;}
   sScr=st;$('camVideo').srcObject=st;$('camVideo').style.objectFit='contain';await camSend(st);$('camScrBtn').classList.add('on');$('camScrBtn').textContent=t('scrBack');tuneSender();toast(t('scrSending'),4000);
@@ -3022,7 +3027,7 @@ async function startSlaveCam(target,via){
   show('slavecam');keepAwake();
   $('camVideo').srcObject=sStream;$('camAngleLbl').textContent=t('angleLine',{label:camLabel()});
   $('camVia').textContent=via==='data'?t('data'):'Wi-Fi';$('camVia').className='chip '+(via==='data'?'chip-gold':'chip-ok');
-  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();if($('camScrBtn'))$('camScrBtn').style.display=CAN_SCREEN?'inline-flex':'none';
+  camCaps();$('camZoom').oninput=e=>camZoom(e.target.value);watchBattery();camGuide();if($('camScrBtn'))$('camScrBtn').style.display=CAN_SCREEN&&isPro()?'inline-flex':'none';
   if(ccBeautyOn()){const tr=sStream&&sStream.getVideoTracks()[0];setTimeout(()=>ccBeauty(tr,$('camVideo')),300);}
   freeMB().then(f=>{if(f!=null&&f<600)toast(t('stoCam',{mb:Math.round(f)}),6000);});
   if(!$('slavecam')._cc){$('slavecam')._cc=1;$('slavecam').addEventListener('click',e=>{const tg=e.target;if(tg!==$('camVideo')&&tg!==$('slavecam'))return;const tr=sStream&&sStream.getVideoTracks()[0];if(!tr)return;ccTapFocus($('camVideo'),e,(op,v)=>ccDo(tr,op,v),sFacing==='user');});}
