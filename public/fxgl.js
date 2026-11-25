@@ -73,5 +73,6 @@
       return {img:cv,k:w/vw};   /* caller draws it straight away, before the next call */
     }catch(e){return null;}
   }
-  window.PMCFX={src,matrixOf,ok:()=>init()};
+  let off=false;try{off=localStorage.getItem('pmc_fxgl')==='off';}catch(e){}
+  window.PMCFX={src:(v,f,m)=>off?null:src(v,f,m),matrixOf,ok:()=>init(),setOff:b=>{off=!!b;},isOff:()=>off||bad};
 })();
