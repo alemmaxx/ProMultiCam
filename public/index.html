@@ -1129,7 +1129,8 @@ async function previewRec(it){
   v.src=URL.createObjectURL(b);bx.style.display='flex';v.play().catch(()=>{});
 }
 async function listSaved(boxId){
-  const box=$(boxId||($('slave').classList.contains('show')?'sfiles':'files'));if(!box)return;
+  if(!boxId&&$('slave').classList.contains('show'))return;
+  const box=$(boxId||'files');if(!box||box.id==='sfiles')return;
   const root=await recRoot();if(!root){return;}
   const items=[];
   for await(const [name,h] of root.entries()){
@@ -3020,7 +3021,7 @@ function stopScan(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanS
 function selTab(name){/* one way to join now: the Studio ID (typed or scanned) */}
 function goSlave(){
   saveName();show('slave');track('role_camera');
-  listSaved('sfiles');
+  /* Camera phones show no recordings list — videos are kept on the Director */
 }
 function camLabel(){const v=($('camLabel').value||'').trim();try{localStorage.setItem('pmc_label',v);}catch(e){}return v||getName();}
 async function ensurePeer(){
