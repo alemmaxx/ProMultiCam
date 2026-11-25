@@ -177,7 +177,7 @@ window.openEditor=async function(it){
   setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad().then(()=>{try{renderTracks();}catch(e){}});medLoad();logoLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
   v.addEventListener('loadeddata',()=>drawAt(),{once:true});v.currentTime=firstKept()+0.001;drawAt();setTimeout(()=>{if(E)drawAt();},600);
 };
-window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});Object.values(E.musEls||{}).forEach(freeAudio);Object.values(E.medEls||{}).forEach(medFree);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}try{cancelAnimationFrame(E.raf);}catch(e){}}E=null;try{G('edThumbs').innerHTML='';G('edSegs').innerHTML='';const c=CV();c.width=2;c.height=2;}catch(e){}if(window.PMC_after_edit)PMC_after_edit();
+window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}if(E&&E.p&&E.p.canvas&&!(E.p.media||[]).length){const nm=E.name;try{localStorage.removeItem('pmc_ed_'+nm);}catch(e){}setTimeout(async()=>{try{const r=await recRoot();await r.removeEntry(nm,{recursive:true});listSaved('files');}catch(e){}},300);}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});Object.values(E.musEls||{}).forEach(freeAudio);Object.values(E.medEls||{}).forEach(medFree);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}try{cancelAnimationFrame(E.raf);}catch(e){}}E=null;try{G('edThumbs').innerHTML='';G('edSegs').innerHTML='';const c=CV();c.width=2;c.height=2;}catch(e){}if(window.PMC_after_edit)PMC_after_edit();
   /* back from editing returns to the Saved recordings list */
   try{openSheet('filesSheet');}catch(e){}};
 
@@ -566,7 +566,7 @@ CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.
 /* ---------- tools ---------- */
 const TABS=['tpl','bg','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
 /* five simple groups; a group with more than one tool shows small chips underneath */
-const TGROUPS=[['tpl',['tpl']],['g_media',['media']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
+const TGROUPS=[['g_media',['media']],['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
 const GICON={g_media:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/>',tpl:'<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',g_cut:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1L20 20M8.1 15.9L20 4"/>',g_text:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',g_sound:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',g_look:'<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="16" cy="10" r="1.3"/><path d="M12 21a3 3 0 0 1 0-6h1.5a2.5 2.5 0 0 0 0-5"/>'};
 window.edPanelClose=()=>{if(!E)return;E.pop=false;renderTabs();};
 function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(g=>g[1].includes(E.tab))||TGROUPS[0];
@@ -732,10 +732,10 @@ function renderPanel(){
       c.appendChild(row(hint(t('stepN',{n:n+1,m:E.p.steps.length})),timeBtn(q,'point','steps'),btn('✕',()=>{snap();E.p.steps=E.p.steps.filter(z=>z!==q);save();renderPanel();drawAt();},'btn-danger')));c.appendChild(inp);P.appendChild(c);});
   }
   if(k==='media'){
-    P.appendChild(hint(t(E.p.canvas?'mdHintC':'mdHint')));
+    P.appendChild(hint(t(E.p.canvas&&!(E.p.media||[]).length?'mdHint0':E.p.canvas?'mdHintC':'mdHint')));
     P.appendChild(row(btn('＋ '+t('mdAdd'),()=>pickMedia(medAdd),'btn-gold')));
     (E.p.media||[]).slice().sort((a,b)=>a.s-b.s).forEach((q,i)=>{const c=document.createElement('div');c.className='ed-card';
-      c.appendChild(row(hint((q.type==='img'?'🖼 ':'🎬 ')+(i+1)),timeBtn(q,'range','media'),btn('✕',()=>{snap();E.p.media=E.p.media.filter(z=>z!==q);if(E.medEls){medFree(E.medEls[q.id]);delete E.medEls[q.id];}save();renderPanel();drawAt();},'btn-danger')));
+      c.appendChild(row(hint((q.type==='img'?'🖼 ':'🎬 ')+(i+1)),timeBtn(q,'range','media'),btn('✕',()=>medDel(q),'btn-danger')));
       if(q.type==='vid'){const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('mdSnd');const ib=cb.querySelector('input');ib.checked=!!q.snd;ib.onchange=()=>{q.snd=ib.checked;save();};c.appendChild(cb);}
       P.appendChild(c);});
   }
@@ -1198,29 +1198,31 @@ async function writeBase(h,blob){for await(const [nm] of h.entries()){try{await 
 async function canvasGrow(nd){const blob=await blackMp4(nd);await writeBase(E.h,blob);const v=V(),old=E.dur;
   try{URL.revokeObjectURL(E.url);}catch(e){}E.blob=blob;E.ob=null;E.url=URL.createObjectURL(blob);v.src=E.url;
   await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;setTimeout(r,4000);});E.dur=isFinite(v.duration)&&v.duration>0?v.duration:nd;
-  const L=E.p.segs[E.p.segs.length-1];if(L&&L.keep&&Math.abs(L.b-old)<0.3&&!L.fx)L.b=E.dur;else E.p.segs.push({a:old,b:E.dur,keep:true,speed:1,zoom:false});}
+  if(E.dur>=old){const L=E.p.segs[E.p.segs.length-1];if(L&&L.keep&&Math.abs(L.b-old)<0.3&&!L.fx)L.b=E.dur;else E.p.segs.push({a:old,b:E.dur,keep:true,speed:1,zoom:false});}
+  else{E.p.segs=E.p.segs.filter(q=>q.a<E.dur-0.05);if(!E.p.segs.length)E.p.segs=[{a:0,b:E.dur,keep:true,speed:1,zoom:false}];E.p.segs[E.p.segs.length-1].b=E.dur;}
+  if(v.currentTime>E.dur)v.currentTime=Math.max(0,E.dur-0.05);}
+function medEnd(){return (E.p.media||[]).reduce((a,m)=>Math.max(a,m.e),0);}
+/* canvas project: remove a photo/video and close the gap, so no empty black time is left */
+async function medDel(q){if(!E||E.busy)return;E.busy=true;try{edPause();snap();E.p.media=E.p.media.filter(z=>z!==q);if(E.medEls){medFree(E.medEls[q.id]);delete E.medEls[q.id];}
+  if(E.p.canvas){const gap=q.e-q.s;E.p.media.forEach(m=>{if(m.s>=q.e-0.01){m.s=+(m.s-gap).toFixed(2);m.e=+(m.e-gap).toFixed(2);}});await canvasGrow(Math.max(1,medEnd()));}
+  try{const d=await medDirFor(E.name);await d.removeEntry('m_'+q.id);}catch(e){}
+  if(E.rsel&&E.rsel.o===q)E.rsel=null;save();renderAll();thumbs();}catch(e){console.error(e);}finally{if(E)E.busy=false;}}
 function pickMedia(cb){const i=document.createElement('input');i.type='file';i.accept='image/*,video/*';i.multiple=true;i.onchange=()=>{const fs=[...i.files];if(fs.length)cb(fs);};i.click();}
 async function medInfo(files){const out=[];for(const f of files){const type=/^image\//.test(f.type)?'img':/^video\//.test(f.type)?'vid':null;if(!type)continue;out.push({f,type,len:type==='img'?IMG_LEN:await vidLen(f)});}return out;}
 async function medAdd(files){if(!E||E.busy)return;E.busy=true;try{
   const list=await medInfo(files);if(!list.length)return;edPause();snap();if(!E.p.media)E.p.media=[];
-  let at;if(E.p.canvas){at=E.dur;toast(t('mdPrep'));await canvasGrow(E.dur+list.reduce((a,b)=>a+b.len,0));}else at=V().currentTime;
+  let at;if(E.p.canvas){at=medEnd();toast(t('mdPrep'));await canvasGrow(at+list.reduce((a,b)=>a+b.len,0));}else at=V().currentTime;
   let last=null;for(const q of list){const id=Date.now()+Math.floor(Math.random()*1e5),m={id,type:q.type,s:+at.toFixed(2),e:+Math.min(E.dur,at+q.len).toFixed(2),o:0,snd:!!E.p.canvas};
     if(m.e-m.s<0.3)break;await medStore(E.name,id,q.f);medMk(m,q.f);E.p.media.push(m);last=m;at=m.e;}
   if(last){E.rsel={o:last,mode:'range',list:'media'};V().currentTime=last.s;}
   save();renderAll();thumbs();toast(t('mdAdded'),2500);
 }catch(e){console.error('media',e);toast(t('mdFail'),4000);}finally{if(E)E.busy=false;}}
 /* "Video & Gambar": choose photos/videos and go straight into the editor */
-window.openMediaEd=function(){if(!isPro()){openPro();return;}
-  pickMedia(async files=>{try{toast(t('mdPrep'));const list=await medInfo(files);if(!list.length)return;
-    const tot=list.reduce((a,b)=>a+b.len,0),blob=await blackMp4(tot);
-    const name=seqName(t('mxFile'))+'.mp4',root=await recRoot(),h=await root.getDirectoryHandle(name,{create:true});await writeBase(h,blob);
-    const p=blank(tot);p.canvas=true;p.media=[];let at=0;
-    for(const q of list){const id=Date.now()+Math.floor(Math.random()*1e5);await medStore(name,id,q.f);p.media.push({id,type:q.type,s:+at.toFixed(2),e:+(at+q.len).toFixed(2),o:0,snd:true});at+=q.len;}
-    p.media[p.media.length-1].e=+tot.toFixed(2);
-    try{localStorage.setItem('pmc_ed_'+name,JSON.stringify(p));}catch(e){}
-    try{listSaved('files');}catch(e){}
-    openEditor({name,h,done:true});
-  }catch(e){console.error('mediaEd',e);toast(t(e&&e.message==='nowc'?'mdNoSup':'mdFail'),5000);}});};
+window.openMediaEd=async function(){if(!isPro()){openPro();return;}
+  try{const blob=await blackMp4(1);const name=seqName(t('mxFile'))+'.mp4',root=await recRoot(),h=await root.getDirectoryHandle(name,{create:true});await writeBase(h,blob);
+    const p=blank(1);p.canvas=true;p.media=[];try{localStorage.setItem('pmc_ed_'+name,JSON.stringify(p));}catch(e){}
+    await openEditor({name,h,done:true});
+  }catch(e){console.error('mediaEd',e);toast(t(e&&e.message==='nowc'?'mdNoSup':'mdFail'),5000);}};
 /* ================= JOIN: several recordings into one video ================= */
 document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this){jpStop();this.classList.remove('show')}"><div class="askcard" style="max-height:80vh;overflow-y:auto;overflow-x:hidden">
   <b data-i18n="joinT"></b>
