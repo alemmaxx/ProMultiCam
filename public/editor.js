@@ -1051,9 +1051,11 @@ async function rtExport(replace,suffix){
   G('edProgTx').textContent=t('seDone');G('edBar').style.width='100%';return r;
 }
 /* ================= JOIN: several recordings into one video ================= */
-document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this)this.classList.remove('show')"><div class="askcard" style="max-height:80vh;overflow:auto">
+document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this){jpStop();this.classList.remove('show')}"><div class="askcard" style="max-height:80vh;overflow:auto">
   <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinTr" style="display:flex;flex-direction:column;gap:6px"></div>
-  <div class="askbtns"><button class="btn" onclick="G_('joinBox').classList.remove('show')" data-i18n="cancel"></button><button class="btn btn-gold" id="joinGo"></button></div>
+  <div id="jpBox" style="display:none;flex-direction:column;gap:6px"><canvas id="jpCv" style="width:100%;max-height:36vh;object-fit:contain;background:#000;border-radius:12px"></canvas>
+    <div style="display:flex;gap:6px;align-items:center"><button class="btn btn-sm" type="button" id="jpNext"></button><button class="btn btn-sm" type="button" id="jpStop"></button><span id="jpTx" style="font-size:12px;color:var(--sub)"></span></div></div>
+  <div class="askbtns"><button class="btn" onclick="jpStop();G_('joinBox').classList.remove('show')" data-i18n="cancel"></button><button class="btn" id="jpPlay" type="button"></button><button class="btn btn-gold" id="joinGo"></button></div>
   <div class="se-prog" id="joinProg"><div><i id="joinBar"></i></div><span id="joinTx"></span></div></div></div>`);
 window.G_=id=>document.getElementById(id);
 let joinSel=[],joinTr=[];
@@ -1061,11 +1063,11 @@ const JT_ALL=['fade','black','white','slide','slideup','zoom','whip','wipe','cir
 const jtLabel=k=>{const o=document.querySelector('#transSel option[value="'+k+'"]');return o?o.textContent:k;};
 /* used by drafts: join the given parts in order, then offer to delete the parts */
 window.joinParts=function(items,name){
-  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
+  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('jpPlay').style.display='none';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
   joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
 };
 window.openJoin=async function(){
-  if(!isPro()){openPro();return;}
+  if(!isPro()){openPro();return;}jpStop();
   const root=await recRoot();const items=[];for await(const [n,h] of root.entries()){if(h.kind!=='directory')continue;let done=false;for await(const [k] of h.entries())if(k==='_done')done=true;if(done)items.push({name:n,h});}
   items.sort((a,b)=>a.name<b.name?-1:1);joinSel=[];joinTr=[];const L=G_('joinList');L.innerHTML='';
   const paint=()=>{[...L.children].forEach(b=>{const i=joinSel.indexOf(b.dataset.n);b.classList.toggle('btn-gold',i>=0);b.querySelector('i').textContent=i>=0?(i+1)+'.':'';});G_('joinGo').textContent=t('joinGo',{n:joinSel.length});paintTr();};
@@ -1079,9 +1081,38 @@ window.openJoin=async function(){
     mix.onclick=()=>{const pool=JT_ALL.slice().sort(()=>Math.random()-0.5);for(let i=0;i<n;i++)joinTr[i]=pool[i%pool.length];paintTr();};T.appendChild(mix);};
   items.forEach(it=>{const b=document.createElement('button');b.className='btn btn-sm';b.style.justifyContent='flex-start';b.dataset.n=it.name;b.innerHTML='<i style="font-style:normal;min-width:22px"></i><span></span>';b.querySelector('span').textContent=it.name;
     b.onclick=()=>{const i=joinSel.indexOf(it.name);if(i>=0)joinSel.splice(i,1);else joinSel.push(it.name);paint();};L.appendChild(b);});
-  G_('joinGo').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)),null,null,joinTr.slice());};
+  G_('jpPlay').style.display='';G_('jpPlay').textContent='▶ '+t('jpPlay');
+  G_('jpPlay').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}jpRun(joinSel.map(n=>items.find(q=>q.name===n)),joinTr.slice());};
+  G_('joinGo').onclick=()=>{jpStop();if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)),null,null,joinTr.slice());};
   G_('joinProg').classList.remove('show');paint();document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinBox').classList.add('show');
 };
+let JP=null;
+window.jpStop=function(){if(!JP)return;JP.stop=true;try{JP.cur&&JP.cur.pause();}catch(e){}JP.vids.forEach(v=>{try{v.pause();v.removeAttribute('src');v.load();}catch(e){}});JP.urls.forEach(u=>URL.revokeObjectURL(u));JP=null;const b=G_('jpBox');if(b)b.style.display='none';};
+async function jpRun(list,trs){
+  jpStop();const me=JP={stop:false,vids:[],urls:[],cur:null,skip:false};
+  G_('jpBox').style.display='flex';G_('jpNext').textContent='⏭ '+t('jpNext');G_('jpStop').textContent='■ '+t('jpStopL');G_('jpTx').textContent=t('jpLoad');
+  G_('jpStop').onclick=()=>jpStop();G_('jpNext').onclick=()=>{if(JP)JP.skip=true;};
+  for(const it of list){const b=await savedBlob(it.h,mimeOf(it.name));const u=URL.createObjectURL(b);me.urls.push(u);const v=document.createElement('video');v.src=u;v.playsInline=true;v.preload='auto';
+    await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});me.vids.push(v);if(me.stop)return;}
+  const v0=me.vids[0],vw0=v0.videoWidth||1280,vh0=v0.videoHeight||720;
+  /* small picture so the preview stays smooth: about 360px on the long side */
+  const k=360/Math.max(vw0,vh0),W=Math.round(vw0*k/2)*2,H=Math.round(vh0*k/2)*2;
+  const c=G_('jpCv');c.width=W;c.height=H;const g=c.getContext('2d');
+  const fr=document.createElement('canvas');fr.width=W;fr.height=H;const fg=fr.getContext('2d');const snap=document.createElement('canvas');snap.width=W;snap.height=H;
+  const draw=(v,gg)=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;gg.fillStyle='#000';gg.fillRect(0,0,W,H);const kk=Math.abs(vw/vh-W/H)>0.02?Math.min(W/vw,H/vh):Math.max(W/vw,H/vh);gg.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);};
+  for(let i=0;i<me.vids.length&&!me.stop;i++){const v=me.vids[i];me.cur=v;
+    const kd=i>0&&trs&&trs[i-1]&&trs[i-1]!=='cut'?trs[i-1]:null,tms=kd?Math.min(900,Math.max(500,(TRANS[kd]?TRANS[kd].ms:400)*1.8)):0;
+    v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,600);});if(me.stop)break;
+    G_('jpTx').textContent='V'+(i+1)+(kd?' · '+jtLabel(kd):'');await v.play().catch(()=>{});const t0=performance.now();
+    await new Promise(res0=>{let fin=false;const res=()=>{if(fin)return;fin=true;clearInterval(wd);res0();};const wd=setInterval(()=>{if(me.stop||v.ended)res();},150);v.addEventListener('ended',res,{once:true});
+      const f=()=>{if(fin||me.stop)return;
+        /* jump near the end of this video to see the next change */
+        if(me.skip){me.skip=false;if(i<me.vids.length-1&&v.duration>2)v.currentTime=Math.max(0,v.duration-1.5);}
+        const el=performance.now()-t0;if(kd&&el<tms){draw(v,fg);g.fillStyle='#000';g.fillRect(0,0,W,H);drawTrans(kd,el/tms,(x,y,w,h)=>g.drawImage(snap,x,y,w,h),(x,y,w,h)=>g.drawImage(fr,x,y,w,h),0,0,W,H,g);}else draw(v,g);
+        if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
+    v.pause();snap.getContext('2d').drawImage(c,0,0);}
+  if(JP===me){G_('jpTx').textContent=t('jpDone');me.vids.forEach(v=>{try{v.removeAttribute('src');v.load();}catch(e){}});me.urls.forEach(u=>URL.revokeObjectURL(u));me.vids=[];me.urls=[];}
+}
 async function joinRun(list,outName,after,trs){
   const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');
   try{ensureAudio();if(actx.state==='suspended')await actx.resume();
