@@ -226,7 +226,7 @@ let duckLvl=1;
 function duckTick(){
   if(!E||!E.g)return;const g=E.g;g.an.getFloatTimeDomainData(g.buf);let e=0;for(let i=0;i<g.buf.length;i++)e+=g.buf[i]*g.buf[i];e=Math.sqrt(e/g.buf.length);
   const want=E.p.duck&&e>0.03?0.28:1;duckLvl+=(want-duckLvl)*(want<duckLvl?0.35:0.05);
-  g.mus.gain.value=duckLvl;musTick(V().currentTime);
+  const x0=V().currentTime;g.mus.gain.value=duckLvl*musEnv(x0);musTick(x0);
 }
 
 /* ---------- drawing (preview = export) ---------- */
@@ -474,6 +474,10 @@ const musFile=id=>E.name.replace(/[^\w.-]+/g,'_')+(id==='legacy'?'.music':'.mus_
 async function musicLoad(){if(!E)return;musNorm();E.musEls=E.musEls||{};E.musBlobs=E.musBlobs||{};
   for(const q of E.p.mus){if(q.k!=='custom'||E.musEls[q.id])continue;try{const d=await editsDir();const f=await (await d.getFileHandle(musFile(q.id))).getFile();musSetEl(q.id,f);}catch(e){}}}
 function musSetEl(id,blob){E.musEls=E.musEls||{};E.musBlobs=E.musBlobs||{};if(E.musEls[id])freeAudio(E.musEls[id]);const a=new Audio();a.src=URL.createObjectURL(blob);a.loop=true;a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(musicGain);a._node=s;}catch(e){}E.musEls[id]=a;E.musBlobs[id]=blob;}
+/* gentle start and end: slow at first, then rises (and the reverse at the end) so music never jumps in */
+const MUS_FADE=1.6,ease=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p);};
+function musFadeLen(q){return Math.min(MUS_FADE,Math.max(0.2,(q.e-q.s)/3));}
+function musEnv(x){const q=musAt(x);if(!q)return 0;const f=musFadeLen(q);return ease((x-q.s)/f)*ease((q.e-x)/f);}
 function musAt(x){let a=null;for(const q of (E.p.mus||[]))if(x>=q.s&&x<q.e)a=q;return a;}
 function musHalt(){if(!E)return;Object.values(E.musEls||{}).forEach(a=>{try{a.pause();}catch(e){}});stopMusic();}
 function musTick(x){if(!E||!E.playing)return;const q=musAt(x),id=q?q.id+'|'+q.k:null;if(id===E.musAct)return;musHalt();E.musAct=id;if(!q)return;
@@ -1019,7 +1023,8 @@ async function renderAudio(total){
   if(E.p.duck){const d=speech.getChannelData(0),hop=Math.round(SR*0.05);let lv=1;for(let i=0;i<d.length;i+=hop){let e=0;for(let j=i;j<Math.min(d.length,i+hop);j+=4)e+=d[j]*d[j];e=Math.sqrt(e/(hop/4));const want=e>0.03?0.28:1;lv+=(want-lv)*(want<lv?0.6:0.12);dk.gain.setValueAtTime(lv,i/SR);}}
   for(const q of ML){const a=outPos(q.s),b=Math.min(total,outPos(q.e));if(b<=a)continue;
     /* each piece fades in at its start and out at its end */
-    const ig=off2.createGain();ig.connect(mg);ig.gain.setValueAtTime(0,0);ig.gain.setValueAtTime(0,Math.max(0,a-0.01));ig.gain.linearRampToValueAtTime(1,a+0.25);ig.gain.setValueAtTime(1,Math.max(a+0.25,b-0.6));ig.gain.linearRampToValueAtTime(0,b);
+    const ig=off2.createGain();ig.connect(mg);const fl=Math.min(MUS_FADE,(b-a)/3),N=64,up=new Float32Array(N),dn=new Float32Array(N);for(let i=0;i<N;i++){up[i]=ease(i/(N-1));dn[i]=ease(1-i/(N-1));}
+    ig.gain.setValueAtTime(0,0);if(fl>0.05){ig.gain.setValueCurveAtTime(up,a,fl);ig.gain.setValueAtTime(1,a+fl+0.001);ig.gain.setValueCurveAtTime(dn,Math.max(a+fl+0.01,b-fl),fl);}else{ig.gain.setValueAtTime(1,a);ig.gain.setValueAtTime(0,b);}
     if(q.k==='custom'){try{const buf=await off2.decodeAudioData(await E.musBlobs[q.id].arrayBuffer());const ms=off2.createBufferSource();ms.buffer=buf;ms.loop=true;ms.connect(ig);ms.start(a);ms.stop(Math.min(total,b+0.05));}catch(e){}continue;}
     const keep={a:actx,m:musicGain,n:noiseBuf,st:mStyle,step:mStep,next:mNext};
     const fake={currentTime:b,sampleRate:SR,createOscillator:()=>off2.createOscillator(),createGain:()=>off2.createGain(),createBiquadFilter:()=>off2.createBiquadFilter(),createBuffer:(...x)=>off2.createBuffer(...x),createBufferSource:()=>off2.createBufferSource()};
