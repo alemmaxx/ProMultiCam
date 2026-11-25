@@ -979,6 +979,7 @@ function applyI18n(){
 }
 function initLang(){
   let saved=null;try{saved=localStorage.getItem('pmc_lang');}catch(e){}
+  try{const ql=new URLSearchParams(location.search).get('lang');if(ql){saved=ql;localStorage.setItem('pmc_lang',ql);}}catch(e){}
   const codes=LANGS.map(l=>l[0]);
   const nav=(navigator.language||'en').toLowerCase().slice(0,2);
   LANG=saved&&codes.includes(saved)?saved:(codes.includes(nav)?nav:'en');
@@ -3254,6 +3255,10 @@ initLang();applyI18n();initInstall();
 (function(){
   const jc=(new URLSearchParams(location.search).get('join')||'').replace(/\D/g,'');
   if(jc.length===6){history.replaceState(null,'',location.pathname);goSlave();selTab('data');$('joinCode').value=jc;toast(t('qrReady'),4000);track('join_link');return;}
+  /* opened from the Android app: go straight to one panel */
+  const op=new URLSearchParams(location.search).get('open');
+  if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount()}[op];if(f)try{f();}catch(e){}};
+    const w=n=>{if(window.PMC&&PMC.ready||n>20)go();else setTimeout(()=>w(n+1),300);};setTimeout(()=>w(0),400);return;}
   if(lsGet('pmc_guided','')!=='1')openGuide();
 })();
 if('serviceWorker' in navigator){

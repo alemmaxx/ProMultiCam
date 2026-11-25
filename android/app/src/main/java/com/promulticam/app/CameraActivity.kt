@@ -41,6 +41,9 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var labelIn: EditText
     private lateinit var status: TextView
     private lateinit var onAir: TextView
+    private lateinit var scanBox: FrameLayout
+    @Volatile private var scanning = false
+    private var lastScan = 0L
     private lateinit var tpBox: FrameLayout
     private lateinit var tpTx: TextView
     private var tpY = 0f; private var tpRun = false; private var tpSpd = 4f; private var tpLast = 0L
@@ -61,7 +64,7 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        Rtc.init(this)
+        Ui.init(this); Rtc.init(this)
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
         if (need.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) startCam() else perms.launch(need)
@@ -96,16 +99,34 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         live.visibility = View.GONE
         root.addView(live, FrameLayout.LayoutParams(-1, -1))
 
-        setup = LinearLayout(this); setup.orientation = LinearLayout.VERTICAL; setup.setPadding(d * 2, d * 3, d * 2, d * 2); setup.setBackgroundColor(0xEE0E0E0F.toInt())
-        setup.addView(Ui.label(this, t("Camera", "Kamera"), 26f, Ui.GOLD, true))
-        setup.addView(Ui.label(this, t("Type the Director's Studio ID.", "Taip ID Studio Pengarah."), 14f, Ui.SUB), lp(4))
-        codeIn = EditText(this); codeIn.hint = t("Studio ID (6 digits)", "ID Studio (6 digit)"); codeIn.inputType = InputType.TYPE_CLASS_NUMBER; codeIn.setTextColor(Color.WHITE); codeIn.setHintTextColor(Ui.SUB); codeIn.textSize = 24f
-        codeIn.setText(sp.getString("lastCode", ""))
-        setup.addView(codeIn, lp(16))
-        labelIn = EditText(this); labelIn.hint = t("Angle label, e.g. Wok, Wide", "Label sudut, cth. Kuali, Jauh"); labelIn.setTextColor(Color.WHITE); labelIn.setHintTextColor(Ui.SUB)
-        labelIn.setText(sp.getString("camLabel", ""))
-        setup.addView(labelIn, lp(8))
-        setup.addView(Ui.btn(this, t("Join", "Sertai"), true) { join() }, lp(16))
+        setup = LinearLayout(this); setup.orientation = LinearLayout.VERTICAL; setup.setPadding(d, d * 2, d, d * 2); setup.setBackgroundColor(Ui.BG)
+        val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
+        top.addView(Ui.iconBtn(this, R.drawable.ic_back) { finish() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 46)))
+        val tt = LinearLayout(this); tt.orientation = LinearLayout.VERTICAL; tt.setPadding(d, 0, 0, 0)
+        tt.addView(Ui.label(this, t("CAMERA", "KAMERA"), 13f, Ui.INFO, true)); tt.addView(Ui.label(this, t("Connect to a Director", "Sambung ke Pengarah"), 20f, Ui.TEXT, true))
+        top.addView(tt); setup.addView(top)
+        val card = Ui.card(this)
+        card.addView(Ui.label(this, t("Enter Studio ID", "Masukkan ID Studio"), 19f, Ui.TEXT, true))
+        card.addView(Ui.hint(this, t("Type the Director's 6-digit ID or scan its QR.", "Taip ID 6 digit Pengarah atau imbas QR.")))
+        val jr = LinearLayout(this); jr.orientation = LinearLayout.HORIZONTAL; jr.gravity = Gravity.CENTER_VERTICAL
+        codeIn = Ui.input(this, t("Studio ID", "ID Studio"), sp.getString("lastCode", "") ?: "", InputType.TYPE_CLASS_NUMBER); codeIn.textSize = 20f
+        jr.addView(codeIn, LinearLayout.LayoutParams(0, -2, 1f))
+        jr.addView(Ui.btn(this, t("Join", "Sertai"), true) { join() }, LinearLayout.LayoutParams(-2, Ui.px(this, 58)).apply { leftMargin = d / 2 })
+        card.addView(jr, Ui.lp(this, 12))
+        card.addView(Ui.center(Ui.label(this, t("— or —", "— atau —"), 14f, Ui.SUB)).apply { layoutParams = Ui.lp(this@CameraActivity, 10) })
+        card.addView(Ui.btn(this, t("Scan the Director's QR", "Imbas QR Pengarah")) { startScan() }, Ui.lp(this, 10))
+        setup.addView(card, Ui.lp(this, 18))
+        setup.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
+        setup.addView(Ui.label(this, t("Angle label for this camera", "Label sudut untuk kamera ini"), 14f, Ui.SUB, true))
+        labelIn = Ui.input(this, t("e.g. Wok, Wide, Side", "cth: Kuali, Jauh, Sisi"), sp.getString("camLabel", "") ?: ""); setup.addView(labelIn, Ui.lp(this, 6))
+        setup.addView(Ui.hint(this, t("Shown on the Director's screen.", "Dipapar di skrin Pengarah.")))
+        // QR scanning: the camera picture with a gold frame
+        scanBox = FrameLayout(this); scanBox.visibility = View.GONE
+        val frame = View(this); frame.background = Ui.round(0, Ui.dp(this, 18f), Ui.GOLD, Ui.px(this, 3))
+        scanBox.addView(frame, Ui.fl(Ui.px(this, 240), Ui.px(this, 240), Gravity.CENTER))
+        scanBox.addView(Ui.center(Ui.label(this, t("Point at the QR on the Director", "Halakan ke QR di Pengarah"), 15f, Color.WHITE, true)), Ui.fl(-2, -2, Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply { topMargin = Ui.px(this@CameraActivity, 80) })
+        scanBox.addView(Ui.btn(this, t("Cancel", "Batal")) { stopScan() }, Ui.fl(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = Ui.px(this@CameraActivity, 40) })
+        root.addView(scanBox, Ui.fl(-1, -1))
         root.addView(setup, FrameLayout.LayoutParams(-1, -1))
         return root
     }
@@ -218,6 +239,28 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         tpTx.translationY = tpY
         main.postDelayed({ tpTick() }, 16)
     }
+
+    /* ---------- QR scan (reads the Director's QR from this camera's own pictures) ---------- */
+    private val qrSink = org.webrtc.VideoSink { f ->
+        if (!scanning) return@VideoSink
+        val now = System.currentTimeMillis(); if (now - lastScan < 350) return@VideoSink; lastScan = now
+        f.retain()
+        Thread {
+            try {
+                val b = f.buffer.toI420() ?: return@Thread
+                val w = b.width; val h = b.height; val y = ByteArray(w * h); val src = b.dataY; val st = b.strideY
+                for (r in 0 until h) { src.position(r * st); src.get(y, r * w, w) }
+                b.release()
+                val lum = com.google.zxing.PlanarYUVLuminanceSource(y, w, h, 0, 0, w, h, false)
+                val res = com.google.zxing.MultiFormatReader().apply { setHints(mapOf(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(com.google.zxing.BarcodeFormat.QR_CODE), com.google.zxing.DecodeHintType.TRY_HARDER to true)) }
+                    .decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(lum)))
+                val m = Regex("join=(\\d{6})").find(res.text) ?: Regex("^(\\d{6})$").find(res.text.trim())
+                if (m != null) main.post { if (scanning) { stopScan(); codeIn.setText(m.groupValues[1]); toast(t("Studio found. Tap Join.", "Studio dijumpai. Tekan Sertai.")); join() } }
+            } catch (e: Exception) {} finally { f.release() }
+        }.start()
+    }
+    private fun startScan() { cam?.track?.addSink(qrSink); scanning = true; setup.visibility = View.GONE; scanBox.visibility = View.VISIBLE }
+    private fun stopScan() { scanning = false; cam?.track?.removeSink(qrSink); scanBox.visibility = View.GONE; if (live.visibility != View.VISIBLE) setup.visibility = View.VISIBLE }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 }
