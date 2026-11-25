@@ -31,6 +31,11 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+.jo-row{display:flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px 6px;touch-action:none}
+.jo-row.drag{position:relative;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.5);border-color:var(--gold)}.jo-row.drop{border-color:var(--gold);border-style:dashed}
+.jo-h{font-size:18px;width:34px;height:36px;display:grid;place-items:center;cursor:grab;color:var(--sub);touch-action:none}
+.jo-n{font-weight:800;color:var(--gold);font-size:12px;min-width:24px}.jo-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-transform:none}
+.jo-b{min-width:38px!important;padding:0!important}
 .ed-tracks{position:relative;display:flex;flex-direction:column;gap:3px;margin-top:4px;touch-action:none}
 .ed-tracks:empty{display:none}
 .trk{position:relative;height:34px;border-radius:8px;background:#141416}
@@ -1079,7 +1084,7 @@ async function rtExport(replace,suffix){
 }
 /* ================= JOIN: several recordings into one video ================= */
 document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this){jpStop();this.classList.remove('show')}"><div class="askcard" style="max-height:80vh;overflow:auto">
-  <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinTr" style="display:flex;flex-direction:column;gap:6px"></div>
+  <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinOrd" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinTr" style="display:flex;flex-direction:column;gap:6px"></div>
   <div id="jpBox" style="display:none;flex-direction:column;gap:6px"><canvas id="jpCv" style="width:100%;max-height:36vh;object-fit:contain;background:#000;border-radius:12px"></canvas>
     <div style="display:flex;gap:6px;align-items:center"><button class="btn btn-sm" type="button" id="jpNext"></button><button class="btn btn-sm" type="button" id="jpStop"></button><span id="jpTx" style="font-size:12px;color:var(--sub)"></span></div></div>
   <div class="askbtns"><button class="btn" onclick="jpStop();G_('joinBox').classList.remove('show')" data-i18n="cancel"></button><button class="btn" id="jpPlay" type="button"></button><button class="btn btn-gold" id="joinGo"></button></div>
@@ -1096,14 +1101,28 @@ window.joinParts=async function(items,name){
       for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}
       downloadBlob(out,fname);toast(t('saved',{w:'Downloads/'+fname}),5000);listSaved('files');return;}
     catch(e){console.warn('quick join failed, using normal join',e);}}
-  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('jpPlay').style.display='none';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
+  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('joinOrd').innerHTML='';G_('jpPlay').style.display='none';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
   joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
 };
 window.openJoin=async function(){
   if(!isPro()){openPro();return;}jpStop();
   const root=await recRoot();const items=[];for await(const [n,h] of root.entries()){if(h.kind!=='directory')continue;let done=false;for await(const [k] of h.entries())if(k==='_done')done=true;if(done)items.push({name:n,h});}
   items.sort((a,b)=>a.name<b.name?-1:1);joinSel=[];joinTr=[];const L=G_('joinList');L.innerHTML='';
-  const paint=()=>{[...L.children].forEach(b=>{const i=joinSel.indexOf(b.dataset.n);b.classList.toggle('btn-gold',i>=0);b.querySelector('i').textContent=i>=0?(i+1)+'.':'';});G_('joinGo').textContent=t('joinGo',{n:joinSel.length});paintTr();};
+  const paint=()=>{[...L.children].forEach(b=>{const i=joinSel.indexOf(b.dataset.n);b.classList.toggle('btn-gold',i>=0);b.querySelector('i').textContent=i>=0?(i+1)+'.':'';});G_('joinGo').textContent=t('joinGo',{n:joinSel.length});paintOrd();paintTr();};
+  /* the chosen order, which can be changed: drag ☰ up or down, or use ▲ ▼ */
+  const paintOrd=()=>{const O=G_('joinOrd');O.innerHTML='';if(joinSel.length<2)return;
+    const h=document.createElement('b');h.textContent=t('joinOrdT');h.style.marginTop='6px';O.appendChild(h);
+    const hint=document.createElement('span');hint.className='hint';hint.textContent=t('joinOrdH');O.appendChild(hint);
+    joinSel.forEach((n,i)=>{const r=document.createElement('div');r.className='jo-row';r.dataset.i=i;
+      r.innerHTML='<span class="jo-h" aria-label="Drag">☰</span><span class="jo-n"></span><span class="jo-t"></span><button type="button" class="btn btn-sm jo-b">▲</button><button type="button" class="btn btn-sm jo-b">▼</button>';
+      r.querySelector('.jo-n').textContent='V'+(i+1);r.querySelector('.jo-t').textContent=n;
+      const [up,dn]=r.querySelectorAll('button');up.disabled=i===0;dn.disabled=i===joinSel.length-1;
+      up.onclick=()=>{[joinSel[i-1],joinSel[i]]=[joinSel[i],joinSel[i-1]];paint();};dn.onclick=()=>{[joinSel[i+1],joinSel[i]]=[joinSel[i],joinSel[i+1]];paint();};
+      r.querySelector('.jo-h').addEventListener('pointerdown',e=>{e.preventDefault();const rows=[...O.querySelectorAll('.jo-row')],rh=r.getBoundingClientRect().height+6,y0=e.clientY;let to=i;r.classList.add('drag');try{navigator.vibrate&&navigator.vibrate(8);}catch(er){}
+        const mv=ev=>{const dy=ev.clientY-y0;r.style.transform='translateY('+dy+'px)';to=Math.max(0,Math.min(joinSel.length-1,i+Math.round(dy/rh)));rows.forEach((x,k)=>x.classList.toggle('drop',k===to&&k!==i));};
+        const upf=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',upf);window.removeEventListener('pointercancel',upf);if(to!==i){const [it]=joinSel.splice(i,1);joinSel.splice(to,0,it);}paint();};
+        window.addEventListener('pointermove',mv);window.addEventListener('pointerup',upf);window.addEventListener('pointercancel',upf);});
+      O.appendChild(r);});};
   const paintTr=()=>{const T=G_('joinTr');T.innerHTML='';const n=joinSel.length-1;if(n<1)return;while(joinTr.length<n)joinTr.push('fade');joinTr.length=n;
     const h=document.createElement('b');h.textContent=t('joinTrT');h.style.marginTop='6px';T.appendChild(h);
     for(let i=0;i<n;i++){const r=document.createElement('label');r.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700';
