@@ -341,6 +341,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 
 /* Home: fits one screen, no scrolling */
 #home.show{position:fixed;inset:0;height:auto;overflow:hidden}
+#home.show{background:linear-gradient(180deg,rgba(8,7,5,.62) 0%,rgba(8,7,5,.45) 35%,rgba(8,7,5,.78) 100%),url(art/home_bg.jpg) center/cover no-repeat #0b0a08}
+#home .role{background:linear-gradient(180deg,rgba(30,26,20,.62),rgba(12,10,8,.72))!important;-webkit-backdrop-filter:none;border-color:rgba(200,164,92,.35)}
+#home .role.master{border-color:var(--gold)}
+#home .tool{background-color:rgba(18,16,13,.72)!important}
+#home .hero,#home .home-body{background:transparent!important}
+#home .input{background:rgba(10,9,7,.7)}
 #home .hero{padding:12px 18px 10px;padding-top:max(12px,calc(env(safe-area-inset-top) + 8px));gap:6px;flex-shrink:0}
 #home .logo{width:46px;height:46px;border-radius:12px}
 #home .logo svg{width:34px;height:34px}
