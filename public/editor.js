@@ -1266,6 +1266,7 @@ function jpBar(me){let bar=G_('jpSeek');if(!bar){bar=document.createElement('div
     if(i>0){const mk=document.createElement('i');mk.className='jpm'+(me.trs&&me.trs[i-1]&&me.trs[i-1]!=='cut'?' fx':'');mk.style.left=(a/me.total*100)+'%';bar.appendChild(mk);}a+=d;});
   const ph=document.createElement('div');ph.id='jpSeekPh';bar.appendChild(ph);}
 function jpHead(me,gt){const ph=G_('jpSeekPh');if(!ph||!me.total)return;const x=gt!=null?gt:jpNow(me);ph.style.left=Math.min(100,x/me.total*100)+'%';}
+window.joinRun2=(l,n,a)=>joinRun(l,n,a);
 async function joinRun(list,outName,after,trs){
   const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');
   try{ensureAudio();if(actx.state==='suspended')await actx.resume();
@@ -1277,7 +1278,7 @@ async function joinRun(list,outName,after,trs){
     vids.forEach(v=>{try{actx.createMediaElementSource(v).connect(dest);}catch(e){}});
     const out=c.captureStream(30);dest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
     const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm',rec=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:W*H>=1900000?8000000:5000000,audioBitsPerSecond:160000}:{});
-    const sv=new Saver(`${outName||(typeof seqName==='function'?seqName(t('joinFile')):'Gabung_'+stamp())}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
+    const sv=new Saver(`${outName||(typeof seqName==='function'?seqName(t('joinFile')):'Gabung_'+stamp())}.${ext}`);if(outName&&outName.startsWith('_tmp_'))sv.noDl=true;rec.ondataavailable=e=>sv.push(e.data);
     const tot=vids.reduce((a,v)=>a+(v.duration||0),0)||1;let done=0;
     const draw=(v,g0)=>{const g=g0||G0;const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;g.fillStyle='#000';g.fillRect(0,0,W,H);
       if(Math.abs(vw/vh-W/H)>0.02){const T=draw.t||(draw.t=document.createElement('canvas'));T.width=32;T.height=Math.max(8,Math.round(32*vh/vw));T.getContext('2d').drawImage(v,0,0,T.width,T.height);const kk=Math.max(W/vw,H/vh)*1.1;g.imageSmoothingQuality='high';g.drawImage(T,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);g.fillStyle='rgba(0,0,0,.45)';g.fillRect(0,0,W,H);}

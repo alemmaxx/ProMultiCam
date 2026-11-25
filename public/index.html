@@ -1117,7 +1117,7 @@ async function listSaved(boxId){
     if(done&&SIZE_CACHE[name]&&SIZE_CACHE[name][0]===count)size=SIZE_CACHE[name][1];
     else{for(const f of parts){try{size+=(await f.getFile()).size;}catch(e){}}if(done)SIZE_CACHE[name]=[count,size];}
     if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
-    if(draftNames().includes(name)||/_part_\d{8}_\d{6}\.\w+$/.test(name)&&!done)continue;
+    if(name.startsWith('_tmp_')||draftNames().includes(name)||/_part_\d{8}_\d{6}\.\w+$/.test(name)&&!done)continue;
     items.push({name,h,size,done,marks,clean});
   }
   items.sort((a,b)=>a.name<b.name?1:-1);
@@ -2155,9 +2155,19 @@ async function finishResume(it,partName){
   try{const a=await savedBlob(it.h,'video/mp4'),pd=await root.getDirectoryHandle(partName),b=await savedBlob(pd,'video/mp4');
     const out=await pmcRemux([a,b]);await pmcWriteInto(it.h,out);try{await root.removeEntry(partName,{recursive:true});}catch(e){}
     delete SIZE_CACHE[it.name];downloadBlob(out,it.name);toast(t('resumeDone',{n:it.name}),5000);}
-  catch(e){console.warn('resume join',e);toast(t('resumeFail'),7000);}
+  catch(e){console.warn('resume quick join failed',e&&e.message);
+    /* quick copy not possible (different camera settings, size or an imported video): build it the normal way, then put it into the same file */
+    try{const pd=await root.getDirectoryHandle(partName),tmp='_tmp_'+stamp();toast(t('resumeSlow'),7000);
+      await new Promise(res=>joinParts2([{name:it.name,h:it.h},{name:partName,h:pd}],tmp,async ok=>{
+        try{if(!ok)throw new Error('join');const ext=(await root.getDirectoryHandle(tmp+'.mp4').then(()=>'.mp4').catch(()=>'.webm'));const td=await root.getDirectoryHandle(tmp+ext);
+          const out=await savedBlob(td,ext==='.mp4'?'video/mp4':'video/webm');await pmcWriteInto(it.h,out);
+          try{await root.removeEntry(tmp+ext,{recursive:true});}catch(e2){}try{await root.removeEntry(partName,{recursive:true});}catch(e2){}
+          delete SIZE_CACHE[it.name];downloadBlob(out,it.name);toast(t('resumeDone',{n:it.name}),5000);}
+        catch(e3){toast(t('resumeFail'),7000);}res();}));}
+    catch(e4){toast(t('resumeFail'),7000);}}
   listSaved('files');
 }
+function joinParts2(items,name,after){document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));$('joinList').innerHTML='';$('joinTr').innerHTML='';$('joinOrd').innerHTML='';$('jpPlay').style.display='none';$('joinBox').classList.add('show');joinRun2(items,name,after);}
 function draftNames(){const d=getDraft();return d?d.parts:[];}
 function getDraft(){try{const d=JSON.parse(lsGet('pmc_draft','null'));return d&&Array.isArray(d.parts)&&d.parts.length?d:null;}catch(e){return null;}}
 function setDraft(d){if(d)lsSet('pmc_draft',JSON.stringify(d));else{try{localStorage.removeItem('pmc_draft');}catch(e){}}}
