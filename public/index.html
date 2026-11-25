@@ -543,7 +543,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       <button class="icon-btn" aria-label="Style" onclick="openSheet('styleSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/><path d="M12 21a2.5 2.5 0 0 1 0-5h1.5a2.5 2.5 0 0 0 2.5-2.5"/></svg></button>
       <button class="icon-btn" aria-label="Settings" onclick="openSheet('setSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
     </div>
-    <div class="ov-tags"><span id="lblAngle" style="color:var(--gold)"></span><span id="lblLook"></span><span id="lblScene" style="background:var(--gold);color:var(--on-gold)"></span></div>
+    <div class="ov-tags"><span id="lblAngle" style="color:var(--gold)"></span><span id="lblLook"></span><span id="lblScene" style="background:var(--gold);color:var(--on-gold)"></span><span id="lblAI" style="display:none;cursor:pointer;pointer-events:auto" onclick="openSheet('styleSheet')"></span></div>
     <div class="recbadge" id="recBadge"><span id="recLbl">● REC</span> <span id="recTime">00:00</span></div>
     <div class="zoomv"><span id="zoomVal">1.0×</span><input type="range" id="zoom" min="1" max="4" step="0.1" value="1" aria-label="Zoom"><button class="cc-mini" id="ccDirBtn" type="button" onclick="ccDirOpen()" aria-label="Camera controls"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg></button><button class="cc-mini" id="dirFlipBtn" type="button" onclick="dirFlip()" aria-label="Flip camera" style="display:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg></button></div>
     <div class="ov-bot">
@@ -1192,7 +1192,7 @@ function newCode(){return String(Math.floor(100000+Math.random()*900000));}
 async function goMaster(){
   if(!(window.PMC&&PMC.user)){toast(t('loginNeeded'));openAccount();return;}
   applyTier();
-  saveName();show('master');keepAwake();track('role_director');watchBattery();if(liveBg!=='none'){if(!isPro())liveBg='none';else if(window.PMC_BG&&!window._edSeg)PMC_BG.seg().catch(()=>{liveBg='none';});}if(faceFx!=='none'){if(!isPro())faceFx='none';else if(window.PMC_BG&&!window._faceLm)PMC_BG.face().catch(()=>{faceFx='none';});}setTimeout(paintDraft,500);
+  saveName();show('master');keepAwake();track('role_director');watchBattery();if(liveBg!=='none'){if(!isPro())liveBg='none';else if(window.PMC_BG&&!window._edSeg)PMC_BG.seg().catch(()=>{liveBg='none';});}if(faceFx!=='none'){if(!isPro())faceFx='none';else if(window.PMC_BG&&!window._faceLm)PMC_BG.face().catch(()=>{faceFx='none';});}setTimeout(aiChip,0);setTimeout(paintDraft,500);
   ensureAudio();
   $('mName').textContent=getName();
   // looks
@@ -1543,7 +1543,8 @@ function lbgSmall(m,W,H,w){const now=performance.now(),h=Math.max(8,Math.round(w
 function drawLiveBg(m,X,Y,W,H){
   drawCover(m.video,X,Y,W,H,dz(m));
   const now=performance.now();let upd=false;
-  if((now-lbgAt>110&&now-ffAt>30)||!LBG.m){lbgAt=now;try{const S=lbgSmall(m,W,H,256);lbgTs=Math.max(lbgTs+1,Math.round(now));const r=window._edSeg.segmentForVideo(S,lbgTs),mk=r.confidenceMasks&&r.confidenceMasks[0];
+  const aiGap=recActive()?110:220;
+  if((now-lbgAt>aiGap&&now-ffAt>30)||!LBG.m){lbgAt=now;try{const S=lbgSmall(m,W,H,256);lbgTs=Math.max(lbgTs+1,Math.round(now));const r=window._edSeg.segmentForVideo(S,lbgTs),mk=r.confidenceMasks&&r.confidenceMasks[0];
     if(mk){const mw=mk.width,mh=mk.height,f=mk.getAsFloat32Array(),mc=lbgCv('m',mw,mh),mg=mc.getContext('2d');let id=LBG.id;if(!id||id.width!==mw||id.height!==mh)id=LBG.id=mg.createImageData(mw,mh);const D=id.data;
       for(let i=0,n=f.length;i<n;i++){const a=f[i];D[i*4+3]=a>0.65?255:a<0.3?0:((a-0.3)*728)|0;}mg.putImageData(id,0,0);LBG.m=mc;upd=true;}
     r.close&&r.close();}catch(e){}}
@@ -1562,7 +1563,7 @@ let faceFx=lsGet('pmc_facefx','none'),ffTs=0,ffAt=0,ffFaces=[],ffSeen=0;
 const FFX=[['mus','🥸'],['shades','😎'],['mask','🎭'],['clown','🤡'],['cat','🐱'],['crown','👑']];
 function drawFaceFx(m,X,Y,W,H){
   const now=performance.now();
-  if(now-ffAt>120&&now-lbgAt>30){ffAt=now;try{const C=lbgSmall(m,W,H,256);
+  if(now-ffAt>(recActive()?120:240)&&now-lbgAt>30){ffAt=now;try{const C=lbgSmall(m,W,H,256);
     ffTs=Math.max(ffTs+1,Math.round(now));const r=window._faceLm.detectForVideo(C,ffTs),L=(r&&r.faceLandmarks)||[];
     if(L.length){ffSeen=now;ffFaces=L.map((lm,i)=>{const P=k=>({x:lm[k].x,y:lm[k].y}),f={eL:mid(P(33),P(133)),eR:mid(P(362),P(263)),nose:P(1),sub:P(2),lip:P(0),top:P(10)},o=ffFaces[i];
       if(o)for(const k in f){f[k].x=o[k].x+(f[k].x-o[k].x)*.6;f[k].y=o[k].y+(f[k].y-o[k].y)*.6;}return f;});}
@@ -1610,17 +1611,23 @@ function renderFaceFx(){const g=$('ffxGrid');if(!g)return;g.innerHTML='';
 async function setFaceFx(v){
   if(v!=='none'&&!isPro()){openPro();return;}
   if(v!=='none'&&!window._faceLm){toast(t('bgLoading'),8000);try{await PMC_BG.face();}catch(e){toast(t('bgFail'),5000);return;}}
-  faceFx=v;lsSet('pmc_facefx',v);ffFaces=[];renderFaceFx();toast(v==='none'?t('ffxOff'):t('ffxOn'),2500);
+  faceFx=v;lsSet('pmc_facefx',v);ffFaces=[];renderFaceFx();aiChip();toast(v==='none'?t('ffxOff'):t('ffxOn'),2500);
 }
-function renderLiveBg(){const g=$('lbgGrid');if(!g)return;g.innerHTML='';const L=window.PMC_BG?PMC_BG.list:[];
+function aiChip(){const c=$('lblAI');if(!c)return;const on=liveBg!=='none'||faceFx!=='none';c.style.display=on?'':'none';c.textContent='🤖 '+t('aiOn');}
+function renderLiveBg(){aiChip();const g=$('lbgGrid');if(!g)return;g.innerHTML='';const L=window.PMC_BG?PMC_BG.list:[];
   [['none',t('bg_none'),''],['blur',t('lbgBlur'),'linear-gradient(135deg,#6a7a8a,#3a4450)']].concat(L.map(n=>[n,t('bgi_'+n),`url(${PMC_BG.src(n)}) center/cover`])).forEach(([v,l,css])=>{
     const b=document.createElement('button');b.type='button';b.className='bg-opt'+(liveBg===v?' on':'');b.innerHTML='<i></i><span></span>';b.querySelector('i').style.background=css||'repeating-linear-gradient(45deg,#2a2a2d 0 8px,#1f1f21 8px 16px)';b.querySelector('span').textContent=(v!=='none'&&!isPro()?'🔒 ':'')+l;
     b.onclick=()=>setLiveBg(v);g.appendChild(b);});}
 async function setLiveBg(v){
   if(v!=='none'&&!isPro()){openPro();return;}
   if(v!=='none'&&!window._edSeg){toast(t('bgLoading'),8000);try{await PMC_BG.seg();}catch(e){toast(t('bgFail'),5000);return;}}
-  liveBg=v;lsSet('pmc_livebg',v);if(v!=='none'&&v!=='blur')lbgImg(v);LBG.m=null;renderLiveBg();toast(v==='none'?t('lbgOff'):t('lbgOn'),2500);
+  liveBg=v;lsSet('pmc_livebg',v);setTimeout(aiChip,0);if(v!=='none'&&v!=='blur')lbgImg(v);LBG.m=null;renderLiveBg();toast(v==='none'?t('lbgOff'):t('lbgOn'),2500);
 }
+const VIG={};
+function vigImg(W,H,a){const w=Math.max(8,Math.round(W)),h=Math.max(8,Math.round(H)),k=w+'x'+h+'@'+a;let c=VIG[k];if(c)return c;
+  const ks=Object.keys(VIG);if(ks.length>3)ks.forEach(x=>delete VIG[x]);
+  c=VIG[k]=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),gr=g.createRadialGradient(w/2,h/2,Math.min(w,h)*0.35,w/2,h/2,Math.max(w,h)*0.7);
+  gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+a+')');g.fillStyle=gr;g.fillRect(0,0,w,h);return c;}
 function drawCover(v,x,y,w,h,zoom){
   const vw=v.videoWidth,vh=v.videoHeight;
   if(!vw||!vh){ctx.fillStyle='#111';ctx.fillRect(x,y,w,h);return;}
@@ -1700,7 +1707,7 @@ function drawFrame(live){
   ctx.filter='none';
   if(clean){drawCards(W,H);drawDecor(octx,W,H,true);return;}
   if(look.grain&&live&&heavy){const g=getGrain();for(let gx=0;gx<W;gx+=256)for(let gy=0;gy<H;gy+=256)ctx.drawImage(g,(gx+Math.random()*40)%W,gy);}
-  if(look.vig){const gr=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+(look.vig===true?.6:look.vig)+')');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);}
+  if(look.vig){const F0=ctx.filter;ctx.filter='none';ctx.drawImage(vigImg(W,H,look.vig===true?.6:look.vig),0,0);ctx.filter=F0;}
   if(look.bars){const bh=Math.round(H*0.08);ctx.fillStyle='#000';ctx.fillRect(0,0,W,bh);ctx.fillRect(0,H-bh,W,bh);}
   if(look.stamp){const d=new Date(),p=n=>String(n).padStart(2,'0');const fs=Math.round(Math.min(W,H)/20);ctx.font=`700 ${fs}px ui-monospace,Menlo,monospace`;ctx.textAlign='right';ctx.fillStyle='#ffb347';ctx.fillText(`${p(d.getDate())} ${p(d.getMonth()+1)} '${String(d.getFullYear()).slice(2)}  ${p(d.getHours())}:${p(d.getMinutes())}`,W-fs,H-fs*1.4);}
   drawOverlays(W,H);
@@ -1709,7 +1716,7 @@ function drawFrame(live){
 /* brand layer for a clean recording: drawn on a see-through canvas over the preview, never into the file */
 function drawDecor(c,W,H){
   if(stageOv.width!==W||stageOv.height!==H){stageOv.width=W;stageOv.height=H;}c.clearRect(0,0,W,H);
-  if(look.vig){const gr=c.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+(look.vig===true?.6:look.vig)+')');c.fillStyle=gr;c.fillRect(0,0,W,H);}
+  if(look.vig){c.drawImage(vigImg(W,H,look.vig===true?.6:look.vig),0,0);}
   if(look.bars){const bh=Math.round(H*0.08);c.fillStyle='#000';c.fillRect(0,0,W,bh);c.fillRect(0,H-bh,W,bh);}
   const keep=ctx;try{ctx=c;drawOverlays(W,H);}catch(e){}finally{ctx=keep;}
 }
@@ -2838,6 +2845,9 @@ async function runTest(){
     const t0=performance.now();for(let i=0;i<24;i++)await w.write(blk);await w.close();const sec=(performance.now()-t0)/1000;mbps=24/Math.max(0.001,sec);await root.removeEntry('_speedtest');}catch(e){try{await root.removeEntry('_speedtest');}catch(e2){}}}
   const sLv=mbps==null?null:mbps>=40?'g':mbps>=15?'y':'r';
   row(!root?null:sLv==='g'||sLv==null?true:sLv==='y'?null:false,t('tStore'),(root?t('tSafe'):t('tMem'))+(mbps!=null?' · '+t('tSpeed',{n:Math.round(mbps)}):'')+(sLv?' · '+t('tSto_'+sLv):'')+' · '+t('tStoTip'));
+  // graphics chip
+  {let rn='',sw=false;try{const g=document.createElement('canvas').getContext('webgl');if(g){const di=g.getExtension('WEBGL_debug_renderer_info');rn=di?g.getParameter(di.UNMASKED_RENDERER_WEBGL):'';}sw=!g||/swiftshader|llvmpipe|software|basic render/i.test(rn);}catch(e){sw=true;}
+    row(!sw,t('tGpu'),sw?t('tGpuNo'):t('tOk')+(rn?' · '+String(rn).replace(/ANGLE \(|\)$/g,'').slice(0,60):''));}
   // network
   const nc=navigator.connection||{};const type=nc.type||'',eff=nc.effectiveType||'',dl=nc.downlink;
   row(navigator.onLine?(eff==='4g'||!eff?true:null):false,t('tNet'),navigator.onLine?[type==='wifi'?'Wi-Fi':type==='cellular'?t('mobile'):'',eff?eff.toUpperCase():'',dl?dl+' Mbps':''].filter(Boolean).join(' · ')||t('tOk'):t('noNet'));
