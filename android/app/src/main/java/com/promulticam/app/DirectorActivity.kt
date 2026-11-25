@@ -100,8 +100,9 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         } catch (e: Exception) { toast(t("Could not load the logo", "Gagal muat logo")) }
     }
 
-    private val W get() = if (brand.hd) 1080 else 720
-    private val H get() = if (brand.hd) 1920 else 1280
+    private val land get() = sp.getString("fmt", "p") == "l"
+    private val W get() = if (land) (if (brand.hd) 1920 else 1280) else (if (brand.hd) 1080 else 720)
+    private val H get() = if (land) (if (brand.hd) 1080 else 720) else (if (brand.hd) 1920 else 1280)
     private var layout: String get() = sp.getString("layout", "full") ?: "full"; set(v) { sp.edit().putString("layout", v).apply() }
     private var trans: String get() = sp.getString("trans", "fade") ?: "fade"; set(v) { sp.edit().putString("trans", v).apply() }
 
@@ -207,7 +208,17 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         return root
     }
     private lateinit var addTile: LinearLayout
-    private fun fpsLoop() { fpsTx.text = "${prog.fps} fps"; main.postDelayed({ if (!stopped) fpsLoop() }, 1000) }
+    private var lastSwitch = 0L
+    private fun fpsLoop() {
+        fpsTx.text = "${prog.fps} fps"
+        val n = sp.getInt("auto", 0)
+        if (n > 0 && System.currentTimeMillis() - lastSwitch >= n * 1000L) {
+            val l = srcs.filter { it.track != null }
+            if (l.size >= 2) { val i = l.indexOf(mainSrc); lastSwitch = System.currentTimeMillis(); setMain(l[(i + 1) % l.size]) }
+        }
+        main.postDelayed({ if (!stopped) fpsLoop() }, 1000)
+    }
+    private fun sendFmt() { srcs.forEach { it.data?.send(mapOf("t" to "fmt", "v" to if (land) "l" else "p")) }; refreshOverlay() }
     private fun paintChips() { srcChip.text = mainSrc?.name ?: t("Director phone", "Telefon Pengarah"); lookChip.text = lookName(look) }
 
     private fun lookName(l: Looks.Look) = if (Ui.ms) l.ms else l.en
@@ -265,7 +276,10 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val s = Ui.sheet(this, t("Recording settings", "Tetapan Rakaman"), t("Save settings", "Simpan Tetapan") to { refreshOverlay(); paintChips() })
         val b = s.body
         b.addView(Ui.label(this, t("Video format", "Format video"), 13f, Ui.SUB, true))
-        b.addView(Ui.pill(this, t("Vertical 9:16 · Short video & Story", "Menegak 9:16 · Video Pendek & Story"), true) {}, Ui.lp(this, 6))
+        lateinit var fp: Button; lateinit var fl: Button
+        fp = Ui.pill(this, t("Vertical 9:16 · Short video & Story", "Menegak 9:16 · Video Pendek & Story"), !land) { if (enc != null) return@pill; sp.edit().putString("fmt", "p").apply(); prog.resize(W, H); Ui.setPill(this, fp, true); Ui.setPill(this, fl, false); sendFmt() }
+        fl = Ui.pill(this, t("Horizontal 16:9 · Widescreen", "Melintang 16:9 · Skrin lebar"), land) { if (enc != null) return@pill; sp.edit().putString("fmt", "l").apply(); prog.resize(W, H); Ui.setPill(this, fp, false); Ui.setPill(this, fl, true); sendFmt() }
+        b.addView(fp, Ui.lp(this, 6)); b.addView(fl, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Quality", "Kualiti"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val qr = LinearLayout(this); qr.orientation = LinearLayout.HORIZONTAL
         lateinit var q7: Button; lateinit var q10: Button
@@ -291,6 +305,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.hr(this))
         b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
         b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
+        b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val ar = LinearLayout(this); ar.orientation = LinearLayout.HORIZONTAL; val ap = ArrayList<Button>()
+        for (n in listOf(0, 5, 10, 15)) { val pb = Ui.pill(this, if (n == 0) t("Off", "Tutup") else "${n}s", sp.getInt("auto", 0) == n) {
+                if (n > 0 && !Auth.isPro) { needPro(); return@pill }
+                sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
+            ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
+        b.addView(ar, Ui.lp(this, 6))
         ti.addTextChangedListener(watch { brand.title = it; brand.refresh() }); pr.addTextChangedListener(watch { brand.price = it; brand.refresh() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refresh() })
         s.dialog.setOnDismissListener { refreshOverlay(); paintChips() }
         s.dialog.show()
@@ -404,7 +425,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 (msg["name"] as? String)?.takeIf { it.isNotEmpty() }?.let { s.name = it; label(s) }
                 s.data = link
                 link.send(mapOf("t" to "welcome", "name" to t("Director", "Pengarah")))
-                link.send(mapOf("t" to "fmt", "v" to "p"))
+                link.send(mapOf("t" to "fmt", "v" to if (land) "l" else "p"))
                 link.send(mapOf("t" to "q", "hi" to (enc != null)))
                 sendLive(); toast(s.name + t(" joined", " menyertai"))
             }
@@ -446,6 +467,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
 
     /* full: tap = main angle. split / small frame: tap another = second view, tap the main one = swap */
     private fun tap(s: Src) {
+        lastSwitch = System.currentTimeMillis()
         if (layout == "full" || s.track == null) { setMain(s); return }
         if (s === mainSrc) { val o = secSrc; if (o != null) { setSecond(null); setMain(o); setSecond(s) } }
         else setSecond(s)

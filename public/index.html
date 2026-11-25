@@ -3257,7 +3257,7 @@ initLang();applyI18n();initInstall();
   if(jc.length===6){history.replaceState(null,'',location.pathname);goSlave();selTab('data');$('joinCode').value=jc;toast(t('qrReady'),4000);track('join_link');return;}
   /* opened from the Android app: go straight to one panel */
   const op=new URLSearchParams(location.search).get('open');
-  if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount()}[op];if(f)try{f();}catch(e){}};
+  if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount(),videos:()=>openVideos(),media:()=>openMediaEd()}[op];if(f)try{f();}catch(e){}};
     const w=n=>{if(window.PMC&&PMC.ready||n>20)go();else setTimeout(()=>w(n+1),300);};setTimeout(()=>w(0),400);return;}
   if(lsGet('pmc_guided','')!=='1')openGuide();
 })();

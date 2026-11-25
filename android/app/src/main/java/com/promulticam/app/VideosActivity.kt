@@ -30,24 +30,45 @@ class VideosActivity : AppCompatActivity() {
     private val picked = LinkedHashSet<Uri>()
     private val main = Handler(Looper.getMainLooper())
 
+    private val importer = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetMultipleContents()) { list -> if (list.isNotEmpty()) importVideos(list) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val d = Ui.dp(this, 12f).toInt()
-        val root = LinearLayout(this); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG); root.setPadding(d, d * 3, d, d)
+        Ui.init(this)
+        val d = Ui.px(this, 12)
+        val root = LinearLayout(this); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG); root.setPadding(d, d * 2, d, d)
         val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
-        top.addView(Ui.btn(this, "‹") { finish() })
-        top.addView(Ui.label(this, t("Videos", "Video"), 22f, Ui.GOLD, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
-        top.addView(Ui.btn(this, t("Join", "Gabung"), true) { joinPicked() })
+        top.addView(Ui.iconBtn(this, R.drawable.ic_back) { finish() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 46)))
+        top.addView(Ui.label(this, t("Saved Recordings", "Rakaman Tersimpan"), 22f, Ui.TEXT, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(top)
-        root.addView(Ui.btn(this, "✂️ " + t("Edit (web editor)", "Edit (editor web)")) {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://promulticam.web.app")))
-            toast(t("Open Videos › Import Video, then Edit", "Buka Video › Import Video, kemudian Edit"))
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
-        root.addView(Ui.label(this, t("Tick 2 or more, then Join.", "Tanda 2 atau lebih, kemudian Gabung."), 13f, Ui.SUB), LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
+        val r1 = LinearLayout(this); r1.orientation = LinearLayout.HORIZONTAL
+        r1.addView(Ui.btn(this, t("Import Video", "Import Video"), true) { importer.launch("video/*") }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = d / 2 })
+        r1.addView(Ui.btn(this, t("Join Video", "Join Video")) { joinPicked() }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(r1, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
+        root.addView(Ui.btn(this, t("Video & Photos", "Video & Gambar")) { WebActivity.open(this, "media") }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
+        root.addView(Ui.hint(this, t("Tick 2 or more, then Join Video.", "Tanda 2 atau lebih, kemudian Join Video.")))
         val sv = ScrollView(this); list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; sv.addView(list)
         root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
         setContentView(root)
     }
+
+    /* copy chosen gallery videos into the app's folder so they can be joined / continued */
+    private fun importVideos(list: List<Uri>) {
+        toast(t("Importing…", "Mengimport…"))
+        Thread {
+            var n = 0
+            for (u in list) try {
+                val name = "Import_" + SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date()) + "_" + n + ".mp4"
+                val cv = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4"); if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProMultiCam"); put(MediaStore.Video.Media.IS_PENDING, 1) } }
+                val out = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv) ?: continue
+                contentResolver.openInputStream(u)?.use { i -> contentResolver.openOutputStream(out)?.use { o -> i.copyTo(o) } }
+                if (Build.VERSION.SDK_INT >= 29) contentResolver.update(out, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }, null, null)
+                n++
+            } catch (e: Exception) {}
+            main.post { toast(t("$n video(s) imported", "$n video diimport")); load() }
+        }.start()
+    }
+
     override fun onResume() { super.onResume(); load() }
 
     private fun query(): List<V> {
@@ -70,9 +91,9 @@ class VideosActivity : AppCompatActivity() {
         val d = Ui.dp(this, 10f).toInt()
         if (vs.isEmpty()) list.addView(Ui.label(this, t("No videos yet.", "Belum ada video."), 15f, Ui.SUB))
         for (v in vs) {
-            val card = LinearLayout(this); card.orientation = LinearLayout.VERTICAL; card.background = Ui.round(Ui.CARD, Ui.dp(this, 14f)); card.setPadding(d, d, d, d)
+            val card = Ui.card(this)
             val head = LinearLayout(this); head.orientation = LinearLayout.HORIZONTAL; head.gravity = Gravity.CENTER_VERTICAL
-            val cb = CheckBox(this); cb.setOnCheckedChangeListener { _, on -> if (on) picked.add(v.uri) else picked.remove(v.uri) }
+            val cb = CheckBox(this); cb.buttonTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); cb.setOnCheckedChangeListener { _, on -> if (on) picked.add(v.uri) else picked.remove(v.uri) }
             head.addView(cb)
             head.addView(ImageView(this).apply {
                 try { setImageBitmap(if (Build.VERSION.SDK_INT >= 29) contentResolver.loadThumbnail(v.uri, android.util.Size(160, 160), null) else null) } catch (e: Exception) {}
@@ -83,14 +104,15 @@ class VideosActivity : AppCompatActivity() {
             txt.addView(Ui.label(this, String.format(Locale.US, "%.1f MB · %d:%02d", v.mb, v.sec / 60, v.sec % 60), 12f, Ui.SUB))
             head.addView(txt, LinearLayout.LayoutParams(0, -2, 1f))
             card.addView(head)
-            val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL
-            row.addView(Ui.btn(this, "▶ " + t("Watch", "Tonton"), true) { play(v.uri) }, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(Ui.btn(this, t("Share", "Kongsi")) { share(v.uri) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
-            row.addView(Ui.btn(this, t("Delete", "Padam")) { del(v) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
-            card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
-            if (Build.VERSION.SDK_INT >= 29) card.addView(Ui.btn(this, "⏺ " + t("Continue", "Sambung")) {
-                startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", v.uri.toString()))
-            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
+            val g = android.widget.GridLayout(this); g.columnCount = 3
+            val items = ArrayList<android.view.View>()
+            items.add(Ui.btn(this, "▶ " + t("Preview", "Tonton")) { play(v.uri) })
+            items.add(Ui.btn(this, t("Share", "Kongsi"), true) { share(v.uri) })
+            if (Build.VERSION.SDK_INT >= 29) items.add(Ui.btn(this, "⏺ " + t("Continue", "Sambung")) { startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", v.uri.toString())) })
+            items.add(Ui.btn(this, "Edit") { WebActivity.open(this, "videos"); toast(t("In the web app: Import Video, then Edit", "Dalam web: Import Video, kemudian Edit")) })
+            items.add(Ui.dangerBtn(this, t("Delete", "Padam")) { del(v) })
+            items.forEachIndexed { i, x -> val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 3), android.widget.GridLayout.spec(i % 3, 1f)); p.width = 0; p.setMargins(4, 6, 4, 6); g.addView(x, p) }
+            card.addView(g, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
             list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = d })
         }
     }
