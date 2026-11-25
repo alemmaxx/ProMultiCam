@@ -155,6 +155,8 @@ async function voiceDir(){const d=await editsDir();return d.getDirectoryHandle(E
 
 window.openEditor=async function(it){
   if(!isPro()){openPro();return;}
+  /* the main logo is normally loaded by the Director screen; load it here too when the editor is opened from Home */
+  try{if(!logoImg&&lsGet('pmc_logo','')){setLogo(lsGet('pmc_logo',''));if(logoImg)logoImg.onload=()=>{try{if(E){drawAt();renderPanel();}}catch(e){}};}}catch(e){}
   closeSheet('filesSheet');
   const blob=await savedBlob(it.h,mimeOf(it.name));
   E={name:it.name,h:it.h,blob,url:URL.createObjectURL(blob),hist:[],tab:'tpl',raf:0,playing:false,voiceEls:{},sel:null};
@@ -725,6 +727,7 @@ function renderPanel(){
       P.appendChild(fld('titleL','titleTxt','titlePh'));P.appendChild(fld('price','priceTxt','pricePh'));P.appendChild(fld('phone','phoneTxt','phonePh'));
       {const cur=E.p.logo||'main',src=cur==='own'&&E.logoImg?E.logoImg.src:cur==='main'&&logoImg?logoImg.src:'';
         const th=document.createElement('span');th.className='ed-logo';if(src)th.style.backgroundImage='url('+src+')';else th.textContent=cur==='none'?'✕':'—';
+        if(cur==='main'&&!src){P.appendChild(hint(t('edLogoNoMain')));}
         const up=document.createElement('label');up.className='btn btn-sm btn-gold';up.style.cursor='pointer';up.innerHTML='<span></span><input type="file" accept="image/*" style="display:none">';up.querySelector('span').textContent=t('edLogoUp');
         up.querySelector('input').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;snap();try{await logoSet(f);toast(t('edLogoDone'));}catch(er){toast(t('eGeneric'));}};
         const pick=sel([['main',t('edLogoMain')],['own',t('edLogoOwn')],['none',t('edLogoNone')]],cur,v=>{if(v==='own'&&!E.logoImg){up.querySelector('input').click();renderPanel();return;}snap();E.p.logo=v;save();drawAt();renderPanel();});
