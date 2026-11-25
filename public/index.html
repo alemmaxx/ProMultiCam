@@ -2846,7 +2846,12 @@ async function runTest(){
   const sig=await new Promise(res=>{let done=false;try{const p=new Peer(peerOpts);const to=setTimeout(()=>{if(!done){done=true;try{p.destroy();}catch(e){}res(false);}},8000);p.on('open',()=>{if(!done){done=true;clearTimeout(to);p.destroy();res(true);}});p.on('error',()=>{if(!done){done=true;clearTimeout(to);try{p.destroy();}catch(e){}res(false);}});}catch(e){res(false);}});
   row(sig,t('tSig'),sig?t('tOk'):t('tSigNo'));
   const turn=(peerOpts.config.iceServers||[]).some(x=>String(x.urls).includes('turn'));
-  row(turn?true:null,t('tTurn'),turn?t('tOk'):t('tTurnNo'));
+  /* phones (Chrome on Android) tell us Wi-Fi or mobile data; computers and iPhones do not */
+  const ctype=(navigator.connection||{}).type||'';
+  if(turn)row(true,t('tTurn'),t('tOk'));
+  else if(ctype==='wifi'||ctype==='ethernet')row(true,t('tTurn'),t('tTurnWifi'));
+  else if(ctype==='cellular')row(false,t('tTurn'),t('tTurnCell'));
+  else row(null,t('tTurn'),t('tTurnNo')+' '+t('tTurnUnk'));
   // battery
   try{if(navigator.getBattery){const b=await navigator.getBattery();const lv=Math.round(b.level*100);row(b.charging||lv>40?true:null,t('tBatt'),lv+'%'+(b.charging?' ⚡':'')+(b.charging||lv>40?'':' · '+t('tBattLow')));}}catch(e){}
   wait.remove();

@@ -1,4 +1,4 @@
-const C='promulticam-v102';
+const C='promulticam-v103';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./i18n.js','./account.js','./editor.js','./fxgl.js','./textfx.js','./camctl.js','./manual.js','./art/bg/beach.svg','./art/bg/city.svg','./art/bg/office.svg','./art/bg/cafe.svg','./art/bg/garden.svg','./art/bg/studio.svg','./art/bg/gold.svg','./art/kitchen.svg','./art/food.svg','./art/hills.svg','./art/dusk.svg','./art/podcast.svg','./config.js','./landing.html','./legal.html','./manifest.json','./icon-192.png','./icon-512.png','./icon.svg','./favicon.png','./apple-touch-icon.png'])));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});
