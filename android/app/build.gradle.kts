@@ -15,6 +15,7 @@ android {
         targetSdk = 34
         versionCode = (System.getenv("PMC_VERSION_CODE") ?: "1").toInt()
         versionName = "0.1." + (System.getenv("PMC_VERSION_CODE") ?: "1")
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }   // phones only: a smaller download
     }
     signingConfigs {
         create("pmc") {
