@@ -31,6 +31,11 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+#jpSeek{position:relative;height:34px;border-radius:8px;background:#141416;touch-action:none;cursor:pointer;overflow:hidden}
+#jpSeek .jps{position:absolute;top:4px;bottom:4px;border-radius:6px;background:rgba(200,164,92,.22);border:1px solid rgba(200,164,92,.45);font:800 10px var(--f);color:var(--gold);display:flex;align-items:center;padding-left:6px;overflow:hidden;pointer-events:none}
+#jpSeek .jps:nth-child(4n+3){background:rgba(127,179,255,.2);border-color:rgba(127,179,255,.45);color:#9cc4ff}
+#jpSeek .jpm{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#555;pointer-events:none}#jpSeek .jpm.fx{background:var(--gold)}
+#jpSeekPh{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;background:#fff;box-shadow:0 0 4px #000;pointer-events:none;left:0}
 #joinBox .askcard *{max-width:100%;box-sizing:border-box}#joinBox .askcard{min-width:0}
 #joinList .btn{min-width:0;overflow:hidden;width:100%}#joinList .btn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #joinTr select{min-width:0}#joinTr label{min-width:0}
@@ -1194,31 +1199,55 @@ window.pmcWriteInto=async function(dir,blob){
 };
 let JP=null;
 window.jpStop=function(){if(!JP)return;JP.stop=true;try{JP.cur&&JP.cur.pause();}catch(e){}JP.vids.forEach(v=>{try{v.pause();v.removeAttribute('src');v.load();}catch(e){}});JP.urls.forEach(u=>URL.revokeObjectURL(u));JP=null;const b=G_('jpBox');if(b)b.style.display='none';};
-async function jpRun(list,trs){
-  jpStop();const me=JP={stop:false,vids:[],urls:[],cur:null,skip:false};
+async function jpRun(list,trs,startAt){
+  jpStop();const me=JP={stop:false,vids:[],urls:[],cur:null,skip:false,jump:null,list,trs};
   G_('jpBox').style.display='flex';G_('jpNext').textContent='⏭ '+t('jpNext');G_('jpStop').textContent='■ '+t('jpStopL');G_('jpTx').textContent=t('jpLoad');
-  G_('jpStop').onclick=()=>{if(JP&&!JP.ended){jpStop();G_('jpBox').style.display='flex';G_('jpStop').textContent='▶ '+t('jpAgain');}else if(window._jpAuto)window._jpAuto();};G_('jpNext').onclick=()=>{if(JP)JP.skip=true;};
+  G_('jpStop').onclick=()=>{if(JP&&!JP.ended){const keep=JP,at0=jpNow(keep);jpStop();jpLast={list:keep.list,trs:keep.trs,at:at0};G_('jpBox').style.display='flex';G_('jpStop').textContent='▶ '+t('jpAgain');}else if(jpLast&&jpLast.at!=null&&!(JP&&JP.ended))jpRun(jpLast.list,jpLast.trs,jpLast.at);else if(window._jpAuto)window._jpAuto();};G_('jpNext').onclick=()=>{if(JP)JP.skip=true;};
   for(const it of list){const b=await savedBlob(it.h,mimeOf(it.name));const u=URL.createObjectURL(b);me.urls.push(u);const v=document.createElement('video');v.src=u;v.playsInline=true;v.preload='auto';
     await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});me.vids.push(v);if(me.stop)return;}
+  me.durs=me.vids.map(v=>isFinite(v.duration)?v.duration:0);me.total=me.durs.reduce((a,b)=>a+b,0)||1;jpBar(me);
   const v0=me.vids[0],vw0=v0.videoWidth||1280,vh0=v0.videoHeight||720;
   /* small picture so the preview stays smooth: about 360px on the long side */
   const k=360/Math.max(vw0,vh0),W=Math.round(vw0*k/2)*2,H=Math.round(vh0*k/2)*2;
   const c=G_('jpCv');c.width=W;c.height=H;const g=c.getContext('2d');
   const fr=document.createElement('canvas');fr.width=W;fr.height=H;const fg=fr.getContext('2d');const snap=document.createElement('canvas');snap.width=W;snap.height=H;
   const draw=(v,gg)=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;gg.fillStyle='#000';gg.fillRect(0,0,W,H);const kk=Math.abs(vw/vh-W/H)>0.02?Math.min(W/vw,H/vh):Math.max(W/vw,H/vh);gg.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);};
-  for(let i=0;i<me.vids.length&&!me.stop;i++){const v=me.vids[i];me.cur=v;
-    const kd=i>0&&trs&&trs[i-1]&&trs[i-1]!=='cut'?trs[i-1]:null,tms=kd?Math.min(900,Math.max(500,(TRANS[kd]?TRANS[kd].ms:400)*1.8)):0;
-    v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,600);});if(me.stop)break;
+  /* where to begin: a spot picked on the ruler (no change effect when jumping straight in) */
+  const place=gt=>{let i=0,a=0;while(i<me.durs.length-1&&gt>=a+me.durs[i]){a+=me.durs[i];i++;}return {i,t:Math.max(0,Math.min(me.durs[i]-0.05,gt-a))};};
+  let pos=startAt>0?place(startAt):{i:0,t:0},jumped=startAt>0;
+  while(pos.i<me.vids.length&&!me.stop){const i=pos.i,v=me.vids[i];me.cur=v;me.ci=i;
+    const kd=!jumped&&i>0&&trs&&trs[i-1]&&trs[i-1]!=='cut'?trs[i-1]:null,tms=kd?Math.min(900,Math.max(500,(TRANS[kd]?TRANS[kd].ms:400)*1.8)):0;
+    v.currentTime=pos.t;await new Promise(r=>{v.onseeked=r;setTimeout(r,600);});if(me.stop)break;jumped=false;
     G_('jpTx').textContent='V'+(i+1)+(kd?' · '+jtLabel(kd):'');await v.play().catch(()=>{});const t0=performance.now();
-    await new Promise(res0=>{let fin=false;const res=()=>{if(fin)return;fin=true;clearInterval(wd);res0();};const wd=setInterval(()=>{if(me.stop||v.ended)res();},150);v.addEventListener('ended',res,{once:true});
+    await new Promise(res0=>{let fin=false;const res=()=>{if(fin)return;fin=true;clearInterval(wd);res0();};const wd=setInterval(()=>{if(me.stop||v.ended||me.jump!=null)res();},150);v.addEventListener('ended',res,{once:true});
       const f=()=>{if(fin||me.stop)return;
+        if(me.jump!=null){res();return;}
         /* jump near the end of this video to see the next change */
         if(me.skip){me.skip=false;if(i<me.vids.length-1&&v.duration>2)v.currentTime=Math.max(0,v.duration-1.5);}
         const el=performance.now()-t0;if(kd&&el<tms){draw(v,fg);g.fillStyle='#000';g.fillRect(0,0,W,H);drawTrans(kd,el/tms,(x,y,w,h)=>g.drawImage(snap,x,y,w,h),(x,y,w,h)=>g.drawImage(fr,x,y,w,h),0,0,W,H,g);}else draw(v,g);
-        if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
-    v.pause();snap.getContext('2d').drawImage(c,0,0);}
-  if(JP===me){me.ended=true;G_('jpStop').textContent='▶ '+t('jpAgain');G_('jpTx').textContent=t('jpDone');me.vids.forEach(v=>{try{v.removeAttribute('src');v.load();}catch(e){}});me.urls.forEach(u=>URL.revokeObjectURL(u));me.vids=[];me.urls=[];}
+        jpHead(me);if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
+    v.pause();
+    if(me.jump!=null){const gt=me.jump;me.jump=null;pos=place(gt);jumped=true;
+      /* show the new spot straight away */
+      const nv=me.vids[pos.i];nv.currentTime=pos.t;await new Promise(r=>{nv.onseeked=r;setTimeout(r,500);});draw(nv,g);continue;}
+    snap.getContext('2d').drawImage(c,0,0);pos={i:i+1,t:0};}
+  if(JP===me){me.ended=true;jpHead(me,me.total);G_('jpStop').textContent='▶ '+t('jpAgain');G_('jpTx').textContent=t('jpDone');me.vids.forEach(v=>{try{v.removeAttribute('src');v.load();}catch(e){}});me.urls.forEach(u=>URL.revokeObjectURL(u));me.vids=[];me.urls=[];}
 }
+let jpLast=null;
+function jpNow(me){if(!me||!me.durs)return 0;let a=0;for(let k=0;k<(me.ci||0);k++)a+=me.durs[k];return a+(me.cur?me.cur.currentTime||0:0);}
+/* ruler under the preview: one coloured part per video, drag anywhere to play from there */
+function jpBar(me){let bar=G_('jpSeek');if(!bar){bar=document.createElement('div');bar.id='jpSeek';G_('jpCv').insertAdjacentElement('afterend',bar);
+    let down=false;const at=e=>{const r=bar.getBoundingClientRect();return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));};
+    const go=(e,final)=>{const p=at(e);const m=JP;const tot=(m&&m.total)||(bar._tot||1);const gt=p*tot;const ph=G_('jpSeekPh');if(ph)ph.style.left=(p*100)+'%';
+      if(!final)return;if(m&&!m.ended&&m.vids.length){m.jump=gt;}else if(bar._list)jpRun(bar._list,bar._trs,gt);};
+    bar.addEventListener('pointerdown',e=>{down=true;e.preventDefault();try{bar.setPointerCapture(e.pointerId);}catch(er){}go(e,false);});
+    bar.addEventListener('pointermove',e=>{if(down)go(e,false);});
+    bar.addEventListener('pointerup',e=>{if(!down)return;down=false;go(e,true);});bar.addEventListener('pointercancel',()=>{down=false;});}
+  bar._tot=me.total;bar._list=me.list;bar._trs=me.trs;bar.innerHTML='';let a=0;
+  me.durs.forEach((d,i)=>{const sg=document.createElement('div');sg.className='jps';sg.style.left=(a/me.total*100)+'%';sg.style.width=(d/me.total*100)+'%';sg.textContent='V'+(i+1);bar.appendChild(sg);
+    if(i>0){const mk=document.createElement('i');mk.className='jpm'+(me.trs&&me.trs[i-1]&&me.trs[i-1]!=='cut'?' fx':'');mk.style.left=(a/me.total*100)+'%';bar.appendChild(mk);}a+=d;});
+  const ph=document.createElement('div');ph.id='jpSeekPh';bar.appendChild(ph);}
+function jpHead(me,gt){const ph=G_('jpSeekPh');if(!ph||!me.total)return;const x=gt!=null?gt:jpNow(me);ph.style.left=Math.min(100,x/me.total*100)+'%';}
 async function joinRun(list,outName,after,trs){
   const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');
   try{ensureAudio();if(actx.state==='suspended')await actx.resume();
