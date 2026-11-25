@@ -1181,7 +1181,7 @@ const lookSave=()=>lsSet('pmc_look',look.id);
 let peers=[], roomCode='', sources=[], mainId=null, secId=null, mode='full', wantMain=null;
 let statTimer=null;
 let recorder=null, saver=null, recStart=0, recTimer=null, drawTimer=null, actx=null, adest=null, aNode=null, localStream=null;
-const stage=$('stage');let ctx=stage.getContext('2d');
+const stage=$('stage');let ctx=stage.getContext('2d',{alpha:false});   /* no see-through needed: cheaper to show and record */
 function renderLooks(){
   const lb=$('looks');lb.innerHTML='';
   LOOKS.forEach(l=>{const b=document.createElement('button');const lk=!isPro()&&!FREE_LOOKS.includes(l.id);b.textContent=(lk?'🔒 ':'')+t('l_'+l.id);b.className=l.id===look.id?'on':'';b.onclick=()=>{if(lk){openPro();return;}look=l;lookSave();track('look',{id:l.id});[...lb.children].forEach(x=>x.classList.toggle('on',x===b));$('lblLook').textContent=t('l_'+l.id);};lb.appendChild(b);});
@@ -1204,7 +1204,7 @@ async function goMaster(){
     if(mode!=='full'&&!secId){const o=sources.find(s=>s.id!==mainId&&s.stream);if(o)secId=o.id;}
     renderTiles();sendLive();
   });
-  $('aspectSel').onchange=()=>{resizeStage();rotHintShown='';rotateHint();tellCams({t:'fmt',v:$('aspectSel').value});};$('qualSel').onchange=resizeStage;
+  $('aspectSel').onchange=()=>{resizeStage();rotHintShown='';rotateHint();tellCams({t:'fmt',v:$('aspectSel').value});};$('qualSel').onchange=()=>{resizeStage();try{const hq=Number($('qualSel').value)>=1080,tr=localStream&&localStream.getVideoTracks()[0];if(tr)tr.applyConstraints({width:{ideal:hq?1920:1280},height:{ideal:hq?1080:720},frameRate:{ideal:30,max:30}}).catch(()=>{});}catch(e){}};
   $('audioSel').onchange=()=>{$('audioSel')._user=true;applyAudio();};
   $('zoom').oninput=e=>{setZoom(Number(e.target.value));$('zoomVal').textContent=Number(e.target.value).toFixed(1)+'×';};
   initDirectorExtras();initStudio();
@@ -1394,7 +1394,9 @@ function setZoom(v){
 }
 async function addLocalCam(silent){
   if(localStream){if(!silent)toast(t('camInUse'));return;}
-  try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});}
+  /* camera size follows the video quality: 720p videos do not need a 1080p camera (half the work for the phone) */
+  const hq=Number(($('qualSel')||{}).value||720)>=1080;
+  try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:hq?1920:1280},height:{ideal:hq?1080:720},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});}
   catch(e){toast(t('allowCam'));return;}
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
@@ -2156,7 +2158,8 @@ async function toggleRec(force){
   if($('optHD').checked&&isPro())tellCams({t:'rec',on:true,id:recId,title:fileBase()+storyTag()});
   sendQuality();
   swLog=[];swLast=null;logSwitch();
-  if($('optHD').checked&&isPro())localHdStart();
+  /* the Director's own HD copy is only useful as an angle when other cameras are recording too; alone it just doubles the work */
+  if($('optHD').checked&&isPro()&&sources.some(x=>!x.local&&x.stream))localHdStart();
   introAt=(isPro()&&$('optIntro').checked&&!recFromDraft)?performance.now():0;outroAt=0;
   $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
