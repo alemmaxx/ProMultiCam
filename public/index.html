@@ -664,6 +664,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
     <div class="subsec" style="border-top:1px solid var(--line);padding-top:12px"></div>
     <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
+    <label class="check"><input type="checkbox" id="optDirect"><span data-i18n="directOpt"></span></label><span class="hint" data-i18n="directHint"></span>
     <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optClean"><span data-i18n="cleanOpt"></span></label><span class="hint" data-i18n="cleanHint"></span></div>
     <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label><label class="lbl" id="transRow"><span data-i18n="transT"></span><select class="input" id="transSel"></select></label><div class="trans-demo"><canvas id="transDemo" width="240" height="135"></canvas><button class="btn btn-sm" type="button" onclick="transDemo()" data-i18n="transTry"></button></div></div>
     <label class="check adv"><input type="checkbox" id="optNoise"><span data-i18n="noiseOpt"></span></label>
@@ -1372,6 +1373,7 @@ let swLog=[],swLast=null;
 function recSec(){return Math.max(0,((pausedAt||Date.now())-recStart-pausedTotal)/1000);}
 function logSwitch(){if(!recorder||recorder.state==='inactive')return;const s=sources.find(x=>x.id===mainId);const k=s?s.name:'';if(k===swLast)return;swLast=k;swLog.push({t:+recSec().toFixed(2),name:k});}
 function pick(id){
+  if(directRec&&recActive()&&id!==mainId){toast(t('directNoSw'),3000);return;}
   lastSwitch=Date.now();
   if(mode==='full'){mainId=id;wantMain=null;}
   else if(id===mainId){if(secId)[mainId,secId]=[secId,mainId];}
@@ -1691,7 +1693,7 @@ let rvfcLast=0,rvfcPend=false;
 function rvfcLoop(){const m=sources.find(s=>s.id===mainId),v=m&&m.video;if(!v||!v.requestVideoFrameCallback||!recActive())return;
   rvfcPend=true;v.requestVideoFrameCallback(()=>{rvfcPend=false;if(!recActive())return;if(recorder.state!=='paused'){rvfcLast=performance.now();draw(true);}rvfcLoop();});}
 function draw(fromCam){
-  const live=recActive()&&recorder.state!=='paused',n=performance.now();
+  const live=recActive()&&recorder.state!=='paused'&&!directRec,n=performance.now();
   if(live&&!fromCam){if(!rvfcPend)rvfcLoop();if(n-rvfcLast<120)return;}
   if(!live){
     if(document.hidden)return;                                  /* app in background: draw nothing */
@@ -1711,7 +1713,7 @@ function draw(fromCam){
       S.low=S.fps<15&&FXT.step>=4||S.fps<10?(S.low||0)+1:0;if(S.low>=2&&!perf.light){perf.light=true;if(!perf.warned){perf.warned=true;toast(t('perfLight'),4500);}}S.t0=n;S.n=0;S.ms=0;S.gap=0;}}if(live){perf.n=(perf.n||0)+1;if(perf.n>45)perf.ema=perf.ema?perf.ema*0.92+dt*0.08:dt;}
   if(live&&!perf.light&&perf.ema>30){perf.light=true;if(!perf.warned){perf.warned=true;toast(t('perfLight'),4500);}}
 }
-let cleanRec=false;
+let cleanRec=false,directRec=false;   /* directRec: Rakam Terus — the camera is recorded as it is, no redrawing */
 const SPD={t0:0,n:0,ms:0,gap:0,last:0,fps:0,avg:0,mg:0,show:false};
 try{SPD.show=localStorage.getItem('pmc_spd')==='1';}catch(e){}
 function camCount(){const l=sources.find(x=>x.local);const v=l&&l.video;if(!v||!v.requestVideoFrameCallback||v._cc)return;v._cc=1;const f=()=>{SPD.cf=(SPD.cf||0)+1;v.requestVideoFrameCallback(f);};v.requestVideoFrameCallback(f);}
@@ -2065,7 +2067,7 @@ function tpSend(cmd){
 }
 /* beat switch: built-in music uses its tempo; otherwise listens for strong beats in the sound */
 let beatAn=null,beatBuf=null,beatAvg=0,beatLast=0,beatIdx=-1;
-function switchNext(){const list=sources.filter(x=>x.stream);if(list.length<2)return;const i=list.findIndex(x=>x.id===mainId);mainId=list[(i+1)%list.length].id;if(secId===mainId)secId=null;lastSwitch=Date.now();renderTiles();sendLive();}
+function switchNext(){if(directRec&&recActive())return;const list=sources.filter(x=>x.stream);if(list.length<2)return;const i=list.findIndex(x=>x.id===mainId);mainId=list[(i+1)%list.length].id;if(secId===mainId)secId=null;lastSwitch=Date.now();renderTiles();sendLive();}
 function beatTick(){
   const v=$('autoSel').value;if(v[0]!=='b'||!isPro()||!actx)return;const every=Number(v.slice(1))||4;
   const st=MUSIC[mStyle];
@@ -2159,10 +2161,16 @@ async function toggleRec(force){
   const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm';
   ensureAudio();if(actx.state==='suspended')await actx.resume();
   applyAudio();
-  resizeStage(true);perf.ema=0;perf.n=0;perf.light=false;stageFx='none';stage.style.filter='none';
-  cleanRec=isPro()&&$('optClean').checked;stageOv.classList.toggle('on',cleanRec);
-  const out=stage.captureStream(30);adest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
-  const bps=stage.width*stage.height>=1900000?8000000:4500000;
+  /* Rakam Terus: record the program camera straight from its stream (smooth like the phone camera); brand is added in Edit */
+  const dm=$('optDirect').checked?sources.find(s=>s.id===mainId&&s.stream&&s.stream.getVideoTracks().length):null;
+  directRec=!!dm;let out,bps;
+  if(directRec){const vt=dm.stream.getVideoTracks()[0],st=vt.getSettings?vt.getSettings():{};out=new MediaStream([vt]);adest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
+    bps=(st.width||1280)*(st.height||720)>=1900000?10000000:6000000;cleanRec=true;toast(t('directOn'),3500);}
+  else{resizeStage(true);perf.ema=0;perf.n=0;perf.light=false;stageFx='none';stage.style.filter='none';
+    cleanRec=isPro()&&$('optClean').checked;
+    out=stage.captureStream(30);adest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
+    bps=stage.width*stage.height>=1900000?8000000:4500000;}
+  stageOv.classList.toggle('on',cleanRec);
   try{recorder=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:bps,audioBitsPerSecond:128000}:{});}
   catch(e){toast(t('noRec'));return;}
   recId=stamp();marks=[];pausedAt=0;pausedTotal=0;spdReset();
@@ -2170,7 +2178,7 @@ async function toggleRec(force){
   const resumeIt=recResume;recResume=null;
   const sv=saver=new Saver(resumeIt?`${resumeIt.name.replace(/\.\w+$/,'')}_part_${recId}.${ext}`:`${seqLabel(seqBase,seqN)}.${ext}`);const fromDraft=recFromDraft;
   recorder.ondataavailable=e=>sv.push(e.data);
-  const wasClean=isPro()&&$('optClean').checked;
+  const wasClean=cleanRec;
   recorder.onstop=async()=>{
     if(marks.length&&sv.dir){try{const fh=await sv.dir.getFileHandle('_markers.txt',{create:true});const w=await fh.createWritable();await w.write('ProMultiCam markers · '+recId+'\n'+marks.map((m,i)=>`${i+1}. ${fmt(m.t)}  ${m.angle}`).join('\n')+'\n');await w.close();}catch(e){}}
     const toDraft=recToDraft&&!resumeIt;sv.noDl=true;const secs=recSec();
@@ -2184,7 +2192,7 @@ async function toggleRec(force){
     try{if(sv.dir){const fh=await sv.dir.getFileHandle('_switches.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(swLog));await w.close();}}catch(e){}
     if(wasClean){try{if(sv.dir){const meta={look:look.id,bv:{titleTxt:$('titleTxt').value,priceTxt:$('priceTxt').value,phoneTxt:$('phoneTxt').value,shopTxt:$('shopTxt').value,descTxt:$('descTxt').value,menuTxt:$('menuTxt').value,ovStyle:$('ovStyle').value,ovColor:$('ovColor').value,ovFont:$('ovFont').value,logoPos:$('logoPos').value}};
       const fh=await sv.dir.getFileHandle('_brand.json',{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(meta));await w.close();}}catch(e){}}
-    stageOv.classList.remove('on');cleanRec=false;draftHold=false;const lp=$('lblPerf');if(lp)lp.style.display='none';
+    stageOv.classList.remove('on');cleanRec=false;directRec=false;draftHold=false;const lp=$('lblPerf');if(lp)lp.style.display='none';
   };
   recorder.start(3000);recStart=Date.now();paintDraft();
   previewing=false;previewGain.gain.value=0;$('musicPrev').textContent=t('mPreview');startMusic(false);
@@ -2194,7 +2202,7 @@ async function toggleRec(force){
   swLog=[];swLast=null;logSwitch();
   /* the Director's own HD copy is only useful as an angle when other cameras are recording too; alone it just doubles the work */
   if($('optHD').checked&&isPro()&&sources.some(x=>!x.local&&x.stream))localHdStart();
-  introAt=(isPro()&&$('optIntro').checked&&!recFromDraft)?performance.now():0;outroAt=0;
+  introAt=(isPro()&&$('optIntro').checked&&!recFromDraft&&!directRec)?performance.now():0;outroAt=0;
   $('mFoot').classList.add('rec');$('recBtn').classList.add('recording');$('recBadge').classList.add('show');
   $('aspectSel').disabled=$('qualSel').disabled=true;
   let stoN=0,stoWarn=false;
@@ -2272,9 +2280,9 @@ function addMark(){
 }
 function stopRec(){
   /* ending straight from pause: the outro (if on) still plays, so resume for it first */
-  if(recorder&&recorder.state==='paused'&&isPro()&&$('optOutro').checked&&!outroAt&&!recToDraft)togglePause();
+  if(recorder&&recorder.state==='paused'&&isPro()&&$('optOutro').checked&&!outroAt&&!recToDraft&&!directRec)togglePause();
   localHdStop();
-  if(isPro()&&$('optOutro').checked&&!outroAt&&!recToDraft&&recorder&&recorder.state==='recording'){outroAt=performance.now();$('recBtn').textContent=t('outroRun');setTimeout(stopRec,3000);return;}
+  if(isPro()&&$('optOutro').checked&&!outroAt&&!recToDraft&&!directRec&&recorder&&recorder.state==='recording'){outroAt=performance.now();$('recBtn').textContent=t('outroRun');setTimeout(stopRec,3000);return;}
   if(outroAt===-1)return;outroAt=-1;
   track('rec_stop',{sec:recElapsed()});stopMusic();
   if(recorder&&recorder.state!=='inactive')recorder.stop();
@@ -2339,7 +2347,7 @@ function initDirectorExtras(){
   // auto-switch labels
   [...$('autoSel').options].forEach(o=>{if(o.value!=='0'&&o.value[0]!=='b')o.textContent=t('autoN',{n:o.value});});
   setInterval(()=>{
-    if($('autoSel').value[0]==='b')return;const sec=Number($('autoSel').value);if(!sec)return;
+    if($('autoSel').value[0]==='b'||(directRec&&recActive()))return;const sec=Number($('autoSel').value);if(!sec)return;
     const list=sources.filter(x=>x.stream);if(list.length<2||Date.now()-lastSwitch<sec*1000)return;
     const i=list.findIndex(x=>x.id===mainId);mainId=list[(i+1)%list.length].id;if(secId===mainId)secId=null;
     lastSwitch=Date.now();renderTiles();sendLive();
@@ -2403,7 +2411,7 @@ function trimLogo(c,g,im){
   return o.toDataURL('image/png');
 }
 /* settings: save & restore */
-const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optCount:'c',optHD:'c',optLogoBg:'c'};
+const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optDirect:'c',optCount:'c',optHD:'c',optLogoBg:'c'};
 function saveSettings(quiet){
   const o={};for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(e)o[id]=k==='c'?e.checked:e.value;}
   lsSet('pmc_settings',JSON.stringify(o));
