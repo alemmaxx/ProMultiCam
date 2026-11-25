@@ -140,6 +140,7 @@ object Auth {
     fun errText(code: String?): String = when {
         code == null -> ""
         code.contains("EMAIL_EXISTS") -> Ui.t("This email already has an account — log in instead", "Emel ini sudah ada akaun — log masuk")
+        code.contains("INVALID_IDP") || code.contains("OPERATION_NOT_ALLOWED") -> Ui.t("Google sign-in refused: ", "Log masuk Google ditolak: ") + code
         code.contains("INVALID") || code.contains("EMAIL_NOT_FOUND") -> Ui.t("Wrong email or password", "Emel atau kata laluan salah")
         code.contains("WEAK_PASSWORD") -> Ui.t("Password needs 6 characters or more", "Kata laluan perlu 6 aksara atau lebih")
         code.contains("TOO_MANY") -> Ui.t("Too many tries — wait a moment", "Terlalu banyak cubaan — tunggu sebentar")

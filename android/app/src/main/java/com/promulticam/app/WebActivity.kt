@@ -23,7 +23,7 @@ class WebActivity : AppCompatActivity() {
         wv.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
                 val u = r.url
-                if (u.host?.endsWith("promulticam.web.app") == true || u.host?.endsWith("firebaseapp.com") == true || u.host?.contains("google") == true) return false
+                if (u.host?.endsWith("promulticam.web.app") == true) return false
                 try { startActivity(Intent(Intent.ACTION_VIEW, u)) } catch (e: Exception) {}   // payment pages, maps, phone links: outside
                 return true
             }
@@ -35,6 +35,14 @@ class WebActivity : AppCompatActivity() {
     }
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { if (wv.canGoBack()) wv.goBack() else super.onBackPressed() }
-    companion object { fun open(a: AppCompatActivity, what: String) = a.startActivity(Intent(a, WebActivity::class.java).putExtra("open", what)) }
+    companion object {
+        /* pages that need the web login (plans, support, device check, editor) open in Chrome, where the web account
+           and the Google account list work; reading pages (manual, about) open inside the app */
+        fun open(a: AppCompatActivity, what: String) {
+            if (what == "manual" || what == "about") { a.startActivity(Intent(a, WebActivity::class.java).putExtra("open", what)); return }
+            val lang = if (Ui.ms) "ms" else "en"
+            try { a.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://promulticam.web.app/?open=$what&lang=$lang"))) } catch (e: Exception) {}
+        }
+    }
     @Suppress("unused") private fun ext(u: Uri) = u
 }
