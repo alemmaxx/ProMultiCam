@@ -31,6 +31,9 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+#joinBox .askcard *{max-width:100%;box-sizing:border-box}#joinBox .askcard{min-width:0}
+#joinList .btn{min-width:0;overflow:hidden;width:100%}#joinList .btn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#joinTr select{min-width:0}#joinTr label{min-width:0}
 .jo-row{display:flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:4px 6px;touch-action:none}
 .jo-row.drag{position:relative;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.5);border-color:var(--gold)}.jo-row.drop{border-color:var(--gold);border-style:dashed}
 .jo-h{font-size:18px;width:34px;height:36px;display:grid;place-items:center;cursor:grab;color:var(--sub);touch-action:none}
@@ -1083,7 +1086,7 @@ async function rtExport(replace,suffix){
   G('edProgTx').textContent=t('seDone');G('edBar').style.width='100%';return r;
 }
 /* ================= JOIN: several recordings into one video ================= */
-document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this){jpStop();this.classList.remove('show')}"><div class="askcard" style="max-height:80vh;overflow:auto">
+document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this){jpStop();this.classList.remove('show')}"><div class="askcard" style="max-height:80vh;overflow-y:auto;overflow-x:hidden">
   <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinOrd" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinTr" style="display:flex;flex-direction:column;gap:6px"></div>
   <div id="jpBox" style="display:none;flex-direction:column;gap:6px"><canvas id="jpCv" style="width:100%;max-height:36vh;object-fit:contain;background:#000;border-radius:12px"></canvas>
     <div style="display:flex;gap:6px;align-items:center"><button class="btn btn-sm" type="button" id="jpNext"></button><button class="btn btn-sm" type="button" id="jpStop"></button><span id="jpTx" style="font-size:12px;color:var(--sub)"></span></div></div>
