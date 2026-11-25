@@ -36,6 +36,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     @Volatile private var ovPending: Bitmap? = null
     @Volatile var layout = "full"
     @Volatile var trans = "fade"          // fade, black, cut
+    @Volatile var zoomMain = 1f; @Volatile var zoomSec = 1f   // digital zoom per view (works for any camera)
     private var transAt = 0L
     private var second: VideoFrame? = null
     private val inFlight = AtomicInteger(0)
@@ -110,9 +111,10 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     }
 
     /* draw a camera picture filling (and cropping to) a box */
-    private fun fill(fd: VideoFrameDrawer, f: VideoFrame, x: Int, y: Int, w: Int, hh: Int) {
+    private fun fill(fd: VideoFrameDrawer, f: VideoFrame, x: Int, y: Int, w: Int, hh: Int, z: Float = 1f) {
         val fa = f.rotatedWidth.toFloat() / f.rotatedHeight; val oa = w.toFloat() / hh
         mat.reset(); mat.preTranslate(0.5f, 0.5f)
+        if (z > 1.001f) mat.preScale(1f / z, 1f / z)
         if (fa > oa) mat.preScale(oa / fa, 1f) else mat.preScale(1f, fa / oa)
         mat.preTranslate(-0.5f, -0.5f)
         fd.drawFrame(f, look, mat, x, y, w, hh)
@@ -134,15 +136,15 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         val G = floatArrayOf(0.784f, 0.643f, 0.361f)
         when {
             layout == "split" && s != null -> {
-                fill(fd1, f, 0, H / 2, W, H - H / 2); fill(fd2, s, 0, 0, W, H / 2)
+                fill(fd1, f, 0, H / 2, W, H - H / 2, zoomMain); fill(fd2, s, 0, 0, W, H / 2, zoomSec)
                 box(0, H / 2 - 2, W, 4, G[0], G[1], G[2])
             }
             layout == "pip" && s != null -> {
-                fill(fd1, f, 0, 0, W, H)
+                fill(fd1, f, 0, 0, W, H, zoomMain)
                 val pw = (minOf(W, H) * 0.36f).toInt(); val ph = pw * 4 / 3; val px = W - pw - (W * 0.04f).toInt(); val py = (H * 0.12f).toInt()
-                box(px - 4, py - 4, pw + 8, ph + 8, G[0], G[1], G[2]); fill(fd2, s, px, py, pw, ph)
+                box(px - 4, py - 4, pw + 8, ph + 8, G[0], G[1], G[2]); fill(fd2, s, px, py, pw, ph, zoomSec)
             }
-            else -> fill(fd1, f, 0, 0, W, H)
+            else -> fill(fd1, f, 0, 0, W, H, zoomMain)
         }
         // switch effect: fade (or dip to black) from the last picture of the previous angle
         val p = (SystemClock.uptimeMillis() - transAt) / 450f

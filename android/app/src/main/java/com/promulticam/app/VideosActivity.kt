@@ -39,6 +39,10 @@ class VideosActivity : AppCompatActivity() {
         top.addView(Ui.label(this, t("Videos", "Video"), 22f, Ui.GOLD, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         top.addView(Ui.btn(this, t("Join", "Gabung"), true) { joinPicked() })
         root.addView(top)
+        root.addView(Ui.btn(this, "✂️ " + t("Edit (web editor)", "Edit (editor web)")) {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://promulticam.web.app")))
+            toast(t("Open Videos › Import Video, then Edit", "Buka Video › Import Video, kemudian Edit"))
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
         root.addView(Ui.label(this, t("Tick 2 or more, then Join.", "Tanda 2 atau lebih, kemudian Gabung."), 13f, Ui.SUB), LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
         val sv = ScrollView(this); list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; sv.addView(list)
         root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
@@ -84,6 +88,9 @@ class VideosActivity : AppCompatActivity() {
             row.addView(Ui.btn(this, t("Share", "Kongsi")) { share(v.uri) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
             row.addView(Ui.btn(this, t("Delete", "Padam")) { del(v) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
             card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
+            if (Build.VERSION.SDK_INT >= 29) card.addView(Ui.btn(this, "⏺ " + t("Continue", "Sambung")) {
+                startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", v.uri.toString()))
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
             list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = d })
         }
     }

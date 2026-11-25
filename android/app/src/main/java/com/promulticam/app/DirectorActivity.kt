@@ -54,6 +54,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         var tileView: SurfaceViewRenderer? = null
         var data: PeerLink? = null
         var media: PeerLink? = null
+        var zoom = 1f
     }
     private val main = Handler(Looper.getMainLooper())
     private val sp by lazy { getSharedPreferences("pmc", MODE_PRIVATE) }
@@ -69,6 +70,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var lookBtn: Button
     private lateinit var layBtn: Button
     private lateinit var trBtn: Button
+    private lateinit var zoomBar: SeekBar
+    private var resumeUri: Uri? = null
     private val srcs = ArrayList<Src>()
     private val links = HashMap<String, PeerLink>()
     private var mainSrc: Src? = null
@@ -109,6 +112,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         Rtc.init(this)
         brand = Brand(this); brand.refresh()
         look = Looks.byId(sp.getString("look", "superior"))
+        resumeUri = intent.getStringExtra("resume")?.let { Uri.parse(it) }
         prog = Program(W, H); prog.setLook(look.f); prog.layout = layout; prog.trans = trans
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
@@ -155,6 +159,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         stage.addView(timeTx, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { leftMargin = d; topMargin = d })
         fpsTx = Ui.label(this, "", 11f, Color.WHITE, true); fpsTx.setPadding(d / 2, d / 4, d / 2, d / 4); fpsTx.background = Ui.round(0x88000000.toInt(), Ui.dp(this, 8f))
         stage.addView(fpsTx, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { rightMargin = d; topMargin = d })
+        zoomBar = SeekBar(this); zoomBar.max = 100
+        zoomBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(b: SeekBar?, p: Int, user: Boolean) { if (!user) return; val z = 1f + p / 100f * 3f; mainSrc?.zoom = z; prog.zoomMain = z }
+            override fun onStartTrackingTouch(b: SeekBar?) {}
+            override fun onStopTrackingTouch(b: SeekBar?) {}
+        })
+        stage.addView(zoomBar, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { leftMargin = d * 2; rightMargin = d * 2; bottomMargin = d })
         root.addView(stage, LinearLayout.LayoutParams(-1, 0, 1f))
 
         // style / layout / switch / studio
@@ -338,12 +349,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         old?.track?.let { o -> try { o.removeSink(prog.mainSink) } catch (e: Exception) {} }
         mainSrc = s
         if (old != null) prog.switched()
+        prog.zoomMain = s.zoom; zoomBar.progress = ((s.zoom - 1f) / 3f * 100).toInt()
         tr.addSink(prog.mainSink)
         pickSecond(); paintTiles(); sendLive()
     }
     private fun setSecond(s: Src?) {
         secSrc?.track?.let { o -> try { o.removeSink(prog.secSink) } catch (e: Exception) {} }
-        secSrc = s; prog.clearSecond()
+        secSrc = s; prog.clearSecond(); prog.zoomSec = s?.zoom ?: 1f
         s?.track?.addSink(prog.secSink)
         paintTiles()
     }
@@ -419,11 +431,33 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             else contentResolver.delete(u, null, null)
         }
         recFile?.let { f -> if (ok) { MediaScannerConnection.scanFile(this, arrayOf(f.absolutePath), arrayOf("video/mp4"), null); lastUri = Uri.fromFile(f) } else f.delete() }
-        recUri = null; recFile = null
+        val part = recUri; recUri = null; recFile = null
+        val base = resumeUri
+        if (ok && base != null && part != null && Build.VERSION.SDK_INT >= 29) { resumeUri = null; joinInto(base, part) }
         recBtn.isEnabled = true; recBtn.text = t("● Record", "● Rakam"); pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f; pauseBtn.text = t("Pause", "Jeda"); qBtn.isEnabled = true
         timeTx.visibility = View.GONE
         sendLive(); srcs.forEach { it.data?.send(mapOf("t" to "q", "hi" to false)) }
         toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Recording failed", "Rakaman gagal"))
+    }
+
+    /* Continue: the new part is added to the end of the earlier video, which keeps its name */
+    private fun joinInto(base: Uri, part: Uri) {
+        toast(t("Adding to the same video…", "Menambah ke video yang sama…"))
+        Thread {
+            var ok = false
+            try {
+                var name = "ProMultiCam.mp4"
+                contentResolver.query(base, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) name = c.getString(0) ?: name }
+                val cv = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, "tmp_" + name); put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4"); put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProMultiCam"); put(MediaStore.Video.Media.IS_PENDING, 1) }
+                val u = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv)!!
+                contentResolver.openFileDescriptor(u, "rw")!!.use { ok = Joiner.join(this, listOf(base, part), it.fileDescriptor) }
+                if (ok) {
+                    contentResolver.delete(base, null, null); contentResolver.delete(part, null, null)
+                    contentResolver.update(u, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0); put(MediaStore.MediaColumns.DISPLAY_NAME, name) }, null, null)
+                } else contentResolver.delete(u, null, null)
+            } catch (e: Exception) { ok = false }
+            main.post { toast(if (ok) t("Added — one longer video", "Ditambah — satu video lebih panjang") else t("Could not join; the new part is kept as its own video", "Gagal gabung; bahagian baru disimpan berasingan")) }
+        }.start()
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
