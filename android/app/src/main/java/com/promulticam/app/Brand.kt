@@ -33,6 +33,13 @@ class Brand(private val ctx: Context) {
     @Volatile var cTitle = ""; @Volatile var cPrice = ""; @Volatile var cPhone = ""
     fun refresh() { cTitle = title; cPrice = price; cPhone = phone; loadLogo() }
 
+    /* the brand as a picture (transparent around it) */
+    fun render(W: Int, H: Int): Bitmap? {
+        if (!on) return null
+        val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
+        draw(Canvas(b), W, H); return b
+    }
+
     /* draw upright into a W x H area */
     fun draw(c: Canvas, W: Int, H: Int) {
         val m = minOf(W, H).toFloat()

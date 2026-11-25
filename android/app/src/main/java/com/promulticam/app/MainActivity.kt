@@ -27,18 +27,23 @@ class MainActivity : AppCompatActivity() {
         col.addView(Ui.center(Ui.label(this, "ProMultiCam", 30f, Ui.GOLD, true)), lp(8))
         col.addView(Ui.center(Ui.label(this, t("Native app · test version", "App native · versi ujian"), 14f, Ui.SUB)), lp(2))
 
-        col.addView(Ui.btn(this, t("🎬  Director — record", "🎬  Pengarah — rakam"), true) {
-            startActivity(Intent(this, RecordActivity::class.java))
+        col.addView(Ui.btn(this, t("🎬  Director", "🎬  Pengarah"), true) {
+            startActivity(Intent(this, DirectorActivity::class.java))
         }, lp(36))
-        val cam = Ui.btn(this, t("📷  Camera (coming soon)", "📷  Kamera (akan datang)")) {}
-        cam.isEnabled = false; cam.alpha = 0.5f
-        col.addView(cam, lp(12))
+        col.addView(Ui.label(this, t("Gathers the cameras, switches angles and records.", "Kumpul kamera, tukar sudut dan rakam."), 13f, Ui.SUB), lp(4))
+        col.addView(Ui.btn(this, t("📷  Camera", "📷  Kamera")) {
+            startActivity(Intent(this, CameraActivity::class.java))
+        }, lp(14))
+        col.addView(Ui.label(this, t("Joins a Director (this app or the web) with the Studio ID.", "Sertai Pengarah (app ini atau web) dengan ID Studio."), 13f, Ui.SUB), lp(4))
+        col.addView(Ui.btn(this, t("🎥  Quick record (1 camera)", "🎥  Rakam pantas (1 kamera)")) {
+            startActivity(Intent(this, RecordActivity::class.java))
+        }, lp(14))
         col.addView(Ui.btn(this, t("🌐  Open the web version", "🌐  Buka versi web")) {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://promulticam.web.app")))
         }, lp(12))
         col.addView(Ui.label(this, t(
-            "This test version records one camera with your logo and text, straight from the phone camera. Compare it with the web version for smoothness.",
-            "Versi ujian ini rakam satu kamera dengan logo dan teks anda, terus dari kamera telefon. Bandingkan kelancarannya dengan versi web."), 13f, Ui.SUB), lp(24))
+            "Test version. Videos are saved to the gallery: Movies/ProMultiCam.",
+            "Versi ujian. Video disimpan ke galeri: Movies/ProMultiCam."), 13f, Ui.SUB), lp(24))
 
         val sv = ScrollView(this); sv.setBackgroundColor(Ui.BG); sv.addView(col)
         setContentView(sv)
