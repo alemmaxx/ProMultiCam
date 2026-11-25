@@ -2811,7 +2811,9 @@ async function runTest(){
   let root=null;try{root=await recRoot();}catch(e){}
   let est=null;try{est=await navigator.storage.estimate();}catch(e){}
   const freeGB=est&&est.quota?(est.quota-(est.usage||0))/1073741824:null;
-  row(root?(freeGB==null||freeGB>2?true:null):null,t('tStore'),(root?t('tSafe'):t('tMem'))+(freeGB!=null?' · '+t('tFree',{gb:freeGB.toFixed(1)}):''));
+  /* green = plenty, yellow = getting low (can slow down long recordings), red = nearly full (recording and editing will lag) */
+  const sLv=freeGB==null?null:freeGB>=20?'g':freeGB>=8?'y':'r';
+  row(!root?null:sLv==='g'||sLv==null?true:sLv==='y'?null:false,t('tStore'),(root?t('tSafe'):t('tMem'))+(freeGB!=null?' · '+t('tFree',{gb:freeGB.toFixed(1)}):'')+(sLv?' · '+t('tSto_'+sLv):''));
   // network
   const nc=navigator.connection||{};const type=nc.type||'',eff=nc.effectiveType||'',dl=nc.downlink;
   row(navigator.onLine?(eff==='4g'||!eff?true:null):false,t('tNet'),navigator.onLine?[type==='wifi'?'Wi-Fi':type==='cellular'?t('mobile'):'',eff?eff.toUpperCase():'',dl?dl+' Mbps':''].filter(Boolean).join(' · ')||t('tOk'):t('noNet'));
