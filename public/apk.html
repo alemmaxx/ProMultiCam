@@ -27,12 +27,12 @@ ol{margin:6px 0 0;padding-left:20px}li{margin:4px 0}.tag{display:inline-block;ba
 <div class="card"><b id="nowT"></b><ol id="now"></ol></div>
 <script>
 const ms=(localStorage.getItem('pmc_lang')||((navigator.language||'').startsWith('ms')?'ms':'en'))==='ms';
-const T=ms?{h:'App APK',tag:'Versi ujian · Peringkat 1',dl:'Muat turun APK',none:'APK sedang disediakan — cuba sebentar lagi',hwT:'Cara pasang',
+const T=ms?{h:'App APK',tag:'Versi ujian · Peringkat 3',dl:'Muat turun APK',none:'APK sedang disediakan — cuba sebentar lagi',hwT:'Cara pasang',
   hw:['Tekan Muat turun APK.','Buka fail ProMultiCam.apk dari notifikasi atau folder Downloads.','Jika diminta, benarkan "Pasang app tidak diketahui" untuk pelayar ini.','Tekan Pasang, kemudian Buka.'],
-  nowT:'Apa ada dalam versi ini',now:['Pengarah: rakam satu kamera terus dari kamera telefon (native).','Logo, tajuk, harga dan telefon dimasukkan terus dalam video.','720p / 1080p, kamera depan/belakang, zum, jeda.','Video disimpan ke galeri: Movies/ProMultiCam.','Akan datang: telefon Kamera, tukar sudut, editor.']}
- :{h:'App APK',tag:'Test version · Stage 1',dl:'Download APK',none:'APK is being prepared — try again soon',hwT:'How to install',
+  nowT:'Apa ada dalam versi ini',now:['Pengarah: kumpul kamera, tekan petak untuk tukar sudut, rakam.','Kamera: sertai dengan ID Studio — boleh campur dengan versi web.','Logo, tajuk, harga dan telefon terus dalam video (dilukis oleh kad grafik).','Rakam pantas 1 kamera, 720p / 1080p, jeda.','Video disimpan ke galeri: Movies/ProMultiCam.','Akan datang: gaya warna, peralihan, editor.']}
+ :{h:'App APK',tag:'Test version · Stage 3',dl:'Download APK',none:'APK is being prepared — try again soon',hwT:'How to install',
   hw:['Tap Download APK.','Open ProMultiCam.apk from the notification or the Downloads folder.','If asked, allow "Install unknown apps" for this browser.','Tap Install, then Open.'],
-  nowT:'In this version',now:['Director: records one camera straight from the phone camera (native).','Logo, title, price and phone are put into the video.','720p / 1080p, front/back camera, zoom, pause.','Videos are saved to the gallery: Movies/ProMultiCam.','Coming next: Camera phones, angle switching, editor.']};
+  nowT:'In this version',now:['Director: gathers cameras, tap a tile to switch angle, record.','Camera: join with the Studio ID — works together with the web version.','Logo, title, price and phone go into the video (drawn by the graphics chip).','Quick record with 1 camera, 720p / 1080p, pause.','Videos are saved to the gallery: Movies/ProMultiCam.','Coming next: looks, transitions, editor.']};
 document.getElementById('h').textContent=T.h;document.getElementById('tag').textContent=T.tag;document.getElementById('dlt').textContent=T.dl;
 document.getElementById('hwT').textContent=T.hwT;document.getElementById('nowT').textContent=T.nowT;
 for(const [id,l] of [['hw',T.hw],['now',T.now]])l.forEach(x=>{const li=document.createElement('li');li.textContent=x;document.getElementById(id).appendChild(li);});
