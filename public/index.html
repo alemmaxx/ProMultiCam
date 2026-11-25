@@ -2690,6 +2690,7 @@ function onBack(){
   if($('askBox').classList.contains('show')){askClose();return;}
   if($('studioHelp').classList.contains('show')){closeStudioHelp();return;}
   if($('subEd').classList.contains('show')){seClose();return;}
+  if($('edScreen')&&$('edScreen').classList.contains('show')){if(typeof edClose==='function')edClose();return;}
   const sh=[...document.querySelectorAll('.sheet-wrap.show')].pop();if(sh){closeSheet(sh.id);return;}
   for(const id of ['adminView','legalView','aboutView']){const v=$(id);if(v&&v.classList.contains('show')){v.classList.remove('show');return;}}
   if($('guide').classList.contains('show')){closeGuide();return;}
