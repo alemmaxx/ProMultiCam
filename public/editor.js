@@ -674,12 +674,14 @@ function renderPanel(){
     return;
   }
   if(k==='cut'){
-    if(!E.cutSel||E.cutSel.e>E.dur){const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));E.cutSel={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};}
-    if(!E.rsel||E.rsel.o!==E.cutSel)E.rsel={o:E.cutSel,mode:'range',list:'_cut'};
-    {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t('cutHint')));
-      c.appendChild(row(btn('✂️ '+t('cutDo',{a:fm1(E.cutSel.s),b:fm1(E.cutSel.e)}),()=>{snap();removeRange(E.cutSel.s,E.cutSel.e);const n=nextKeptFrom(E.cutSel.e);E.cutSel=null;changed();if(n!=null)V().currentTime=n;toast(t('cutDone'),3000);renderPanel();},'btn-danger'),
-        btn('＋ '+t('cutNew'),()=>{const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));E.cutSel={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};E.rsel=null;renderPanel();renderRange();}),
-        btn('↶ '+t('edUndo'),()=>{edUndo();})));
+    /* nothing is picked until "+ New cut" is tapped; then two gold lines appear to drag */
+    if(E.cutSel&&E.cutSel.e>E.dur)E.cutSel=null;
+    if(E.cutSel&&(!E.rsel||E.rsel.o!==E.cutSel))E.rsel={o:E.cutSel,mode:'range',list:'_cut'};
+    {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t(E.cutSel?'cutHint':'cutHint0')));
+      const nw=btn('＋ '+t('cutNew'),()=>{const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));E.cutSel={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};E.rsel={o:E.cutSel,mode:'range',list:'_cut'};renderPanel();renderRange();},E.cutSel?'':'btn-gold');
+      const cutB=E.cutSel?btn('✂️ '+t('cutDo',{a:fm1(E.cutSel.s),b:fm1(E.cutSel.e)}),()=>{snap();removeRange(E.cutSel.s,E.cutSel.e);const n=nextKeptFrom(E.cutSel.e);E.cutSel=null;E.rsel=null;changed();if(n!=null)V().currentTime=n;toast(t('cutDone'),3000);renderPanel();renderRange();},'btn-danger'):null;
+      const cancel=E.cutSel?btn('✕',()=>{E.cutSel=null;E.rsel=null;renderPanel();renderRange();}):null;
+      c.appendChild(row(nw,cutB,cancel,btn('↶ '+t('edUndo'),()=>{edUndo();})));
       P.appendChild(c);}
   }
   if(k==='bg'){
