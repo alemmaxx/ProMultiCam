@@ -41,6 +41,9 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var labelIn: EditText
     private lateinit var status: TextView
     private lateinit var onAir: TextView
+    private lateinit var tpBox: FrameLayout
+    private lateinit var tpTx: TextView
+    private var tpY = 0f; private var tpRun = false; private var tpSpd = 4f; private var tpLast = 0L
     private var cam: Rtc.Cam? = null
     private var mic: AudioTrack? = null
     private var sig: PeerSignal? = null
@@ -84,6 +87,12 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         bar.addView(Ui.btn(this, "🔄") { cam?.let { it.flip(); view.setMirror(it.front) } })
         bar.addView(Ui.btn(this, t("Leave", "Keluar")) { finish() }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
         live.addView(bar, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d * 2 })
+        // teleprompter: the script scrolls here only, never in the video
+        tpBox = FrameLayout(this); tpBox.setBackgroundColor(0xB0000000.toInt()); tpBox.visibility = View.GONE; tpBox.clipChildren = true
+        tpTx = Ui.label(this, "", 30f, Color.WHITE, true); tpTx.setPadding(d * 2, 0, d * 2, 0)
+        tpBox.addView(tpTx, FrameLayout.LayoutParams(-1, -2))
+        tpBox.setOnClickListener { tpRun = !tpRun; if (tpRun) tpTick() }
+        live.addView(tpBox, FrameLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.38f).toInt(), Gravity.TOP).apply { topMargin = d * 6 })
         live.visibility = View.GONE
         root.addView(live, FrameLayout.LayoutParams(-1, -1))
 
@@ -168,6 +177,7 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         when (msg["t"]) {
             "welcome" -> status.text = t("Connected to ", "Bersambung ke ") + (msg["name"] ?: t("Director", "Pengarah"))
             "live" -> onAir.visibility = if (msg["on"] == true) View.VISIBLE else View.GONE
+            "tp" -> tp(msg)
             "full" -> { kicked = true; toast(t("Studio full", "Studio penuh")); main.postDelayed({ finish() }, 3000) }
             "kick" -> { kicked = true; toast(t("Removed by the Director", "Dikeluarkan oleh Pengarah")); main.postDelayed({ finish() }, 1500) }
         }
@@ -188,6 +198,25 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val st = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
         dataLink?.send(mapOf("t" to "stat", "batt" to (lvl * 100 / maxOf(1, sc)), "charging" to (st == BatteryManager.BATTERY_STATUS_CHARGING || st == BatteryManager.BATTERY_STATUS_FULL)))
         main.postDelayed({ if (!stopped) sendBattery() }, 60000)
+    }
+
+    private fun tp(m: Map<String, Any?>) {
+        val cmd = m["cmd"] as? String
+        if (cmd == "hide") { tpRun = false; tpBox.visibility = View.GONE; return }
+        (m["text"] as? String)?.let { if (it != tpTx.text.toString()) { tpTx.text = it; tpY = tpBox.height * 0.3f } }
+        (m["size"] as? Number)?.let { tpTx.textSize = it.toFloat() * 0.9f }
+        (m["speed"] as? Number)?.let { tpSpd = it.toFloat() }
+        tpBox.visibility = View.VISIBLE
+        when (cmd) { "reset" -> { tpY = tpBox.height * 0.3f; tpRun = false }; "pause" -> tpRun = false; "start" -> { tpRun = true; tpLast = 0L; tpTick() } }
+        tpTx.translationY = tpY
+    }
+    private fun tpTick() {
+        if (!tpRun || stopped) return
+        val now = System.currentTimeMillis(); val dt = if (tpLast == 0L) 16L else minOf(100L, now - tpLast); tpLast = now
+        tpY -= tpSpd * 9 * resources.displayMetrics.density * dt / 1000f
+        if (tpY < -tpTx.height) tpRun = false
+        tpTx.translationY = tpY
+        main.postDelayed({ tpTick() }, 16)
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()

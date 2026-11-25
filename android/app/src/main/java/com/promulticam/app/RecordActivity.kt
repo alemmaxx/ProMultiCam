@@ -123,7 +123,7 @@ class RecordActivity : AppCompatActivity() {
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL
         pauseBtn = Ui.btn(this, t("Pause", "Jeda")) { togglePause() }; pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f
         recBtn = Ui.btn(this, t("● Record", "● Rakam"), true) { if (recording == null) startRec() else stopRec() }
-        val vidBtn = Ui.btn(this, t("Video", "Video")) { openLast() }
+        val vidBtn = Ui.btn(this, t("Videos", "Video")) { startActivity(Intent(this, VideosActivity::class.java)) }
         row.addView(pauseBtn, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(recBtn, LinearLayout.LayoutParams(0, -2, 1.6f).apply { leftMargin = d8; rightMargin = d8 })
         row.addView(vidBtn, LinearLayout.LayoutParams(0, -2, 1f))

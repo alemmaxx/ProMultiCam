@@ -34,10 +34,34 @@ class Brand(private val ctx: Context) {
     fun refresh() { cTitle = title; cPrice = price; cPhone = phone; loadLogo() }
 
     /* the brand as a picture (transparent around it) */
-    fun render(W: Int, H: Int): Bitmap? {
-        if (!on) return null
-        val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
-        draw(Canvas(b), W, H); return b
+    fun render(W: Int, H: Int, look: Looks.Look? = null): Bitmap? {
+        val vig = look?.vig ?: 0f; val bars = look?.bars == true
+        if (!on && vig <= 0f && !bars) return null
+        val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); val c = Canvas(b)
+        if (vig > 0f) {
+            val p = Paint(); p.shader = android.graphics.RadialGradient(W / 2f, H / 2f, maxOf(W, H) * 0.7f,
+                intArrayOf(0, 0, android.graphics.Color.argb((vig * 255).toInt(), 0, 0, 0)), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+            c.drawRect(0f, 0f, W.toFloat(), H.toFloat(), p)
+        }
+        if (bars) { val p = Paint(); p.color = android.graphics.Color.BLACK; val bh = H * 0.08f; c.drawRect(0f, 0f, W.toFloat(), bh, p); c.drawRect(0f, H - bh, W.toFloat(), H.toFloat(), p) }
+        if (on) draw(c, W, H)
+        return b
+    }
+
+    /* title card / closing card: dark background, logo, big title, price and contact */
+    fun card(W: Int, H: Int, closing: Boolean, closingText: String): Bitmap {
+        val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); val c = Canvas(b)
+        c.drawColor(0xF00E0E0F.toInt())
+        val m = minOf(W, H).toFloat()
+        logo?.let { l -> val s = m * 0.34f; val k = s / maxOf(l.width, l.height); val w = l.width * k; val h = l.height * k
+            c.drawBitmap(l, null, RectF((W - w) / 2, H * 0.28f - h / 2, (W + w) / 2, H * 0.28f + h / 2), pBmp) }
+        val pt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; typeface = Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER; textSize = m * 0.08f }
+        val ps = Paint(pt).apply { color = Ui.GOLD; textSize = m * 0.05f }
+        val big = if (closing) closingText.ifEmpty { cTitle } else cTitle
+        if (big.isNotEmpty()) c.drawText(big, W / 2f, H * 0.5f, pt)
+        if (cPrice.isNotEmpty()) c.drawText(cPrice, W / 2f, H * 0.58f, ps)
+        if (closing && cPhone.isNotEmpty()) c.drawText(cPhone, W / 2f, H * 0.65f, Paint(pt).apply { textSize = m * 0.05f })
+        return b
     }
 
     /* draw upright into a W x H area */
