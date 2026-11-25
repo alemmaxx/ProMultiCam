@@ -69,7 +69,7 @@ const CSS=`
 .eds:not(.pop) .ed-body{display:none!important}
 .ed-phead{display:flex;align-items:center;gap:8px;position:sticky;top:-10px;z-index:2;background:var(--bg);margin:-10px -14px 0;padding:8px 14px 6px}
 .ed-phead .ed-sub{flex:1;min-width:0}
-.ed-sub button{flex:0 0 auto;min-height:32px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:12px;font-weight:700;padding:0 13px;cursor:pointer}
+.ed-sub button{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:32px;border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--text);font:inherit;font-size:12px;font-weight:700;padding:0 6px;cursor:pointer}
 .ed-sub button.on{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
 .ed-sub b{font-size:15px;font-weight:800;padding:4px 2px}
 .ed-x{flex:0 0 auto;width:40px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);display:grid;place-items:center;cursor:pointer}
