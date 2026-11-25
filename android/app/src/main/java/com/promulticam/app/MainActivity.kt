@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         val tl = Ui.pill(this, t("Log in", "Log Masuk"), true) {}; val tr = Ui.pill(this, t("Register", "Daftar"), false) {}
         fun mode(r: Boolean) { reg = r; Ui.setPill(this, tl, !r); Ui.setPill(this, tr, r); go.text = if (r) t("Create account", "Cipta akaun") else t("Log in", "Log Masuk") }
         tl.setOnClickListener { mode(false) }; tr.setOnClickListener { mode(true) }
-        tabs.addView(tl, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = Ui.px(this, 4) }); tabs.addView(tr, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = Ui.px(this, 4) })
+        tabs.addView(tl, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = Ui.px(this@MainActivity, 4) }); tabs.addView(tr, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = Ui.px(this@MainActivity, 4) })
         s.body.addView(tabs)
         s.body.addView(Ui.label(this, t("Email", "Emel"), 13f, Ui.SUB, true), Ui.lp(this, 14)); s.body.addView(email, Ui.lp(this, 4))
         s.body.addView(Ui.label(this, t("Password", "Kata laluan"), 13f, Ui.SUB, true), Ui.lp(this, 10)); s.body.addView(pass, Ui.lp(this, 4))
