@@ -301,6 +301,12 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .cam-tools .btn{background:rgba(235,233,228,.12);min-height:38px;padding:6px 12px;font-size:13px}
 .cam-tools .btn.on{background:var(--gold);color:var(--on-gold)}
 .test-row{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border-radius:12px;padding:12px}
+.sto-guide{background:var(--card2);border-radius:12px;padding:12px;font-size:13px;line-height:1.5}
+.sto-guide summary{font-weight:800;cursor:pointer}
+.sto-guide .sg-bar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin:10px 0 2px}
+.sto-guide .sg-lab{position:relative;height:16px;font-size:11px;color:var(--sub);margin-bottom:6px}.sto-guide .sg-lab span{position:absolute;top:0}.sto-guide .sg-lab span:nth-child(2),.sto-guide .sg-lab span:nth-child(3){transform:translateX(-50%)}
+.sto-guide p{margin:4px 0 0}
+.sto-guide ul,.sto-guide ol{margin:4px 0 8px;padding-left:20px}.sto-guide b{display:block;margin-top:4px}
 .test-row .ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;flex-shrink:0}
 .test-row .tx{display:flex;flex-direction:column;gap:2px;font-size:13px}
 .test-row .tx b{font-size:14px}.test-row .tx span{color:var(--sub)}
@@ -2845,6 +2851,14 @@ async function runTest(){
   try{if(navigator.getBattery){const b=await navigator.getBattery();const lv=Math.round(b.level*100);row(b.charging||lv>40?true:null,t('tBatt'),lv+'%'+(b.charging?' ⚡':'')+(b.charging||lv>40?'':' · '+t('tBattLow')));}}catch(e){}
   wait.remove();
   const tip=document.createElement('div');tip.className='hint';tip.style.lineHeight='1.5';tip.textContent=t('tTip');box.appendChild(tip);
+  /* storage guide: how much free space keeps recording smooth, and what lag means */
+  const sg=document.createElement('details');sg.className='sto-guide';if(sLv==='y'||sLv==='r')sg.open=true;
+  sg.innerHTML='<summary></summary><div class="sg-bar"><i style="background:#d9776b;flex:10"></i><i style="background:#c8a45c;flex:10"></i><i style="background:#5fb38c;flex:80"></i></div><div class="sg-lab"><span style="left:0">0%</span><span style="left:10%">10%</span><span style="left:20%">20%</span><span style="right:0">100%</span></div><ul></ul><b></b><ol></ol><p></p>';
+  sg.querySelector('summary').textContent='ℹ️ '+t('sgT');
+  const ul=sg.querySelector('ul');['sgG','sgY','sgR'].forEach(k=>{const li=document.createElement('li');li.textContent=t(k);ul.appendChild(li);});
+  sg.querySelector('b').textContent=t('sgSignT');
+  const ol=sg.querySelector('ol');['sgS1','sgS2','sgS3','sgS4'].forEach(k=>{const li=document.createElement('li');li.textContent=t(k);ol.appendChild(li);});sg.querySelector('p').textContent='🧹 '+t('sgS5');
+  box.appendChild(sg);
   track('device_test',{sig,cam:!!st});
 }
 
