@@ -44,21 +44,21 @@ const CSS=`
 .jo-h{font-size:18px;width:34px;height:36px;display:grid;place-items:center;cursor:grab;color:var(--sub);touch-action:none}
 .jo-n{font-weight:800;color:var(--gold);font-size:12px;min-width:24px}.jo-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-transform:none}
 .jo-b{min-width:38px!important;padding:0!important}
-.ed-tracks{position:relative;display:flex;flex-direction:column;gap:3px;margin-top:4px;touch-action:pan-y;max-height:32vh;overflow-y:auto;overflow-x:hidden;flex-shrink:1!important;min-height:40px;overscroll-behavior:contain}
-.eds.pop .ed-tracks{max-height:118px}
+.ed-tracks{position:relative;display:flex;flex-direction:column;gap:3px;margin-top:4px;touch-action:pan-y;overflow:visible}
+.ed-tracks::-webkit-scrollbar{display:none}
 .ed-body{position:relative;z-index:5;background:var(--bg)}
 .ed-tracks:empty{display:none}
-.trk{position:relative;height:34px;flex:0 0 34px;border-radius:8px;background:#141416}
-.trk .ic{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:14px;z-index:1;pointer-events:none;opacity:.9}
-.trk .blk{position:absolute;top:3px;bottom:3px;border-radius:7px;font:700 11px var(--f);color:#111;white-space:nowrap;overflow:visible;padding:0 16px;line-height:28px;cursor:grab;min-width:10px;text-transform:none;touch-action:none;-webkit-tap-highlight-color:transparent}
+.trk{position:relative;height:28px;flex:0 0 28px;border-radius:8px;background:#141416}
+.trk .ic{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:12px;z-index:1;pointer-events:none;opacity:.9}
+.trk .blk{position:absolute;top:2px;bottom:2px;border-radius:6px;font:700 10px var(--f);color:#111;white-space:nowrap;overflow:visible;padding:0 14px;line-height:24px;cursor:grab;min-width:10px;text-transform:none;touch-action:none;-webkit-tap-highlight-color:transparent}
 .trk .blk b{display:block;overflow:hidden;text-overflow:ellipsis;font-weight:700;pointer-events:none}
-.trk .blk.pt{width:14px!important;padding:0;margin-left:-7px;border-radius:99px}
+.trk .blk.pt{width:12px!important;padding:0;margin-left:-6px;border-radius:99px}
 .trk .blk.pt::before{content:'';position:absolute;inset:-6px -14px}
 .trk .blk.on{outline:2px solid #fff;z-index:2}
 .trk .blk.drag{cursor:grabbing;filter:brightness(1.15)}
 .trk .blk i{position:absolute;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:1}
 .trk .blk i::before{content:'';position:absolute;top:0;bottom:0;left:-12px;right:-12px}
-.trk .blk i::after{content:'';position:absolute;top:7px;bottom:7px;left:5px;width:4px;border-radius:2px;background:rgba(0,0,0,.45)}
+.trk .blk i::after{content:'';position:absolute;top:6px;bottom:6px;left:5px;width:3px;border-radius:2px;background:rgba(0,0,0,.45)}
 .trk .blk i.l{left:0}.trk .blk i.r{right:0}
 .trk-ph{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;pointer-events:none;z-index:4;box-shadow:0 0 3px #000}
 #joinList .btn span{text-transform:none}#joinList .btn-gold,#joinList .btn-gold span,#joinList .btn-gold i{color:var(--on-gold,#1a1408)!important}
@@ -79,7 +79,7 @@ const CSS=`
 .eds.show{display:flex}
 .ed-top{flex:1 1 auto;min-height:0;overflow:hidden;padding:8px 14px 8px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);background:var(--bg)}
 .ed-top>*{flex-shrink:0}.ed-top>.ed-stage{flex:1 1 auto;min-height:90px;height:auto}
-.ed-body{flex:0 0 auto;max-height:46vh;border-top:1px solid var(--line);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+.ed-body{flex:0 1 auto;max-height:46vh;min-height:130px;border-top:1px solid var(--line);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
 .eds .topbar .t{flex:1;min-width:0}.eds .topbar .n{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.eds .topbar .btn,.se-ctl .btn{flex-shrink:0;white-space:nowrap}
 .ed-body>*{flex-shrink:0}
 .ed-stage{flex:0 0 auto;height:34vh;display:flex;align-items:center;justify-content:center;background:#000;border-radius:14px;overflow:hidden}
@@ -752,9 +752,6 @@ function renderPanel(){
     if(E.marks&&E.marks.length)P.appendChild(row(hint(t('edMarks')),...E.marks.map(m=>btn('📍 '+fm(m),()=>{V().currentTime=m;drawAt();}))));
   }
   if(k==='text'){
-    {const c=document.createElement('div');c.className='ed-card';const d=subData();const n=d&&d.lines?d.lines.filter(q=>q.txt&&q.txt.trim()).length:0;
-      c.appendChild(hint(t('subInEd',{n})));const cb=document.createElement('label');cb.className='check';cb.innerHTML='<input type="checkbox"><span></span>';cb.querySelector('span').textContent=t('subBurn');const i=cb.querySelector('input');i.checked=!!E.p.subs;i.onchange=()=>{E.p.subs=i.checked;save();drawAt();};
-      c.appendChild(row(cb,btn(t('subOpen'),async()=>{const root=await recRoot();const h=await root.getDirectoryHandle(E.name);edPause();openSubEditor({name:E.name,h,done:true});})));P.appendChild(c);}
     P.appendChild(row(btn(t('edAddText'),()=>{snap();const a=V().currentTime;{const nt={id:Date.now(),s:+a.toFixed(2),e:+Math.min(E.dur,a+3).toFixed(2),txt:'',anim:'pop',pos:'m',font:'montserrat',col:'white',style:'outline',cs:'title',size:7};E.p.texts.push(nt);E.rsel={o:nt,mode:'range',list:'texts'};renderRange();}save();renderPanel();},'btn-gold')));
     E.p.texts.slice().sort((a,b)=>a.s-b.s).forEach(tx=>{const c=document.createElement('div');c.className='ed-card';
       const ta=document.createElement('textarea');ta.className='input';ta.rows=2;ta.maxLength=120;ta.value=tx.txt;ta.placeholder=t('edTextPh');ta.oninput=()=>{tx.txt=ta.value;save();drawAt();};c.appendChild(ta);
