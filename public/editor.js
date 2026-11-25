@@ -141,7 +141,7 @@ function presetApply(p,pr){if(!pr)return p;PRESET_KEYS.forEach(k=>{if(pr.data[k]
   if(pr.sub){try{localStorage.setItem('pmc_sub_style',JSON.stringify(pr.sub));}catch(e){}}return p;}
 function presetFromNow(name){const d={};PRESET_KEYS.forEach(k=>d[k]=JSON.parse(JSON.stringify(E.p[k])));let sub=null;try{const x=JSON.parse(localStorage.getItem('pmc_sub_'+E.name)||'null');if(x){sub={font:x.font,col:x.col,pos:x.pos,size:x.size,box:x.box};}}catch(e){}
   return{id:'p'+Date.now(),name,data:d,ov:{ovStyle:$('ovStyle').value,ovColor:$('ovColor').value,ovFont:$('ovFont').value},sub};}
-function save(){try{const p=Object.assign({},E.p);localStorage.setItem(key(),JSON.stringify(p));}catch(e){}}
+function save(){if(E&&E.noSave)return;try{const p=Object.assign({},E.p);localStorage.setItem(key(),JSON.stringify(p));}catch(e){}}
 function snap(){E.hist.push(JSON.stringify(E.p));if(E.hist.length>40)E.hist.shift();}
 window.edUndo=function(){if(!E||!E.hist.length){toast(t('edNoUndo'));return;}E.p=JSON.parse(E.hist.pop());save();renderAll();};
 /* a logo just for this video (instead of the main one from the Director) */
@@ -1081,6 +1081,7 @@ async function fastExport(replace,suffix){
     while(dec.decodeQueueSize>8||enc.encodeQueueSize>8)await new Promise(r=>setTimeout(r,2));
     if(i%15===0){say(0.05+0.75*i/chunks.length,t('fastRun',{n:Math.round(i/chunks.length*100)}));await new Promise(r=>setTimeout(r,0));}}
   await dec.flush();freezeOut(lastSeg);await enc.flush();if(fail)throw fail;
+  if(lastOut/1e6<total-0.6)throw new Error('short '+(lastOut/1e6).toFixed(1)+'/'+total.toFixed(1));
   /* 4. sound */
   if(acfg){say(0.85,t('fastAudio'));const buf=await renderAudio(total);const aenc=new AudioEncoder({output:(c,m)=>muxer.addAudioChunk(c,m),error:e=>fail=e});aenc.configure(acfg);
     const L=buf.getChannelData(0),R=buf.numberOfChannels>1?buf.getChannelData(1):L,N=1024;
@@ -1092,8 +1093,8 @@ async function fastExport(replace,suffix){
   const blob=new Blob([target.buffer],{type:'video/mp4'});
   const root=await recRoot();let base=E.name.replace(/\.\w+$/,'').replace(/_edit\d+$/,''),n=1;
   const exists=async nm=>{try{await root.getDirectoryHandle(nm);return true;}catch(e){return false;}};while(await exists(`${base}_edit${n}${suffix||''}.mp4`))n++;
-  const sv=new Saver(`${base}_edit${n}${suffix||''}.mp4`);sv.push(blob);const r=await sv.finish('video/mp4');
-  if(replace){try{await root.removeEntry(E.name,{recursive:true});localStorage.removeItem(key());}catch(e){}}
+  const nm=`${base}_edit${n}${suffix||''}.mp4`,sv=new Saver(nm);sv.noDl=true;sv.push(blob);const r=await sv.finish('video/mp4');r.name=nm;
+  if(replace)await replaceOrig(r,nm);
   return r;
 }
 /* ---------- export ---------- */
@@ -1104,9 +1105,7 @@ window.edExportAsk=function(){
   ask(t('edSaveT'),t('edSaveD'),t('edSaveNew'),()=>edExport(false));
   const card=G('askBox').querySelector('.askcard');
   if(!G('askReplace')){const b=document.createElement('button');b.className='btn btn-danger';b.id='askReplace';card.appendChild(b);}
-  if(!G('askMulti')){const b=document.createElement('button');b.className='btn btn-gold';b.id='askMulti';card.insertBefore(b,G('askReplace'));}
   const r=G('askReplace');r.style.display='flex';r.textContent=t('edSaveReplace');r.onclick=()=>{askClose();ask(t('edRepT'),t('edRepD'),t('edSaveReplace'),()=>edExport(true));};
-  const m=G('askMulti');m.style.display='flex';m.textContent=t('edSave3');m.onclick=()=>{askClose();edExport(false,['p','l','sq']);};
 };
 async function edExport(replace,fmts){
   if(E.busy)return;E.busy=true;edPause();stopVoiceRec();
@@ -1115,11 +1114,18 @@ async function edExport(replace,fmts){
     for(let i=0;i<list.length;i++){E.p.fmt=list[i];sizeCanvas(true);const suf=fmts?({p:'_9x16',l:'_16x9',sq:'_1x1'}[list[i]]||''):'';
       if(fmts)toast(t('edSaving3',{n:i+1,m:list.length}),2500);
       last=await exportOne(replace&&!fmts,suf);}
-    toast(t('saved',{w:last.where}),5000);
+    toast(t('savedApp'),5000);
   }catch(e){console.error('export',e);toast(t('seFail'),4000);}
   if(E){E.p.fmt=keepF;sizeCanvas();drawAt();E.busy=false;E.playing=false;}
   listSaved('files');if(replace&&!fmts&&last)edClose();
 }
+/* Replace original: the edited video goes into the original file (same name); the extra copy is removed */
+async function replaceOrig(r,newName){const root=await recRoot();
+  try{if(E.name.split('.').pop().toLowerCase()===newName.split('.').pop().toLowerCase()){await pmcWriteInto(E.h,r.blob);
+      for(const k of ['_brand.json','_switches.json']){try{await E.h.removeEntry(k);}catch(e){}}
+      await root.removeEntry(newName,{recursive:true});r.replaced=E.name;E.noSave=true;}
+    else{await root.removeEntry(E.name,{recursive:true});}
+    localStorage.removeItem(key());}catch(e){console.error('replace',e);}}
 async function exportOne(replace,suffix){
   if(canFast()){const t0=performance.now();try{const r=await fastExport(replace,suffix);G('edProgTx').textContent=t('fastDone',{n:Math.round((performance.now()-t0)/1000)});G('edBar').style.width='100%';return r;}
     catch(e){console.error('fast export',e);toast(t('fastFail'),4500);}}
@@ -1132,7 +1138,7 @@ async function rtExport(replace,suffix){
   const rec=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:brate(c.width,c.height),audioBitsPerSecond:160000}:{});
   let base=E.name.replace(/\.\w+$/,'').replace(/_edit\d+(_\w+)?$/,''),n=1;const root=await recRoot();
   const exists=async nm=>{try{await root.getDirectoryHandle(nm);return true;}catch(e){return false;}};
-  while(await exists(`${base}_edit${n}${suffix||''}.${ext}`))n++;const name=`${base}_edit${n}${suffix||''}.${ext}`,sv=new Saver(name);
+  while(await exists(`${base}_edit${n}${suffix||''}.${ext}`))n++;const name=`${base}_edit${n}${suffix||''}.${ext}`,sv=new Saver(name);sv.noDl=true;
   rec.ondataavailable=e=>sv.push(e.data);
   const total=outPos(E.dur+1)||1;let doneT=0;
   const kept=E.p.segs.filter(s=>s.keep);const v=V();
@@ -1154,8 +1160,8 @@ async function rtExport(replace,suffix){
     rec.pause();const nx=kept[kept.indexOf(s)+1];if(nx)grabPrev(nx.a);
   }
   E.playing=false;musicStop();rec.stop();await new Promise(r=>rec.onstop=r);try{E.g.out.disconnect(dest);}catch(e){}
-  const r=await sv.finish(rec.mimeType||mime||'video/webm');
-  if(replace){try{await root.removeEntry(E.name,{recursive:true});localStorage.removeItem(key());}catch(e){}}
+  const r=await sv.finish(rec.mimeType||mime||'video/webm');r.name=name;
+  if(replace)await replaceOrig(r,name);
   G('edProgTx').textContent=t('seDone');G('edBar').style.width='100%';return r;
 }
 /* ================= MEDIA lane: photos & videos placed on the timeline ================= */
