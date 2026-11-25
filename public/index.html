@@ -666,7 +666,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <label class="check"><input type="checkbox" id="optSelf" checked><span data-i18n="selfCamOpt"></span></label>
     <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optClean"><span data-i18n="cleanOpt"></span></label><span class="hint" data-i18n="cleanHint"></span></div>
     <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optFade" checked><span data-i18n="fadeOpt"></span></label><label class="lbl" id="transRow"><span data-i18n="transT"></span><select class="input" id="transSel"></select></label><div class="trans-demo"><canvas id="transDemo" width="240" height="135"></canvas><button class="btn btn-sm" type="button" onclick="transDemo()" data-i18n="transTry"></button></div></div>
-    <label class="check adv"><input type="checkbox" id="optNoise" checked><span data-i18n="noiseOpt"></span></label>
+    <label class="check adv"><input type="checkbox" id="optNoise"><span data-i18n="noiseOpt"></span></label>
     <label class="check"><input type="checkbox" id="optCount" checked><span data-i18n="countdownOpt"></span></label>
     <div class="pro-only adv" style="display:flex;flex-direction:column;gap:6px"><div class="lockbar"><span>🔒 <span data-i18n="proOnly"></span></span><button class="btn btn-sm btn-gold" onclick="openPro()" data-i18n="upgrade"></button></div><label class="check"><input type="checkbox" id="optHD"><span data-i18n="hdOpt"></span></label></div>
     <button class="btn btn-soft" id="advBtn" type="button" onclick="toggleAdv()" style="align-self:flex-start"></button>
@@ -1422,8 +1422,8 @@ async function addLocalCam(silent){
   /* camera size follows the video quality: 720p videos do not need a 1080p camera (half the work for the phone) */
   const hq=Number(($('qualSel')||{}).value||720)>=1080;
   const vq=fr=>({facingMode:{ideal:'environment'},width:{ideal:hq?1920:1280},height:{ideal:hq?1080:720},frameRate:fr});
-  try{try{localStream=await navigator.mediaDevices.getUserMedia({video:vq({min:24,ideal:30,max:30}),audio:{echoCancellation:true,noiseSuppression:true}});}
-    catch(e0){if(e0&&e0.name==='NotAllowedError')throw e0;localStream=await navigator.mediaDevices.getUserMedia({video:vq({ideal:30,max:30}),audio:{echoCancellation:true,noiseSuppression:true}});}}
+  try{try{localStream=await navigator.mediaDevices.getUserMedia({video:vq({min:24,ideal:30,max:30}),audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});}
+    catch(e0){if(e0&&e0.name==='NotAllowedError')throw e0;localStream=await navigator.mediaDevices.getUserMedia({video:vq({ideal:30,max:30}),audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});}}
   catch(e){toast(t('allowCam'));return;}
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
@@ -1685,8 +1685,14 @@ function getGrain(){
 let lastDraw=0,stageFx='';
 const perf={ema:0,light:false,warned:false};
 window.PMC_after_edit=()=>{perf.ema=0;perf.n=0;if(!recActive())perf.light=false;lastDraw=0;};
-function draw(){
+/* While recording, draw exactly when the camera gives a new picture (not on a timer):
+   the timer drifts against the camera and makes the video jerky. The timer stays as a backup. */
+let rvfcLast=0,rvfcPend=false;
+function rvfcLoop(){const m=sources.find(s=>s.id===mainId),v=m&&m.video;if(!v||!v.requestVideoFrameCallback||!recActive())return;
+  rvfcPend=true;v.requestVideoFrameCallback(()=>{rvfcPend=false;if(!recActive())return;if(recorder.state!=='paused'){rvfcLast=performance.now();draw(true);}rvfcLoop();});}
+function draw(fromCam){
   const live=recActive()&&recorder.state!=='paused',n=performance.now();
+  if(live&&!fromCam){if(!rvfcPend)rvfcLoop();if(n-rvfcLast<120)return;}
   if(!live){
     if(document.hidden)return;                                  /* app in background: draw nothing */
     if(document.querySelector('.eds.show,.subed.show'))return;      /* editor open: Director preview not visible */
@@ -2409,6 +2415,8 @@ function saveSettings(quiet){
 function loadSettings(){
   try{if(!localStorage.getItem('pmc_manual_v1')){const o=JSON.parse(localStorage.getItem('pmc_settings')||'{}');if(o&&o.autoSel&&o.autoSel!=='0'){o.autoSel='0';localStorage.setItem('pmc_settings',JSON.stringify(o));}localStorage.setItem('pmc_manual_v1','1');}}catch(e){}
   let o={};try{o=JSON.parse(lsGet('pmc_settings','{}'))||{};}catch(e){}
+  /* once: natural voice by default (the old voice filter made it sound different) */
+  try{if(!localStorage.getItem('pmc_voice_v1')){if('optNoise' in o){o.optNoise=false;localStorage.setItem('pmc_settings',JSON.stringify(o));}localStorage.setItem('pmc_voice_v1','1');}}catch(e){}
   for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(!e||!(id in o))continue;if(k==='c')e.checked=!!o[id];else e.value=o[id];}
   resizeStage();if(musicGain)musicGain.gain.value=Number($('musicVol').value)/100*0.8;
   $('musicFileBtn').style.display=$('musicSel').value==='custom'?'inline-flex':'none';
@@ -3025,7 +3033,7 @@ function joinByCode(){
 }
 async function getCam(){
   /* ask for 24-30 fps so the picture stays smooth indoors; fall back if the phone refuses */
-  const q=fr=>({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:fr},audio:{echoCancellation:true,noiseSuppression:true}});
+  const q=fr=>({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:fr},audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
   try{return await navigator.mediaDevices.getUserMedia(q({min:24,ideal:30,max:30}));}catch(e){if(e&&e.name==='NotAllowedError')throw e;return navigator.mediaDevices.getUserMedia(q({ideal:30,max:30}));}
 }
 function camCaps(){
