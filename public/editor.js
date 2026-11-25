@@ -31,6 +31,7 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+.ed-logo{flex:0 0 auto;width:40px;height:40px;border-radius:8px;background:#222 center/contain no-repeat;border:1px solid var(--line);display:grid;place-items:center;color:var(--sub);font-weight:800}
 #jpSeek{position:relative;height:34px;border-radius:8px;background:#141416;touch-action:none;cursor:pointer;overflow:hidden}
 #jpSeek .jps{position:absolute;top:4px;bottom:4px;border-radius:6px;background:rgba(200,164,92,.22);border:1px solid rgba(200,164,92,.45);font:800 10px var(--f);color:var(--gold);display:flex;align-items:center;padding-left:6px;overflow:hidden;pointer-events:none}
 #jpSeek .jps:nth-child(4n+3){background:rgba(127,179,255,.2);border-color:rgba(127,179,255,.45);color:#9cc4ff}
@@ -126,8 +127,8 @@ function key(){return 'pmc_ed_'+E.name;}
 /* brand text and style belong to this video (so a clean recording keeps its own price, title…) */
 const BV_IDS=['titleTxt','priceTxt','phoneTxt','shopTxt','descTxt','menuTxt','ovStyle','ovColor','ovFont','logoPos'];
 function bvInit(){if(!E.p.bv){E.p.bv={};BV_IDS.forEach(id=>{const el=$(id);if(el)E.p.bv[id]=el.value;});}}
-function bvSwap(){if(!E||!E.p.bv)return null;const old={};BV_IDS.forEach(id=>{const el=$(id);if(el&&E.p.bv[id]!=null){old[id]=el.value;el.value=E.p.bv[id];}});return old;}
-function bvRestore(old){if(!old)return;Object.entries(old).forEach(([id,v])=>{const el=$(id);if(el)el.value=v;});}
+function bvSwap(){if(!E)return null;const old={__logo:logoImg};if(E.p.logo==='own'&&E.logoImg)logoImg=E.logoImg;else if(E.p.logo==='none')logoImg=null;if(!E.p.bv)return old;BV_IDS.forEach(id=>{const el=$(id);if(el&&E.p.bv[id]!=null){old[id]=el.value;el.value=E.p.bv[id];}});return old;}
+function bvRestore(old){if(!old)return;if('__logo' in old)logoImg=old.__logo;Object.entries(old).forEach(([id,v])=>{if(id==='__logo')return;const el=$(id);if(el)el.value=v;});}
 /* "Brand recipe": one tap to reuse the look, brand, sound and size of a video you liked */
 const PRESET_KEYS=['look','brand','fmt','fill','enh','music','musVol','duck','col','stepBar','q'];
 function presets(){try{return JSON.parse(localStorage.getItem('pmc_presets')||'[]');}catch(e){return[];}}
@@ -141,6 +142,14 @@ function presetFromNow(name){const d={};PRESET_KEYS.forEach(k=>d[k]=JSON.parse(J
 function save(){try{const p=Object.assign({},E.p);localStorage.setItem(key(),JSON.stringify(p));}catch(e){}}
 function snap(){E.hist.push(JSON.stringify(E.p));if(E.hist.length>40)E.hist.shift();}
 window.edUndo=function(){if(!E||!E.hist.length){toast(t('edNoUndo'));return;}E.p=JSON.parse(E.hist.pop());save();renderAll();};
+/* a logo just for this video (instead of the main one from the Director) */
+const logoKey=()=>E.name.replace(/[^\w.-]+/g,'_')+'.logo';
+async function logoLoad(){if(!E||E.p.logo!=='own')return;try{const d=await editsDir();const f=await (await d.getFileHandle(logoKey())).getFile();const im=new Image();im.src=URL.createObjectURL(f);await im.decode().catch(()=>{});if(E){E.logoImg=im;drawAt();renderPanel();}}catch(e){}}
+async function logoSet(file){
+  const im=new Image();im.src=URL.createObjectURL(file);await im.decode();
+  const k=Math.min(1,512/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(im.src);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));const d=await editsDir();const w=await (await d.getFileHandle(logoKey(),{create:true})).createWritable();await w.write(blob);await w.close();
+  const im2=new Image();im2.src=URL.createObjectURL(blob);await im2.decode().catch(()=>{});E.logoImg=im2;E.p.logo='own';save();drawAt();renderPanel();}
 async function editsDir(){const r=await navigator.storage.getDirectory();return r.getDirectoryHandle('edits',{create:true});}
 async function voiceDir(){const d=await editsDir();return d.getDirectoryHandle(E.name.replace(/[^\w.-]+/g,'_'),{create:true});}
 
@@ -160,7 +169,7 @@ window.openEditor=async function(it){
   document.querySelectorAll('.tile video').forEach(x=>{try{x.pause();}catch(e){}});   /* Director tiles are hidden behind the editor */
   if(E.p.bg&&E.p.bg!=='none'&&!window._edSeg)needSeg().then(()=>drawAt()).catch(()=>{E.p.bg='none';});
   E.p.dn=false;
-  setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
+  setupAudio();E.g.mus.gain.value=1;duckLvl=1;sizeCanvas();renderAll();thumbs();loadVoices();loadAngles().then(()=>renderAll());musicLoad();logoLoad();E.p.segs.filter(q=>q.keep&&q.fx&&q.fx!=='none').forEach(q=>buildFx(q).catch(()=>{}));
   v.addEventListener('loadeddata',()=>drawAt(),{once:true});v.currentTime=firstKept()+0.001;drawAt();setTimeout(()=>{if(E)drawAt();},600);
 };
 window.edClose=function(){if(E&&E.busy){toast(t('seBusy'));return;}document.querySelectorAll('.tile video').forEach(x=>{try{x.play().catch(()=>{});}catch(e){}});edPause();stopVoiceRec();if(E&&E.g)E.g.mus.gain.value=0;G('edScreen').classList.remove('show');if(E){save();URL.revokeObjectURL(E.url);Object.values(E.voiceEls).forEach(freeAudio);(E.angles||[]).forEach(a=>{try{a.v.pause();a.v.removeAttribute('src');a.v.load();URL.revokeObjectURL(a.url);}catch(e){}});if(E.musEl)freeAudio(E.musEl);try{const v=V();v.pause();v.removeAttribute('src');v.load();}catch(e){}try{cancelAnimationFrame(E.raf);}catch(e){}}E=null;try{G('edThumbs').innerHTML='';G('edSegs').innerHTML='';const c=CV();c.width=2;c.height=2;}catch(e){}if(window.PMC_after_edit)PMC_after_edit();};
@@ -710,6 +719,12 @@ function renderPanel(){
       bvInit();if(E.fromClean)P.appendChild(hint(t('cleanEd')));
       const fld=(lab,id,ph)=>{const l=document.createElement('label');l.className='lbl';l.innerHTML='<span></span>';l.querySelector('span').textContent=t(lab);const inp=document.createElement('input');inp.className='input';inp.value=E.p.bv[id]||'';inp.placeholder=t(ph);inp.oninput=()=>{E.p.bv[id]=inp.value;save();drawAt();};l.appendChild(inp);return l;};
       P.appendChild(fld('titleL','titleTxt','titlePh'));P.appendChild(fld('price','priceTxt','pricePh'));P.appendChild(fld('phone','phoneTxt','phonePh'));
+      {const cur=E.p.logo||'main',src=cur==='own'&&E.logoImg?E.logoImg.src:cur==='main'&&logoImg?logoImg.src:'';
+        const th=document.createElement('span');th.className='ed-logo';if(src)th.style.backgroundImage='url('+src+')';else th.textContent=cur==='none'?'✕':'—';
+        const up=document.createElement('label');up.className='btn btn-sm btn-gold';up.style.cursor='pointer';up.innerHTML='<span></span><input type="file" accept="image/*" style="display:none">';up.querySelector('span').textContent=t('edLogoUp');
+        up.querySelector('input').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;snap();try{await logoSet(f);toast(t('edLogoDone'));}catch(er){toast(t('eGeneric'));}};
+        const pick=sel([['main',t('edLogoMain')],['own',t('edLogoOwn')],['none',t('edLogoNone')]],cur,v=>{if(v==='own'&&!E.logoImg){up.querySelector('input').click();renderPanel();return;}snap();E.p.logo=v;save();drawAt();renderPanel();});
+        const lb=document.createElement('span');lb.className='lbl';lb.textContent=t('edLogoT');P.appendChild(lb);P.appendChild(row(th,pick,up));}
       P.appendChild(row(hint(t('ovT')),sel(OV_STYLES.map(k2=>[k2,t('ov_'+k2)]),E.p.bv.ovStyle||'card',v=>{E.p.bv.ovStyle=v;E.p.bv.ovFont=OV_DEF_FONT[v];save();try{document.fonts.load(`${OV_FONTS[OV_DEF_FONT[v]].w} 30px ${OV_FONTS[OV_DEF_FONT[v]].fam}`).then(drawAt);}catch(e){}drawAt();renderPanel();})));
       P.appendChild(row(sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),E.p.bv.ovColor||'gold',v=>{E.p.bv.ovColor=v;save();drawAt();}),sel(Object.keys(OV_FONTS).map(f=>[f,t('font_'+f)]),E.p.bv.ovFont||'bricolage',v=>{E.p.bv.ovFont=v;save();try{document.fonts.load(`${OV_FONTS[v].w} 30px ${OV_FONTS[v].fam}`).then(drawAt);}catch(e){}drawAt();})));
       P.appendChild(hint(t('edBrandHint')));
