@@ -342,6 +342,11 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 /* Home: fits one screen, no scrolling */
 #home.show{position:fixed;inset:0;height:auto;overflow:hidden}
 #home.show{background:linear-gradient(180deg,rgba(8,7,5,.62) 0%,rgba(8,7,5,.45) 35%,rgba(8,7,5,.78) 100%),url(art/home_bg.jpg) center/cover no-repeat #0b0a08}
+/* wide screens (laptop): the picture is tall, so stretching it to the full width makes it blurry.
+   Show it at its own sharp size on the right and fade it into the dark background */
+@media (min-aspect-ratio:1/1) and (min-width:700px){
+  #home.show{background:linear-gradient(90deg,#0b0a08 0%,#0b0a08 calc(100% - 45vh),rgba(11,10,8,.35) calc(100% - 26vh),rgba(11,10,8,.1) 100%),url(art/home_bg.jpg) right center/auto 100% no-repeat #0b0a08}
+}
 #home .role{background:linear-gradient(180deg,rgba(30,26,20,.62),rgba(12,10,8,.72))!important;-webkit-backdrop-filter:none;border-color:rgba(200,164,92,.35)}
 #home .role.master{border-color:var(--gold)}
 #home .tool{background-color:rgba(18,16,13,.72)!important}
