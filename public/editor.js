@@ -1160,7 +1160,7 @@ window.joinParts=async function(items,name){
       const out=await pmcRemux(blobs);const root=await recRoot();const fname=name+'.mp4';const dir=await root.getDirectoryHandle(fname,{create:true});await pmcWriteInto(dir,out);
       for(const nm of ['_brand.json','_switches.json']){try{const src=await (await items[0].h.getFileHandle(nm)).getFile();const w=await (await dir.getFileHandle(nm,{create:true})).createWritable();await w.write(await src.text());await w.close();}catch(e){}}
       for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}
-      downloadBlob(out,fname);toast(t('saved',{w:'Downloads/'+fname}),5000);listSaved('files');return;}
+      toast(t('savedApp'),5000);listSaved('files');return;}
     catch(e){console.warn('quick join failed, using normal join',e);}}
   document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('joinOrd').innerHTML='';G_('jpPlay').style.display='none';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
   joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
