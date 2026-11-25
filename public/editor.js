@@ -29,6 +29,7 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+#joinList .btn span{text-transform:none}#joinList .btn-gold,#joinList .btn-gold span,#joinList .btn-gold i{color:var(--on-gold,#1a1408)!important}
 
 .eds:not(.pop) .ed-body{display:none!important}
 .ed-phead{display:flex;align-items:center;gap:8px;position:sticky;top:-10px;z-index:2;background:var(--bg);margin:-10px -14px 0;padding:8px 14px 6px}
@@ -247,7 +248,7 @@ function composeAt(src,x){
     if(LY&&LY.lay==='pip'){const pw=Math.round(Math.min(R.w,R.h)*0.36),ph=Math.round(pw*(R.h>R.w?4/3:3/4)),px=R.w-pw-Math.round(R.w*0.04),py=R.h-ph-Math.round(R.h*0.12);
       ctx2.fillStyle=(OV_COLORS[$('ovColor').value]||OV_COLORS.gold).c;ctx2.fillRect(px-4,py-4,pw+8,ph+8);ctx2.save();ctx2.translate(px,py);ctx2.beginPath();ctx2.rect(0,0,pw,ph);ctx2.clip();if(lk&&lk.f)ctx2.filter=lk.f;drawVideo(ctx2,pw,ph,x,null,LY.b);ctx2.restore();}}
   ctx2.restore();ctx2.filter='none';
-  if(lk&&lk.vig){const gr=ctx2.createRadialGradient(W/2,Hh/2,Math.min(W,Hh)*0.35,W/2,Hh/2,Math.max(W,Hh)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.6)');ctx2.fillStyle=gr;ctx2.fillRect(0,0,W,Hh);}
+  if(lk&&lk.vig){const gr=ctx2.createRadialGradient(W/2,Hh/2,Math.min(W,Hh)*0.35,W/2,Hh/2,Math.max(W,Hh)*0.7);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+(lk.vig===true?.6:lk.vig)+')');ctx2.fillStyle=gr;ctx2.fillRect(0,0,W,Hh);}
   if(lk&&lk.bars){const bh=Math.round(Hh*0.08);ctx2.fillStyle='#000';ctx2.fillRect(0,0,W,bh);ctx2.fillRect(0,Hh-bh,W,bh);}
   {const sd=E.p.subs&&subData();window._ovLift=(sd&&sd.lines&&sd.lines.length&&(sd.pos||'b')==='b')?Math.round(Math.min(W,Hh)*0.17):0;}
   if(E.p.brand&&typeof drawOverlays==='function'){const keepCtx=ctx,keepLook=look,sw=bvSwap();try{ctx=ctx2;look=lk||LOOKS[0];window._edDrawing=true;drawOverlays(W,Hh);}catch(e){}finally{ctx=keepCtx;look=keepLook;window._edDrawing=false;bvRestore(sw);}}
@@ -1051,45 +1052,61 @@ async function rtExport(replace,suffix){
 }
 /* ================= JOIN: several recordings into one video ================= */
 document.body.insertAdjacentHTML('beforeend',`<div class="askbox" id="joinBox" onclick="if(event.target===this)this.classList.remove('show')"><div class="askcard" style="max-height:80vh;overflow:auto">
-  <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div>
+  <b data-i18n="joinT"></b><span data-i18n="joinD"></span><div id="joinList" style="display:flex;flex-direction:column;gap:6px"></div><div id="joinTr" style="display:flex;flex-direction:column;gap:6px"></div>
   <div class="askbtns"><button class="btn" onclick="G_('joinBox').classList.remove('show')" data-i18n="cancel"></button><button class="btn btn-gold" id="joinGo"></button></div>
   <div class="se-prog" id="joinProg"><div><i id="joinBar"></i></div><span id="joinTx"></span></div></div></div>`);
 window.G_=id=>document.getElementById(id);
-let joinSel=[];
+let joinSel=[],joinTr=[];
+const JT_ALL=['fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors'];
+const jtLabel=k=>{const o=document.querySelector('#transSel option[value="'+k+'"]');return o?o.textContent:k;};
 /* used by drafts: join the given parts in order, then offer to delete the parts */
 window.joinParts=function(items,name){
-  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
+  document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
   joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
 };
 window.openJoin=async function(){
   if(!isPro()){openPro();return;}
   const root=await recRoot();const items=[];for await(const [n,h] of root.entries()){if(h.kind!=='directory')continue;let done=false;for await(const [k] of h.entries())if(k==='_done')done=true;if(done)items.push({name:n,h});}
-  items.sort((a,b)=>a.name<b.name?-1:1);joinSel=[];const L=G_('joinList');L.innerHTML='';
-  const paint=()=>{[...L.children].forEach(b=>{const i=joinSel.indexOf(b.dataset.n);b.classList.toggle('btn-gold',i>=0);b.querySelector('i').textContent=i>=0?(i+1)+'.':'';});G_('joinGo').textContent=t('joinGo',{n:joinSel.length});};
+  items.sort((a,b)=>a.name<b.name?-1:1);joinSel=[];joinTr=[];const L=G_('joinList');L.innerHTML='';
+  const paint=()=>{[...L.children].forEach(b=>{const i=joinSel.indexOf(b.dataset.n);b.classList.toggle('btn-gold',i>=0);b.querySelector('i').textContent=i>=0?(i+1)+'.':'';});G_('joinGo').textContent=t('joinGo',{n:joinSel.length});paintTr();};
+  const paintTr=()=>{const T=G_('joinTr');T.innerHTML='';const n=joinSel.length-1;if(n<1)return;while(joinTr.length<n)joinTr.push('fade');joinTr.length=n;
+    const h=document.createElement('b');h.textContent=t('joinTrT');h.style.marginTop='6px';T.appendChild(h);
+    for(let i=0;i<n;i++){const r=document.createElement('label');r.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700';
+      const sp=document.createElement('span');sp.textContent='V'+(i+1)+' → V'+(i+2);sp.style.minWidth='64px';const se=document.createElement('select');se.className='input';se.style.cssText='flex:1;min-height:38px';
+      [['cut',t('joinTrCut')]].concat(JT_ALL.map(k=>[k,jtLabel(k)])).forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;se.appendChild(o);});se.value=joinTr[i];se.onchange=()=>{joinTr[i]=se.value;};
+      r.appendChild(sp);r.appendChild(se);T.appendChild(r);}
+    const mix=document.createElement('button');mix.type='button';mix.className='btn btn-sm';mix.textContent='🎲 '+t('joinTrMix');
+    mix.onclick=()=>{const pool=JT_ALL.slice().sort(()=>Math.random()-0.5);for(let i=0;i<n;i++)joinTr[i]=pool[i%pool.length];paintTr();};T.appendChild(mix);};
   items.forEach(it=>{const b=document.createElement('button');b.className='btn btn-sm';b.style.justifyContent='flex-start';b.dataset.n=it.name;b.innerHTML='<i style="font-style:normal;min-width:22px"></i><span></span>';b.querySelector('span').textContent=it.name;
     b.onclick=()=>{const i=joinSel.indexOf(it.name);if(i>=0)joinSel.splice(i,1);else joinSel.push(it.name);paint();};L.appendChild(b);});
-  G_('joinGo').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)));};
+  G_('joinGo').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)),null,null,joinTr.slice());};
   G_('joinProg').classList.remove('show');paint();document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinBox').classList.add('show');
 };
-async function joinRun(list,outName,after){
+async function joinRun(list,outName,after,trs){
   const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');
   try{ensureAudio();if(actx.state==='suspended')await actx.resume();
     const vids=[];for(const it of list){const b=await savedBlob(it.h,mimeOf(it.name));const v=document.createElement('video');v.src=URL.createObjectURL(b);v.playsInline=true;v.preload='auto';await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r;});vids.push(v);}
     const v0=vids[0],k=Math.min(1,1920/Math.max(v0.videoWidth||1280,v0.videoHeight||720)),W=Math.round((v0.videoWidth||1280)*k/2)*2,H=Math.round((v0.videoHeight||720)*k/2)*2;
-    const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),dest=actx.createMediaStreamDestination();
+    const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),G0=g,dest=actx.createMediaStreamDestination();
+    /* for effects between videos: last picture of the previous video, and the new video drawn on its own */
+    const snap=document.createElement('canvas');snap.width=W;snap.height=H;const fr=document.createElement('canvas');fr.width=W;fr.height=H;const fg=fr.getContext('2d');
     vids.forEach(v=>{try{actx.createMediaElementSource(v).connect(dest);}catch(e){}});
     const out=c.captureStream(30);dest.stream.getAudioTracks().forEach(tr=>out.addTrack(tr));
     const mime=pickMime(),ext=mime.includes('mp4')?'mp4':'webm',rec=new MediaRecorder(out,mime?{mimeType:mime,videoBitsPerSecond:W*H>=1900000?8000000:5000000,audioBitsPerSecond:160000}:{});
-    const sv=new Saver(`${outName||('Gabung_'+stamp())}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
+    const sv=new Saver(`${outName||(typeof seqName==='function'?seqName(t('joinFile')):'Gabung_'+stamp())}.${ext}`);rec.ondataavailable=e=>sv.push(e.data);
     const tot=vids.reduce((a,v)=>a+(v.duration||0),0)||1;let done=0;
-    const draw=v=>{const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;g.fillStyle='#000';g.fillRect(0,0,W,H);
+    const draw=(v,g0)=>{const g=g0||G0;const vw=v.videoWidth,vh=v.videoHeight;if(!vw)return;g.fillStyle='#000';g.fillRect(0,0,W,H);
       if(Math.abs(vw/vh-W/H)>0.02){const T=draw.t||(draw.t=document.createElement('canvas'));T.width=32;T.height=Math.max(8,Math.round(32*vh/vw));T.getContext('2d').drawImage(v,0,0,T.width,T.height);const kk=Math.max(W/vw,H/vh)*1.1;g.imageSmoothingQuality='high';g.drawImage(T,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);g.fillStyle='rgba(0,0,0,.45)';g.fillRect(0,0,W,H);}
       const kk=Math.abs(vw/vh-W/H)>0.02?Math.min(W/vw,H/vh):Math.max(W/vw,H/vh);g.drawImage(v,(W-vw*kk)/2,(H-vh*kk)/2,vw*kk,vh*kk);};
     rec.start(2000);rec.pause();
-    for(const v of vids){v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,800);});draw(v);rec.resume();await v.play().catch(()=>{});
+    let vi=0;
+    for(const v of vids){const k=vi>0&&trs&&trs[vi-1]&&trs[vi-1]!=='cut'&&typeof drawTrans==='function'?trs[vi-1]:null,tms=k?Math.min(900,Math.max(500,(TRANS[k]?TRANS[k].ms:400)*1.8)):0;let t0=0;vi++;
+      v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,800);});if(!k)draw(v);rec.resume();await v.play().catch(()=>{});t0=performance.now();
       await new Promise(res0=>{let fin=false;const res=()=>{if(fin)return;fin=true;clearInterval(wd);res0();};const wd=setInterval(()=>{if(v.ended)res();},150);v.addEventListener('ended',res,{once:true});
-        const f=()=>{if(fin)return;draw(v);const p=(done+v.currentTime)/tot;G_('joinBar').style.width=Math.round(p*100)+'%';G_('joinTx').textContent=t('seMaking',{n:Math.round(p*100)});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
-      rec.pause();done+=v.duration||0;}
+        const f=()=>{if(fin)return;const el=performance.now()-t0;
+          if(k&&el<tms){draw(v,fg);g.fillStyle='#000';g.fillRect(0,0,W,H);drawTrans(k,el/tms,(x,y,w,h)=>g.drawImage(snap,x,y,w,h),(x,y,w,h)=>g.drawImage(fr,x,y,w,h),0,0,W,H,g);}
+          else draw(v);const p=(done+v.currentTime)/tot;G_('joinBar').style.width=Math.round(p*100)+'%';G_('joinTx').textContent=t('seMaking',{n:Math.round(p*100)});if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(f);else requestAnimationFrame(f);};f();});
+      rec.pause();snap.getContext('2d').drawImage(c,0,0);done+=v.duration||0;}
     rec.stop();await new Promise(r=>rec.onstop=r);const r=await sv.finish(rec.mimeType||mime||'video/webm');
     for(const nm of ['_brand.json','_switches.json']){try{const src=await (await list[0].h.getFileHandle(nm)).getFile();if(sv.dir){const w=await (await sv.dir.getFileHandle(nm,{create:true})).createWritable();await w.write(await src.text());await w.close();}}catch(e){}}
     vids.forEach(v=>URL.revokeObjectURL(v.src));G_('joinTx').textContent=t('seDone');toast(t('saved',{w:r.where}),5000);G_('joinBox').classList.remove('show');listSaved('files');if(after)after(true);
