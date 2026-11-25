@@ -31,6 +31,7 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+.cut-row>.btn:first-child{flex:1;justify-content:flex-start}
 .ed-logo{flex:0 0 auto;width:40px;height:40px;border-radius:8px;background:#222 center/contain no-repeat;border:1px solid var(--line);display:grid;place-items:center;color:var(--sub);font-weight:800}
 #jpSeek{position:relative;height:34px;border-radius:8px;background:#141416;touch-action:none;cursor:pointer;overflow:hidden}
 #jpSeek .jps{position:absolute;top:4px;bottom:4px;border-radius:6px;background:rgba(200,164,92,.22);border:1px solid rgba(200,164,92,.45);font:800 10px var(--f);color:var(--gold);display:flex;align-items:center;padding-left:6px;overflow:hidden;pointer-events:none}
@@ -678,14 +679,17 @@ function renderPanel(){
     return;
   }
   if(k==='cut'){
-    /* nothing is picked until "+ New cut" is tapped; then two gold lines appear to drag */
-    if(E.cutSel&&E.cutSel.e>E.dur)E.cutSel=null;
+    /* a list of parts to cut: "+ Add cut" adds one (two gold lines to drag); each has its own Cut and ✕ */
+    E.cutList=(E.cutList||[]).filter(q=>q.e<=E.dur+0.01);if(E.cutSel&&!E.cutList.includes(E.cutSel))E.cutSel=null;
     if(E.cutSel&&(!E.rsel||E.rsel.o!==E.cutSel))E.rsel={o:E.cutSel,mode:'range',list:'_cut'};
-    {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t(E.cutSel?'cutHint':'cutHint0')));
-      const nw=btn('＋ '+t('cutNew'),()=>{const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));E.cutSel={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};E.rsel={o:E.cutSel,mode:'range',list:'_cut'};renderPanel();renderRange();},E.cutSel?'':'btn-gold');
-      const cutB=E.cutSel?btn('✂️ '+t('cutDo',{a:fm1(E.cutSel.s),b:fm1(E.cutSel.e)}),()=>{snap();removeRange(E.cutSel.s,E.cutSel.e);const n=nextKeptFrom(E.cutSel.e);E.cutSel=null;E.rsel=null;changed();if(n!=null)V().currentTime=n;toast(t('cutDone'),3000);renderPanel();renderRange();},'btn-danger'):null;
-      const cancel=E.cutSel?btn('✕',()=>{E.cutSel=null;E.rsel=null;renderPanel();renderRange();}):null;
-      c.appendChild(row(nw,cutB,cancel,btn('↶ '+t('edUndo'),()=>{edUndo();})));
+    {const c=document.createElement('div');c.className='ed-card';c.appendChild(hint(t(E.cutList.length?'cutHint':'cutHint0')));
+      c.appendChild(row(btn('＋ '+t('cutAdd'),()=>{const a=clamp(V().currentTime,0,Math.max(0,E.dur-0.5));const q={s:+a.toFixed(2),e:+Math.min(E.dur,a+Math.max(1,E.dur*0.15)).toFixed(2)};E.cutList.push(q);E.cutSel=q;E.rsel={o:q,mode:'range',list:'_cut'};renderPanel();renderRange();},'btn-gold'),
+        btn('↶ '+t('edUndo'),()=>{edUndo();})));
+      E.cutList.forEach((q,i)=>{const on=q===E.cutSel;
+        const pickB=btn((on?'● ':'')+(i+1)+'. '+fm1(q.s)+' – '+fm1(q.e),()=>{E.cutSel=q;E.rsel={o:q,mode:'range',list:'_cut'};V().currentTime=q.s;drawAt();uiAt(q.s);renderPanel();renderRange();},on?'btn-soft':'');
+        const cutB=btn('✂️ '+t('cutGo'),()=>{snap();removeRange(q.s,q.e);const n=nextKeptFrom(q.e);E.cutList=E.cutList.filter(z=>z!==q);if(E.cutSel===q){E.cutSel=null;E.rsel=null;}changed();if(n!=null)V().currentTime=n;toast(t('cutDone'),3000);renderPanel();renderRange();},'btn-danger');
+        const x=btn('✕',()=>{E.cutList=E.cutList.filter(z=>z!==q);if(E.cutSel===q){E.cutSel=null;E.rsel=null;}renderPanel();renderRange();});
+        const r=row(pickB,cutB,x);r.classList.add('cut-row');c.appendChild(r);});
       P.appendChild(c);}
   }
   if(k==='bg'){
