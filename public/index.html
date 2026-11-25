@@ -580,7 +580,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="row-between"><h3 data-i18n="savedRecs"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('filesSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="imp-row">
       <label class="btn btn-sm btn-gold" style="cursor:pointer"><span data-i18n="impOne"></span><input type="file" id="impOne" accept="video/*" multiple style="display:none"></label>
-      <button class="btn btn-sm btn-soft" style="grid-column:1/-1" onclick="openJoin()" data-i18n="joinBtn"></button>
+      <button class="btn btn-sm btn-soft" onclick="openJoin()" data-i18n="joinBtn"></button>
     </div>
     <span class="hint" data-i18n="impHint"></span>
     <div class="files" id="files" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -1110,7 +1110,7 @@ async function listSaved(boxId){
     if(done&&SIZE_CACHE[name]&&SIZE_CACHE[name][0]===count)size=SIZE_CACHE[name][1];
     else{for(const f of parts){try{size+=(await f.getFile()).size;}catch(e){}}if(done)SIZE_CACHE[name]=[count,size];}
     if(!count){try{await root.removeEntry(name,{recursive:true});}catch(e){}continue;}
-    if(draftNames().includes(name))continue;
+    if(draftNames().includes(name)||/_part_\d{8}_\d{6}\.\w+$/.test(name)&&!done)continue;
     items.push({name,h,size,done,marks,clean});
   }
   items.sort((a,b)=>a.name<b.name?1:-1);
@@ -1133,6 +1133,7 @@ async function listSaved(boxId){
     if(navigator.canShare){const sh=document.createElement('button');sh.className='btn btn-sm';sh.textContent=t('share');
       sh.onclick=async()=>{const b=await savedBlob(it.h,mimeOf(it.name));const f=new File([b],it.name,{type:b.type});if(navigator.canShare({files:[f]}))navigator.share({files:[f]}).catch(()=>{});else downloadBlob(b,it.name);};acts.appendChild(sh);}
     if(box.id==='files'&&it.done&&sources.some(s=>!s.local&&s.conn&&s.conn.open)){const ab=document.createElement('button');ab.className='btn btn-sm';ab.textContent=t('angBtn');ab.onclick=()=>collectAngles(it);acts.appendChild(ab);}
+    if(box.id==='files'&&it.done&&/\.mp4$/i.test(it.name)){const rb=document.createElement('button');rb.className='btn btn-sm';rb.textContent='⏺ '+t('resumeBtn');rb.onclick=()=>resumeRec(it);acts.appendChild(rb);}
     if(box.id==='files'&&it.done){const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent=t('edBtn');eb.onclick=()=>openEditor(it);acts.appendChild(eb);}
     if(box.id==='files'&&it.done){const sb=document.createElement('button');sb.className='btn btn-sm';sb.textContent=t('seBtn');sb.onclick=()=>openSubEditor(it);acts.appendChild(sb);}
     const del=document.createElement('button');del.className='btn btn-sm btn-danger';del.textContent=t('del');
@@ -2087,14 +2088,16 @@ async function toggleRec(force){
   catch(e){toast(t('noRec'));return;}
   recId=stamp();marks=[];pausedAt=0;pausedTotal=0;
   const seqBase=fileBase()+storyTag(),seqN=seqPeek(seqBase);
-  const sv=saver=new Saver(`${seqLabel(seqBase,seqN)}.${ext}`);const fromDraft=recFromDraft;
+  const resumeIt=recResume;recResume=null;
+  const sv=saver=new Saver(resumeIt?`${resumeIt.name.replace(/\.\w+$/,'')}_part_${recId}.${ext}`:`${seqLabel(seqBase,seqN)}.${ext}`);const fromDraft=recFromDraft;
   recorder.ondataavailable=e=>sv.push(e.data);
   const wasClean=isPro()&&$('optClean').checked;
   recorder.onstop=async()=>{
     if(marks.length&&sv.dir){try{const fh=await sv.dir.getFileHandle('_markers.txt',{create:true});const w=await fh.createWritable();await w.write('ProMultiCam markers · '+recId+'\n'+marks.map((m,i)=>`${i+1}. ${fmt(m.t)}  ${m.angle}`).join('\n')+'\n');await w.close();}catch(e){}}
-    const toDraft=recToDraft;sv.noDl=toDraft||fromDraft;const secs=recSec();
+    const toDraft=recToDraft&&!resumeIt;sv.noDl=toDraft||fromDraft||!!resumeIt;const secs=recSec();
     const r=await sv.finish(recorder.mimeType||mime||'video/webm');
-    if(toDraft){const d=getDraft()||{title:fileBase(),parts:[],sec:0};d.parts.push(sv.name);d.sec=(d.sec||0)+secs;setDraft(d);toast(t('draftSaved',{n:d.parts.length}),5000);}
+    if(resumeIt){await finishResume(resumeIt,sv.name);}
+    else if(toDraft){const d=getDraft()||{title:fileBase(),parts:[],sec:0};d.parts.push(sv.name);d.sec=(d.sec||0)+secs;setDraft(d);toast(t('draftSaved',{n:d.parts.length}),5000);}
     else if(fromDraft){const d=getDraft();if(d){d.parts.push(sv.name);setDraft(null);finishDraft(d);}}
     else{seqTake(seqBase,seqN);toast(t('saved',{w:r.where}),4000);}
     listSaved('files');recToDraft=false;recFromDraft=false;paintDraft();
@@ -2121,7 +2124,20 @@ async function toggleRec(force){
   tick();recTimer=setInterval(tick,500);
 }
 /* ---------- drafts: stop now, carry on later, then join every part into one video ---------- */
-let recToDraft=false,recFromDraft=false;
+let recToDraft=false,recFromDraft=false,recResume=null;
+function resumeRec(it){
+  if(!/\.mp4$/i.test(it.name)){toast(t('resumeMp4'),5000);return;}
+  if(!sources.some(s=>s.stream)){toast(t('needCam'));return;}
+  recResume=it;closeSheet('filesSheet');toast(t('resumeGo',{n:it.name}),4000);toggleRec(true);
+}
+async function finishResume(it,partName){
+  const root=await recRoot();toast(t('resumeJoin'),6000);
+  try{const a=await savedBlob(it.h,'video/mp4'),pd=await root.getDirectoryHandle(partName),b=await savedBlob(pd,'video/mp4');
+    const out=await pmcRemux([a,b]);await pmcWriteInto(it.h,out);try{await root.removeEntry(partName,{recursive:true});}catch(e){}
+    delete SIZE_CACHE[it.name];downloadBlob(out,it.name);toast(t('resumeDone',{n:it.name}),5000);}
+  catch(e){console.warn('resume join',e);toast(t('resumeFail'),7000);}
+  listSaved('files');
+}
 function draftNames(){const d=getDraft();return d?d.parts:[];}
 function getDraft(){try{const d=JSON.parse(lsGet('pmc_draft','null'));return d&&Array.isArray(d.parts)&&d.parts.length?d:null;}catch(e){return null;}}
 function setDraft(d){if(d)lsSet('pmc_draft',JSON.stringify(d));else{try{localStorage.removeItem('pmc_draft');}catch(e){}}}

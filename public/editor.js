@@ -1062,7 +1062,13 @@ let joinSel=[],joinTr=[];
 const JT_ALL=['fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors'];
 const jtLabel=k=>{const o=document.querySelector('#transSel option[value="'+k+'"]');return o?o.textContent:k;};
 /* used by drafts: join the given parts in order, then offer to delete the parts */
-window.joinParts=function(items,name){
+window.joinParts=async function(items,name){
+  if(items.every(i=>/\.mp4$/i.test(i.name))){try{toast(t('quickJoin'),4000);const blobs=[];for(const it of items)blobs.push(await savedBlob(it.h,'video/mp4'));
+      const out=await pmcRemux(blobs);const root=await recRoot();const fname=name+'.mp4';const dir=await root.getDirectoryHandle(fname,{create:true});await pmcWriteInto(dir,out);
+      for(const nm of ['_brand.json','_switches.json']){try{const src=await (await items[0].h.getFileHandle(nm)).getFile();const w=await (await dir.getFileHandle(nm,{create:true})).createWritable();await w.write(await src.text());await w.close();}catch(e){}}
+      for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}
+      downloadBlob(out,fname);toast(t('saved',{w:'Downloads/'+fname}),5000);listSaved('files');return;}
+    catch(e){console.warn('quick join failed, using normal join',e);}}
   document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinList').innerHTML='';G_('joinTr').innerHTML='';G_('jpPlay').style.display='none';G_('joinGo').textContent=t('draftFinish');G_('joinBox').classList.add('show');
   joinRun(items,name,async ok=>{if(!ok)return;const root=await recRoot();for(const it of items){try{await root.removeEntry(it.name,{recursive:true});}catch(e){}}listSaved('files');});
 };
@@ -1083,8 +1089,58 @@ window.openJoin=async function(){
     b.onclick=()=>{const i=joinSel.indexOf(it.name);if(i>=0)joinSel.splice(i,1);else joinSel.push(it.name);paint();};L.appendChild(b);});
   G_('jpPlay').style.display='';G_('jpPlay').textContent='▶ '+t('jpPlay');
   G_('jpPlay').onclick=()=>{if(joinSel.length<2){toast(t('joinNeed2'));return;}jpRun(joinSel.map(n=>items.find(q=>q.name===n)),joinTr.slice());};
-  G_('joinGo').onclick=()=>{jpStop();if(joinSel.length<2){toast(t('joinNeed2'));return;}joinRun(joinSel.map(n=>items.find(q=>q.name===n)),null,null,joinTr.slice());};
+  G_('joinGo').onclick=()=>{jpStop();if(joinSel.length<2){toast(t('joinNeed2'));return;}const L=joinSel.map(n=>items.find(q=>q.name===n)),tr=joinTr.slice();
+    /* no effects between the videos: copy them together in seconds; otherwise build it frame by frame */
+    if(tr.every(x=>x==='cut')&&L.every(i=>/\.mp4$/i.test(i.name))){(async()=>{const go=G_('joinGo');go.disabled=true;G_('joinProg').classList.add('show');G_('joinTx').textContent=t('quickJoin');
+      try{const blobs=[];for(const it of L)blobs.push(await savedBlob(it.h,'video/mp4'));const out=await pmcRemux(blobs,p=>{G_('joinBar').style.width=Math.round(p*100)+'%';});
+        const fname=(typeof seqName==='function'?seqName(t('joinFile')):'Gabung_'+stamp())+'.mp4';const root=await recRoot();const dir=await root.getDirectoryHandle(fname,{create:true});await pmcWriteInto(dir,out);
+        downloadBlob(out,fname);toast(t('saved',{w:'Downloads/'+fname}),5000);G_('joinBox').classList.remove('show');listSaved('files');go.disabled=false;}
+      catch(e){console.warn('quick join',e);go.disabled=false;joinRun(L,null,null,tr);}})();return;}
+    joinRun(L,null,null,tr);};
   G_('joinProg').classList.remove('show');paint();document.querySelectorAll('#joinBox [data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));G_('joinBox').classList.add('show');
+};
+/* Join MP4 recordings WITHOUT re-making the picture: the pieces are copied one after another into a new MP4.
+   Takes seconds instead of the video's length. Only works when every piece was recorded the same way
+   (same phone, size and sound) — otherwise it throws and the caller uses the normal (slower) join. */
+async function readMp4(blob){
+  const ab=await blob.arrayBuffer();ab.fileStart=0;const mp4=MP4Box.createFile();const o={v:[],a:[]};
+  const ready=new Promise((res,rej)=>{mp4.onError=rej;mp4.onReady=i=>{o.info=i;const vt=i.videoTracks[0],at=i.audioTracks[0];if(!vt)return rej(new Error('novideo'));o.vt=vt;o.at=at;
+    const vtr=mp4.getTrackById(vt.id);for(const en of vtr.mdia.minf.stbl.stsd.entries){const bx=en.avcC;if(bx){const st=new DataStream(undefined,0,DataStream.BIG_ENDIAN);bx.write(st);o.vdesc=new Uint8Array(st.buffer,8);}}
+    mp4.setExtractionOptions(vt.id,'v',{nbSamples:1e9});
+    if(at){const atr=mp4.getTrackById(at.id);try{const en=atr.mdia.minf.stbl.stsd.entries[0];const d=en.esds.esd.descs[0].descs[0].data;o.adesc=new Uint8Array(d);}catch(e){}mp4.setExtractionOptions(at.id,'a',{nbSamples:1e9});}
+    mp4.start();res();};});
+  mp4.onSamples=(id,u,samples)=>{for(const sm of samples)o[u].push({key:sm.is_sync,t:sm.cts/sm.timescale,d:sm.duration/sm.timescale,data:sm.data});};
+  mp4.appendBuffer(ab);mp4.flush();await ready;await new Promise(r=>setTimeout(r,30));
+  if(!o.v.length||!o.vdesc)throw new Error('nosamples');return o;
+}
+const sameBytes=(a,b)=>{if(!a||!b)return a===b;if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;};
+window.pmcRemux=async function(blobs,onProg){
+  await needMp4();const parts=[];for(let i=0;i<blobs.length;i++){parts.push(await readMp4(blobs[i]));onProg&&onProg(0.1+0.5*(i+1)/blobs.length);}
+  const f=parts[0],vt=f.vt,at=f.at;
+  for(const p of parts){if(p.vt.video.width!==vt.video.width||p.vt.video.height!==vt.video.height||!sameBytes(p.vdesc,f.vdesc))throw new Error('diffvideo');
+    if(!!p.at!==!!at||(at&&(p.at.audio.sample_rate!==at.audio.sample_rate||p.at.audio.channel_count!==at.audio.channel_count||!sameBytes(p.adesc,f.adesc))))throw new Error('diffaudio');}
+  const useA=!!(at&&f.adesc&&/mp4a/.test(at.codec));
+  const target=new Mp4Muxer.ArrayBufferTarget();
+  const muxer=new Mp4Muxer.Muxer({target,video:{codec:'avc',width:vt.video.width,height:vt.video.height},audio:useA?{codec:'aac',numberOfChannels:at.audio.channel_count,sampleRate:at.audio.sample_rate}:undefined,fastStart:'in-memory',firstTimestampBehavior:'offset'});
+  const vmeta={decoderConfig:{codec:vt.codec,codedWidth:vt.video.width,codedHeight:vt.video.height,description:f.vdesc}};
+  const ameta=useA?{decoderConfig:{codec:at.codec,sampleRate:at.audio.sample_rate,numberOfChannels:at.audio.channel_count,description:f.adesc}}:null;
+  let off=0,firstV=true,firstA=true;
+  for(const p of parts){
+    const v0=p.v[0].t,a0=p.a.length?p.a[0].t:v0,base=Math.min(v0,a0);let end=0;
+    for(const s of p.v){const ts=Math.round((off+s.t-base)*1e6);muxer.addVideoChunk(new EncodedVideoChunk({type:s.key?'key':'delta',timestamp:ts,duration:Math.round(s.d*1e6),data:s.data}),firstV?vmeta:undefined);firstV=false;end=Math.max(end,s.t-base+s.d);}
+    if(useA)for(const s of p.a){const ts=Math.round((off+s.t-base)*1e6);muxer.addAudioChunk(new EncodedAudioChunk({type:'key',timestamp:ts,duration:Math.round(s.d*1e6),data:s.data}),firstA?ameta:undefined);firstA=false;end=Math.max(end,s.t-base+s.d);}
+    off+=end;p.v=null;p.a=null;}
+  muxer.finalize();onProg&&onProg(1);
+  return new Blob([target.buffer],{type:'video/mp4'});
+};
+/* write a finished video into a recording folder as one piece (keeps _done, _brand.json, ...) */
+window.pmcWriteInto=async function(dir,blob){
+  const old=[];for await(const [k,h] of dir.entries()){if(k[0]!=='_'&&h.kind==='file')old.push(k);}
+  const tmp='_new';const w=await (await dir.getFileHandle(tmp,{create:true})).createWritable();await w.write(blob);await w.close();
+  for(const k of old){try{await dir.removeEntry(k);}catch(e){}}
+  const w2=await (await dir.getFileHandle('000001',{create:true})).createWritable();await w2.write(await (await (await dir.getFileHandle(tmp)).getFile()).arrayBuffer());await w2.close();
+  try{await dir.removeEntry(tmp);}catch(e){}
+  try{await (await dir.getFileHandle('_done',{create:true})).createWritable().then(x=>x.close());}catch(e){}
 };
 let JP=null;
 window.jpStop=function(){if(!JP)return;JP.stop=true;try{JP.cur&&JP.cur.pause();}catch(e){}JP.vids.forEach(v=>{try{v.pause();v.removeAttribute('src');v.load();}catch(e){}});JP.urls.forEach(u=>URL.revokeObjectURL(u));JP=null;const b=G_('jpBox');if(b)b.style.display='none';};
