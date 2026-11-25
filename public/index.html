@@ -1396,7 +1396,9 @@ async function addLocalCam(silent){
   if(localStream){if(!silent)toast(t('camInUse'));return;}
   /* camera size follows the video quality: 720p videos do not need a 1080p camera (half the work for the phone) */
   const hq=Number(($('qualSel')||{}).value||720)>=1080;
-  try{localStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:hq?1920:1280},height:{ideal:hq?1080:720},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});}
+  const vq=fr=>({facingMode:{ideal:'environment'},width:{ideal:hq?1920:1280},height:{ideal:hq?1080:720},frameRate:fr});
+  try{try{localStream=await navigator.mediaDevices.getUserMedia({video:vq({min:24,ideal:30,max:30}),audio:{echoCancellation:true,noiseSuppression:true}});}
+    catch(e0){if(e0&&e0.name==='NotAllowedError')throw e0;localStream=await navigator.mediaDevices.getUserMedia({video:vq({ideal:30,max:30}),audio:{echoCancellation:true,noiseSuppression:true}});}}
   catch(e){toast(t('allowCam'));return;}
   const s=getSrc('local',t('directorPhone'));s.local=true;s.via='local';
   const trk=localStream.getVideoTracks()[0];let c={};try{c=trk.getCapabilities?trk.getCapabilities():{};}catch(e){}
@@ -1673,7 +1675,7 @@ function draw(){
   drawFrame(live);
   const dt=performance.now()-n;
   if(live){const S=SPD;S.n++;S.ms+=dt;if(S.last)S.gap=Math.max(S.gap,n-S.last);S.last=n;
-    if(n-S.t0>=1000){S.fps=Math.round(S.n*1000/(n-S.t0));S.avg=S.ms/S.n;S.mg=S.gap;spdShow();fxTrial(S.fps,S.avg);
+    if(n-S.t0>=1000){S.fps=Math.round(S.n*1000/(n-S.t0));S.avg=S.ms/S.n;S.mg=S.gap;S.cam=Math.round((S.cf||0)*1000/(n-S.t0));S.cf=0;spdShow();fxTrial(S.fps,S.avg);
       /* the phone cannot keep up (2 slow seconds in a row): switch to light mode */
       S.low=S.fps<15&&FXT.step>=4||S.fps<10?(S.low||0)+1:0;if(S.low>=2&&!perf.light){perf.light=true;if(!perf.warned){perf.warned=true;toast(t('perfLight'),4500);}}S.t0=n;S.n=0;S.ms=0;S.gap=0;}}if(live){perf.n=(perf.n||0)+1;if(perf.n>45)perf.ema=perf.ema?perf.ema*0.92+dt*0.08:dt;}
   if(live&&!perf.light&&perf.ema>30){perf.light=true;if(!perf.warned){perf.warned=true;toast(t('perfLight'),4500);}}
@@ -1681,10 +1683,11 @@ function draw(){
 let cleanRec=false;
 const SPD={t0:0,n:0,ms:0,gap:0,last:0,fps:0,avg:0,mg:0,show:false};
 try{SPD.show=localStorage.getItem('pmc_spd')==='1';}catch(e){}
-function spdReset(){Object.assign(SPD,{t0:performance.now(),n:0,ms:0,gap:0,last:0});FXT.step=0;FXT.a=null;}
+function camCount(){const l=sources.find(x=>x.local);const v=l&&l.video;if(!v||!v.requestVideoFrameCallback||v._cc)return;v._cc=1;const f=()=>{SPD.cf=(SPD.cf||0)+1;v.requestVideoFrameCallback(f);};v.requestVideoFrameCallback(f);}
+function spdReset(){camCount();SPD.cf=0;Object.assign(SPD,{t0:performance.now(),n:0,ms:0,gap:0,last:0});FXT.step=0;FXT.a=null;}
 /* small speed chip on the stage while recording: always shown when it gets slow; tap it to keep it on */
 function spdShow(){const c=$('lblPerf');if(!c)return;const slow=SPD.fps<20;c.style.display=(SPD.show||slow)&&recActive()?'':'none';
-  c.textContent=(slow?'⚠ ':'⚡ ')+SPD.fps+' fps · '+SPD.avg.toFixed(0)+' ms'+(SPD.mg>300?' · '+(SPD.mg/1000).toFixed(1)+'s':'')+(window.PMCFX?(PMCFX.isOff()?' · C':' · G'):'');c.style.background=slow?'#8a2b23':'';}
+  c.textContent=(slow?'⚠ ':'⚡ ')+SPD.fps+' fps · cam '+(SPD.cam||'?')+' · '+SPD.avg.toFixed(0)+' ms'+(SPD.mg>300?' · '+(SPD.mg/1000).toFixed(1)+'s':'')+(window.PMCFX?(PMCFX.isOff()?' · C':' · G'):'');c.style.background=slow?'#8a2b23':'';}
 /* the first recording with a colour look tries both colour methods for 2 s each and keeps the faster one on this phone */
 const FXT={step:0,a:null};
 function fxTrial(fps,avg){if(!window.PMCFX||!look.f||look.f==='none'||cleanRec)return;let d='';try{d=localStorage.getItem('pmc_fxgl')||'';}catch(e){}if(d)return;
@@ -2996,7 +2999,9 @@ function joinByCode(){
   startSlaveCam(PFX+'code-'+c,'data');
 }
 async function getCam(){
-  return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30,max:30}},audio:{echoCancellation:true,noiseSuppression:true}});
+  /* ask for 24-30 fps so the picture stays smooth indoors; fall back if the phone refuses */
+  const q=fr=>({video:{facingMode:{ideal:sFacing},width:{ideal:1920},height:{ideal:1080},frameRate:fr},audio:{echoCancellation:true,noiseSuppression:true}});
+  try{return await navigator.mediaDevices.getUserMedia(q({min:24,ideal:30,max:30}));}catch(e){if(e&&e.name==='NotAllowedError')throw e;return navigator.mediaDevices.getUserMedia(q({ideal:30,max:30}));}
 }
 function camCaps(){
   const t=sStream&&sStream.getVideoTracks()[0];let c={};try{c=t.getCapabilities?t.getCapabilities():{};}catch(e){}
