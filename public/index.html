@@ -130,7 +130,7 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 .m-foot{padding:10px 16px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:8px}
 .m-foot .side{width:56px;min-height:56px;border:0;border-radius:12px;background:var(--soft2);color:var(--ink);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 10px var(--f)}
 .m-foot.rec .side{display:flex}
-.m-foot.rec:not(.paused) #draftBtn,.m-foot.rec.paused #markBtn{display:none!important}
+.m-foot.rec #draftBtn{display:flex}
 .draft-bar{display:none;align-items:center;gap:8px;padding:8px 10px;margin-bottom:8px;border-radius:12px;background:rgba(14,14,15,.82);border:1px solid var(--gold);font-size:13px;color:var(--ink)}.draft-bar.show{display:flex}.draft-bar span{flex:1;min-width:0}.draft-bar button{flex:0 0 auto}
 .m-foot .side.resume{background:var(--gold);color:var(--on-gold)}
 #recBtn{flex:1}
@@ -473,14 +473,16 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .req{background:var(--card2);border-radius:12px;padding:12px;font-size:13px;color:var(--sub);line-height:1.5}
 .req b{color:var(--ink)}.req ul{margin:6px 0 0;padding-left:18px}
 /* ---- 3D raised buttons (pure CSS: no effect on recording speed) ---- */
-:root{--b3-hi:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.32);--b3-up:0 3px 0 rgba(0,0,0,.55),0 6px 12px rgba(0,0,0,.35);--b3-dn:0 1px 0 rgba(0,0,0,.55),0 2px 4px rgba(0,0,0,.3);--b3-gold:0 3px 0 #6e5524,0 6px 14px rgba(0,0,0,.4);--b3-goldd:0 1px 0 #6e5524,0 2px 5px rgba(0,0,0,.35);--b3-sh:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 50%,rgba(0,0,0,.16))}
+:root{--b3-hi:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.32);--b3-up:0 3px 0 rgba(0,0,0,.55),0 4px 0 rgba(0,0,0,.18);--b3-dn:0 1px 0 rgba(0,0,0,.55);--b3-gold:0 3px 0 #6e5524,0 4px 0 rgba(0,0,0,.25);--b3-goldd:0 1px 0 #6e5524;--b3-sh:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 50%,rgba(0,0,0,.16))}
 .btn,.icon-btn,.tool,.role,.m-foot .side,#recBtn,.seg button,.looks button,.tabs button.on,.ed-tabs button,.ed-sub button.on,.bg-opt,.master-item,.btnr{background-image:var(--b3-sh);box-shadow:var(--b3-hi),var(--b3-up);transition:transform .08s,box-shadow .08s;-webkit-tap-highlight-color:transparent}
 .btn-gold,#recBtn,.seg button.on,.looks button.on,.tabs button.on,.ed-tabs button.on,.m-foot .side.resume,.tool-gold,.role.master{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.22),var(--b3-gold)}
 .btn:active,.looks button:active,.icon-btn:active,.tool:active,.role:active,.m-foot .side:active,.seg button:active,.tabs button:active,.ed-tabs button:active,.ed-sub button:active,.bg-opt:active,.master-item:active,.btnr:active{transform:translateY(2px);box-shadow:var(--b3-hi),var(--b3-dn)}
 .btn-gold:active,#recBtn:active,.seg button.on:active,.ed-tabs button.on:active,.tool-gold:active,.role.master:active{transform:translateY(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(0,0,0,.2),var(--b3-goldd)}
-#recBtn.recording{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.22),0 3px 0 #7a2a22,0 6px 14px rgba(0,0,0,.4)}
+#recBtn.recording{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.22),0 3px 0 #7a2a22,0 4px 0 rgba(0,0,0,.25)}
 .btn:disabled,.btn[disabled]{box-shadow:none;background-image:none;transform:none}
 .ed-sub button:not(.on){box-shadow:none}
+.rec-item{content-visibility:auto;contain-intrinsic-size:auto 160px}
+#filesSheet .sheet{overscroll-behavior:contain}
 #edScreen .ed-tabs button,#edScreen .btn,.bg-opt{background-image:var(--b3-sh)}
 </style>
 </head>
@@ -546,7 +548,6 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
         <button class="side" id="pauseBtn" onclick="togglePause()"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span id="pauseLbl" data-i18n="pause"></span></button>
         <button id="recBtn" onclick="toggleRec()"></button>
         <button class="side" id="draftBtn" onclick="saveDraft()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span data-i18n="draftBtn"></span></button>
-        <button class="side" id="markBtn" onclick="addMark()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg><span data-i18n="mark"></span></button>
       </div>
     </div>
   </div>
@@ -579,7 +580,6 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="row-between"><h3 data-i18n="savedRecs"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('filesSheet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="imp-row">
       <label class="btn btn-sm btn-gold" style="cursor:pointer"><span data-i18n="impOne"></span><input type="file" id="impOne" accept="video/*" multiple style="display:none"></label>
-      <label class="btn btn-sm btn-soft" style="cursor:pointer"><span data-i18n="impAngles"></span><input type="file" id="impAngles" accept="video/*" multiple style="display:none"></label>
       <button class="btn btn-sm btn-soft" style="grid-column:1/-1" onclick="openJoin()" data-i18n="joinBtn"></button>
     </div>
     <span class="hint" data-i18n="impHint"></span>
@@ -1051,7 +1051,7 @@ class ChunkWriter{
 }
 /* bring in videos from the phone's gallery: each becomes a recording you can edit like one made here */
 function cleanName(n){return String(n).replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N}_-]+/gu,'_').replace(/^_+|_+$/g,'').slice(0,30)||'video';}
-async function initImport(){initImport.done=true;$('impOne').onchange=e=>{importVideos(e.target.files,false);e.target.value='';};$('impAngles').onchange=e=>{if(e.target.files.length<2){toast(t('impNeed2'));e.target.value='';return;}importVideos(e.target.files,true);e.target.value='';};}
+async function initImport(){initImport.done=true;$('impOne').onchange=e=>{importVideos(e.target.files,false);e.target.value='';};if($('impAngles'))$('impAngles').onchange=e=>{if(e.target.files.length<2){toast(t('impNeed2'));e.target.value='';return;}importVideos(e.target.files,true);e.target.value='';};}
 async function importOne(file,name){
   const root=await recRoot();if(!root)throw new Error('nostore');const d=await root.getDirectoryHandle(name,{create:true});
   const fh=await d.getFileHandle('000001',{create:true});const w=await fh.createWritable();await w.write(file);await w.close();
@@ -1095,7 +1095,7 @@ function watchBattery(){
     b.addEventListener('levelchange',f);b.addEventListener('chargingchange',f);f();}).catch(()=>{});
 }
 function mimeOf(name){return name.endsWith('.mp4')?'video/mp4':'video/webm';}
-const SIZE_CACHE={};
+const SIZE_CACHE=(()=>{try{return JSON.parse(localStorage.getItem('pmc_sizes')||'{}');}catch(e){return {};}})();
 async function listSaved(boxId){
   const box=$(boxId||($('slave').classList.contains('show')?'sfiles':'files'));if(!box)return;
   const root=await recRoot();if(!root){return;}
@@ -1114,6 +1114,7 @@ async function listSaved(boxId){
     items.push({name,h,size,done,marks,clean});
   }
   items.sort((a,b)=>a.name<b.name?1:-1);
+  try{const keep={};items.forEach(i=>{if(SIZE_CACHE[i.name])keep[i.name]=SIZE_CACHE[i.name];});localStorage.setItem('pmc_sizes',JSON.stringify(keep));}catch(e){}
   box.innerHTML='';box.style.display=items.length?'flex':'none';
   if(items.length){const tot=items.reduce((a,b)=>a+b.size,0);const u=document.createElement('span');u.className='hint';u.textContent=t('storeUsed',{n:(tot/1048576).toFixed(1)});box.appendChild(u);}
   if(!items.length)return;
