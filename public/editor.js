@@ -62,6 +62,7 @@ const CSS=`
 .trk .blk i::before{content:'';position:absolute;top:0;bottom:0;left:-12px;right:-12px}
 .trk .blk i::after{content:'';position:absolute;top:6px;bottom:6px;left:5px;width:3px;border-radius:2px;background:rgba(0,0,0,.45)}
 .trk .blk i.l{left:0}.trk .blk i.r{right:0}
+.trk .blk.nar i{width:9px}.trk .blk.nar i.l::before{left:-16px;right:0}.trk .blk.nar i.r::before{left:0;right:-16px}
 .trk-ph{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;pointer-events:none;z-index:4;box-shadow:0 0 3px #000}
 #joinList .btn span{text-transform:none}#joinList .btn-gold,#joinList .btn-gold span,#joinList .btn-gold i{color:var(--on-gold,#1a1408)!important}
 
@@ -563,7 +564,7 @@ CV().addEventListener('click',e=>{if(!E||E.tab!=='sticker')return;const sk=(E.p.
 /* ---------- tools ---------- */
 const TABS=['tpl','bg','cut','brand','color','angle','sug','text','steps','sticker','voice','music','sfx','fmt','cover'];
 /* five simple groups; a group with more than one tool shows small chips underneath */
-const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker','cover']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
+const TGROUPS=[['tpl',['tpl']],['g_cut',['cut','sug']],['g_text',['text','steps','sticker']],['g_sound',['music','voice','sfx']],['g_look',['color','bg','brand','fmt']]];
 const GICON={tpl:'<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>',g_cut:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1L20 20M8.1 15.9L20 4"/>',g_text:'<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',g_sound:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',g_look:'<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="16" cy="10" r="1.3"/><path d="M12 21a3 3 0 0 1 0-6h1.5a2.5 2.5 0 0 0 0-5"/>'};
 window.edPanelClose=()=>{if(!E)return;E.pop=false;renderTabs();};
 function renderTabs(){const b=G('edTabs');b.innerHTML='';const cur=TGROUPS.find(g=>g[1].includes(E.tab))||TGROUPS[0];
@@ -654,8 +655,8 @@ function goTab(tab){const g=TGROUPS.find(x=>x[1].includes(tab));if(g){(E.lastIn=
 function renderTracks(){const box=G('edTracks');if(!box||!E||!E.dur)return;box.innerHTML='';const D=E.dur,pc=x=>(clamp(x,0,D)/D*100)+'%';let any=false;
   TRK.forEach(tr=>{const its=tr.items();if(!its.length)return;any=true;const lane=document.createElement('div');lane.className='trk';lane.innerHTML='<span class="ic"></span>';lane.querySelector('.ic').textContent=tr.ic;
     its.forEach((o,i)=>{const b=document.createElement('div');b.className='blk'+(tr.mode==='point'?' pt':'')+(E.rsel&&E.rsel.o===o?' on':'');b.style.background=tr.col;
-      const a=tr.mode==='range'?o.s:o.t,e=tr.mode==='range'?o.e:tr.mode==='len'?o.t+(o.d||0):a;b.style.left=pc(a);if(tr.mode!=='point'&&a<D*0.05)b.style.paddingLeft='20px';if(tr.mode!=='point'){b.style.width=((Math.min(e,D)-a)/D*100)+'%';const nb=document.createElement('b');nb.textContent=tr.name(o);b.appendChild(nb);}
-      if(tr.mode==='range'){b.insertAdjacentHTML('beforeend','<i class="l" data-k="s"></i><i class="r" data-k="e"></i>');}
+      const a=tr.mode==='range'?o.s:o.t,e=tr.mode==='range'?o.e:tr.mode==='len'?o.t+(o.d||0):a;b.style.left=tr.mode==='point'?pc(a):'min('+pc(a)+', calc(100% - 34px))';if(tr.mode!=='point'&&a<D*0.05)b.style.paddingLeft='20px';if(tr.mode!=='point'){b.style.width='max(34px, '+((Math.min(e,D)-a)/D*100)+'%)';const nb=document.createElement('b');nb.textContent=tr.name(o);b.appendChild(nb);}
+      if(tr.mode==='range'){b.insertAdjacentHTML('beforeend','<i class="l" data-k="s"></i><i class="r" data-k="e"></i>');if((Math.min(e,D)-a)/D*(box.clientWidth||360)<70)b.classList.add('nar');}
       b.dataset.k2=tr.k;b.dataset.i=i;lane.appendChild(b);});
     box.appendChild(lane);});
   if(any){const ph=document.createElement('div');ph.className='trk-ph';ph.id='trkPh';ph.style.left=pc(V().currentTime);box.appendChild(ph);}
@@ -774,7 +775,7 @@ function renderPanel(){
   }
   if(k==='sticker'){
     P.appendChild(hint(t('stkHint')));
-    P.appendChild(row(...STK.map(kd=>btn(t('stkN_'+kd),()=>{snap();const a=V().currentTime;const sk={id:Date.now(),kind:kd,x:0.5,y:0.4,s:+a.toFixed(2),e:+Math.min(E.dur,a+3).toFixed(2),size:12,col:'gold',rot:0};E.p.stickers.push(sk);E.sel=sk.id;E.rsel={o:sk,mode:'range',list:'stickers'};save();renderRange();renderPanel();drawAt();}))));
+    P.appendChild(row(...STK.map(kd=>btn(t('stkN_'+kd),()=>{snap();const a=Math.max(0,Math.min(V().currentTime,E.dur-2));const sk={id:Date.now(),kind:kd,x:0.5,y:0.4,s:+a.toFixed(2),e:+Math.min(E.dur,a+3).toFixed(2),size:12,col:'gold',rot:0};E.p.stickers.push(sk);E.sel=sk.id;E.rsel={o:sk,mode:'range',list:'stickers'};save();renderRange();renderPanel();drawAt();}))));
     E.p.stickers.forEach(sk=>{const c=document.createElement('div');c.className='ed-card';if(E.sel===sk.id)c.style.outline='2px solid var(--gold)';
       c.appendChild(row(btn(t('stkN_'+sk.kind)+(E.sel===sk.id?' ✓':''),()=>{E.sel=sk.id;renderPanel();}),));c.appendChild(timeBtn(sk,'range','stickers'));
       c.appendChild(row(sel(Object.keys(OV_COLORS).map(cc=>[cc,t('col_'+cc)]),sk.col,v=>{sk.col=v;save();drawAt();}),hint(t('tpSize')),range(5,30,sk.size,v=>{sk.size=v;save();drawAt();}),hint(t('stkRot')),range(-180,180,sk.rot||0,v=>{sk.rot=v;save();drawAt();},5),btn('✕',()=>{snap();E.p.stickers=E.p.stickers.filter(q=>q!==sk);save();renderPanel();drawAt();},'btn-danger')));
@@ -790,7 +791,7 @@ function renderPanel(){
     if(E.marks&&E.marks.length)P.appendChild(row(hint(t('edMarks')),...E.marks.map(m=>btn('📍 '+fm(m),()=>{V().currentTime=m;drawAt();}))));
   }
   if(k==='text'){
-    P.appendChild(row(btn(t('edAddText'),()=>{snap();const a=V().currentTime;{const nt={id:Date.now(),s:+a.toFixed(2),e:+Math.min(E.dur,a+3).toFixed(2),txt:'',anim:'pop',pos:'m',font:'montserrat',col:'white',style:'outline',cs:'title',size:7};E.p.texts.push(nt);E.rsel={o:nt,mode:'range',list:'texts'};renderRange();}save();renderPanel();},'btn-gold')));
+    P.appendChild(row(btn(t('edAddText'),()=>{snap();const a=Math.max(0,Math.min(V().currentTime,E.dur-2));{const nt={id:Date.now(),s:+a.toFixed(2),e:+Math.min(E.dur,a+3).toFixed(2),txt:'',anim:'pop',pos:'m',font:'montserrat',col:'white',style:'outline',cs:'title',size:7};E.p.texts.push(nt);E.rsel={o:nt,mode:'range',list:'texts'};renderRange();}save();renderPanel();},'btn-gold')));
     E.p.texts.slice().sort((a,b)=>a.s-b.s).forEach(tx=>{const c=document.createElement('div');c.className='ed-card';
       const ta=document.createElement('textarea');ta.className='input';ta.rows=2;ta.maxLength=120;ta.value=tx.txt;ta.placeholder=t('edTextPh');ta.oninput=()=>{tx.txt=ta.value;save();drawAt();};c.appendChild(ta);
       c.appendChild(timeBtn(tx,'range','texts'));
