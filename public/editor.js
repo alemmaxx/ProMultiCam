@@ -792,7 +792,10 @@ function renderPanel(){
       c.appendChild(timeBtn(tx,'range','texts'));
       c.appendChild(row(sel([['none',t('edAn_none')],['fade',t('edAn_fade')],['pop',t('edAn_pop')],['type',t('edAn_type')],['slide',t('edAn_slide')]],tx.anim,v=>{tx.anim=v;save();}),
         sel([['t',t('sePosT')],['m',t('sePosM')],['b',t('sePosB')]],tx.pos,v=>{tx.pos=v;save();drawAt();})));
-      const stBox=document.createElement('div');const stPaint=()=>stBox.replaceChildren(txStylePicker(txStyleOf(tx,'bubble'),tx.font,tx.col,k=>{tx.style=k;save();drawAt();}));stPaint();
+      const stBox=document.createElement('div');const stPaint=()=>stBox.replaceChildren(txStylePicker(txStyleOf(tx,'bubble'),tx.font,tx.col,k=>{tx.style=k;
+        /* word box looks best in a tall, bold font, all capitals, red box */
+        if(k==='boxword'){tx.font='anton';tx.cs='upper';if(!tx.col||tx.col==='white'||tx.col==='yellow')tx.col='red';try{document.fonts.load('400 30px Anton').then(()=>drawAt());}catch(e){}save();drawAt();renderPanel();return;}
+        save();drawAt();}));stPaint();
       c.appendChild(hint(t('txStyleT')));c.appendChild(stBox);
       c.appendChild(row(txFontSel(tx.font||'montserrat',v=>{tx.font=v;save();stPaint();drawAt();}),txCaseSel(tx.cs||'asis',v=>{tx.cs=v;save();drawAt();})));
       c.appendChild(txSwatches(tx.col||'white',k=>{tx.col=k;save();stPaint();drawAt();}));

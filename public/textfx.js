@@ -6,7 +6,7 @@ const MORE_FONTS={
   righteous:{fam:'Righteous',w:400},kanit:{fam:'Kanit',w:800},oswald:{fam:'Oswald',w:700},archivo:{fam:'"Archivo Black"',w:400},
   caveat:{fam:'Caveat',w:700,script:true},satisfy:{fam:'Satisfy',w:400,script:true},lalezar:{fam:'Lalezar',w:400},amiri:{fam:'Amiri',w:700}};
 Object.assign(OV_FONTS,MORE_FONTS);
-window.TX_STYLES=['outline','plain','shadow','glow','neon','gradient','d3','bubble','darkbox','highlight','karaoke','wordpop','shake','retro','write'];
+window.TX_STYLES=['boxword','outline','plain','shadow','glow','neon','gradient','d3','bubble','darkbox','highlight','karaoke','wordpop','shake','retro','write'];
 window.TX_COLS={white:'#ffffff',yellow:'#ffe14d',gold:'#d9b44a',orange:'#ff9a3c',red:'#ff4d4d',pink:'#ff6fb5',purple:'#a66bff',blue:'#4d8bff',cyan:'#4dd9ff',green:'#5be08a',black:'#111111'};
 const PARTNER={white:'#ff4d8d',yellow:'#ff4d4d',gold:'#7a3cff',orange:'#2f6bff',red:'#ffe14d',pink:'#4dd9ff',purple:'#ffe14d',blue:'#ff6fb5',cyan:'#ff4d8d',green:'#2f6bff',black:'#ffe14d'};
 window.txColor=k=>TX_COLS[k]||(window.OV_COLORS&&OV_COLORS[k]&&OV_COLORS[k].c)||'#ffffff';
@@ -43,10 +43,10 @@ window.txPaint=function(c,L,cx,y0,o,age,dur){
     }
     const fillCol=st==='bubble'||st==='highlight'?inkFor(col):st==='neon'?'#ffffff':col;
     const parts=line.split(' '),sp=c.measureText(' ').width;let x=x0;
-    const perWord=st==='karaoke'||st==='wordpop'||st==='shake';
+    const perWord=st==='karaoke'||st==='wordpop'||st==='shake'||st==='boxword';
     const drawRun=(txt,px,py,k)=>{
       c.textAlign='left';
-      if(st==='outline'||st==='karaoke'||st==='wordpop'||st==='shake'||st==='write'){c.lineWidth=Math.max(2,fs*0.17);c.strokeStyle='rgba(0,0,0,.9)';c.strokeText(txt,px,py);c.fillStyle=k||fillCol;c.fillText(txt,px,py);}
+      if(st==='outline'||st==='karaoke'||st==='wordpop'||st==='shake'||st==='write'||st==='boxword'){c.lineWidth=Math.max(2,fs*0.17);c.strokeStyle='rgba(0,0,0,.9)';c.strokeText(txt,px,py);c.fillStyle=k||fillCol;c.fillText(txt,px,py);}
       else if(st==='plain'){c.shadowColor='rgba(0,0,0,.55)';c.shadowBlur=fs*0.12;c.shadowOffsetY=fs*0.03;c.fillStyle=fillCol;c.fillText(txt,px,py);c.shadowColor='transparent';}
       else if(st==='shadow'){c.fillStyle='rgba(0,0,0,.85)';c.fillText(txt,px+fs*0.07,py+fs*0.07);c.fillStyle=fillCol;c.fillText(txt,px,py);}
       else if(st==='glow'){c.shadowColor=col;c.shadowBlur=fs*0.45;c.fillStyle=col;c.fillText(txt,px,py);c.shadowBlur=fs*0.15;c.fillStyle=lighten(col,0.35);c.fillText(txt,px,py);c.shadowColor='transparent';}
@@ -62,6 +62,11 @@ window.txPaint=function(c,L,cx,y0,o,age,dur){
     if(!perWord){drawRun(line,x0,y);wi+=parts.length;return;}
     parts.forEach(pw=>{const ww=c.measureText(pw).width,k=wi/nW;
       if(st==='karaoke'){const on=age>=k*dur*0.9;drawRun(pw,x,y,on?col:'#ffffff');}
+      else if(st==='boxword'){ /* viral caption: white words, the word being said sits in a coloured box */
+        const ai=Math.min(nW-1,Math.floor(age/(dur*0.92)*nW));
+        if(wi===ai){const px=fs*0.16,py=fs*0.12;c.save();c.fillStyle=col;c.strokeStyle='#ffffff';c.lineWidth=Math.max(2,fs*0.07);rrect(c,x-px,y-base*0.86-py,ww+px*2,base*0.98+py*2,fs*0.16);c.fill();c.stroke();c.restore();
+          c.save();c.fillStyle=inkFor(col);c.textAlign='left';c.fillText(pw,x,y);c.restore();}
+        else drawRun(pw,x,y,'#ffffff');}
       else if(st==='wordpop'){const t0=k*Math.min(dur*0.7,nW*0.32),p=Math.max(0,Math.min(1,(age-t0)/0.22));if(p>0){const s=0.4+0.6*(1-Math.pow(1-p,3))+(p<1?Math.sin(p*Math.PI)*0.15:0);c.save();c.translate(x+ww/2,y-fs*0.35);c.scale(s,s);c.globalAlpha*=p;drawRun(pw,-ww/2,fs*0.35);c.restore();}}
       else{const j=fs*0.035;const dx=Math.sin(age*31+wi*1.7)*j,dy=Math.cos(age*27+wi*2.3)*j;c.save();c.translate(x+ww/2,y);c.rotate(Math.sin(age*23+wi)*0.03);drawRun(pw,-ww/2+dx,dy);c.restore();}
       x+=ww+sp;wi++;});
