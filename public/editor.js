@@ -168,6 +168,9 @@ window.openEditor=async function(it){
   E.dur=v.duration||0;
   let p=null;try{p=JSON.parse(localStorage.getItem(key())||'null');}catch(e){}
   E.p=p&&p.segs&&p.segs.length?Object.assign(blank(E.dur),p):presetApply(blank(E.dur),defPreset());
+  /* the video may have grown since the last edit (Continue Record from End): keep the new part too */
+  if(E.dur>0&&E.p.segs.length){E.p.segs=E.p.segs.filter(q=>q.a<E.dur-0.05);if(!E.p.segs.length)E.p.segs=[{a:0,b:E.dur,keep:true,speed:1,zoom:false}];
+    const L=E.p.segs[E.p.segs.length-1];if(L.b<E.dur-0.05){if(L.keep&&!L.fx&&!L.freeze)L.b=E.dur;else E.p.segs.push({a:L.b,b:E.dur,keep:true,speed:1,zoom:false});}else L.b=E.dur;}
   if(!(p&&p.segs)){try{const fh=await it.h.getFileHandle('_brand.json');const meta=JSON.parse(await (await fh.getFile()).text());E.p.brand=true;E.p.look=meta.look||E.p.look;E.p.bv=meta.bv||null;E.fromClean=true;}catch(e){}}
   G('edName').textContent=it.name;G('edScreen').classList.add('show');
   document.querySelectorAll('.tile video').forEach(x=>{try{x.pause();}catch(e){}});   /* Director tiles are hidden behind the editor */
