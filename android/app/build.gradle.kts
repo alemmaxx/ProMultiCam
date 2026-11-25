@@ -1,0 +1,51 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+/* Signing: a keystore from CI (env) if present, otherwise the shared test key in this folder */
+val ksFile = System.getenv("PMC_KEYSTORE")?.let { file(it) } ?: file("../pmc-test.keystore")
+
+android {
+    namespace = "com.promulticam.app"
+    compileSdk = 34
+    defaultConfig {
+        applicationId = "com.promulticam.app"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = (System.getenv("PMC_VERSION_CODE") ?: "1").toInt()
+        versionName = "0.1." + (System.getenv("PMC_VERSION_CODE") ?: "1")
+    }
+    signingConfigs {
+        create("pmc") {
+            storeFile = ksFile
+            storePassword = System.getenv("PMC_KS_PASS") ?: "promulticam"
+            keyAlias = System.getenv("PMC_KEY_ALIAS") ?: "pmc"
+            keyPassword = System.getenv("PMC_KS_PASS") ?: "promulticam"
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("pmc")
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    val camerax = "1.4.0"
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.activity:activity-ktx:1.9.2")
+    implementation("androidx.camera:camera-core:$camerax")
+    implementation("androidx.camera:camera-camera2:$camerax")
+    implementation("androidx.camera:camera-lifecycle:$camerax")
+    implementation("androidx.camera:camera-video:$camerax")
+    implementation("androidx.camera:camera-view:$camerax")
+    implementation("androidx.camera:camera-effects:$camerax")
+}

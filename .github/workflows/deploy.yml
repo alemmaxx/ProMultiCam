@@ -53,6 +53,15 @@ jobs:
         if: env.HAS_SA == 'true'
         run: npx --yes firebase-tools@latest hosting:sites:create "$SITE" --project "$PID" --non-interactive || true
 
+      - name: Add the APK (built by the Build APK workflow)
+        if: env.HAS_SA == 'true'
+        run: |
+          mkdir -p public/apk
+          if git fetch -q --depth=1 origin apk; then
+            git show origin/apk:ProMultiCam.apk > public/apk/ProMultiCam.apk
+            git show origin/apk:version.json > public/apk/version.json
+          else echo "no APK yet"; fi
+
       - name: Deploy
         if: env.HAS_SA == 'true'
         run: npx --yes firebase-tools@latest deploy --project "$PID" --only hosting:promulticam,firestore:promulticam,functions:promulticam --non-interactive --force

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ProMultiCam APK</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0e0f;--card:#1c1c1e;--ink:#f2efe8;--sub:#9b978e;--gold:#c8a45c;--line:#2c2c2f;--f:"Bricolage Grotesque",system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f);padding:calc(env(safe-area-inset-top) + 16px) 18px 40px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}.back{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:22px;box-shadow:0 4px 0 #000}
+h1{font-size:24px;margin:0}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+.app{display:flex;gap:14px;align-items:center}.app img{width:64px;height:64px;border-radius:16px}.app b{font-size:18px;display:block}.sub{color:var(--sub);font-size:13px}
+.dl{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;padding:16px;border:0;border-radius:14px;background:linear-gradient(#dcbd7a,#c8a45c);color:#1a1405;font:800 17px var(--f);text-decoration:none;box-shadow:0 5px 0 #7a6232,0 8px 16px rgba(0,0,0,.4)}
+.dl:active{transform:translateY(3px);box-shadow:0 2px 0 #7a6232}.dl.off{opacity:.5;pointer-events:none}
+ol{margin:6px 0 0;padding-left:20px}li{margin:4px 0}.tag{display:inline-block;background:#2a2416;color:var(--gold);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="top"><a class="back" href="./" aria-label="back">‹</a><h1 id="h">App APK</h1></div>
+<div class="card">
+  <div class="app"><img src="icon-192.png" alt=""><div><b>ProMultiCam</b><span class="sub" id="ver">…</span><br><span class="tag" id="tag"></span></div></div>
+  <a class="dl off" id="dl" href="apk/ProMultiCam.apk" download="ProMultiCam.apk">⬇ <span id="dlt"></span></a>
+</div>
+<div class="card"><b id="hwT"></b><ol id="hw"></ol></div>
+<div class="card"><b id="nowT"></b><ol id="now"></ol></div>
+<script>
+const ms=(localStorage.getItem('pmc_lang')||((navigator.language||'').startsWith('ms')?'ms':'en'))==='ms';
+const T=ms?{h:'App APK',tag:'Versi ujian · Peringkat 1',dl:'Muat turun APK',none:'APK sedang disediakan — cuba sebentar lagi',hwT:'Cara pasang',
+  hw:['Tekan Muat turun APK.','Buka fail ProMultiCam.apk dari notifikasi atau folder Downloads.','Jika diminta, benarkan "Pasang app tidak diketahui" untuk pelayar ini.','Tekan Pasang, kemudian Buka.'],
+  nowT:'Apa ada dalam versi ini',now:['Pengarah: rakam satu kamera terus dari kamera telefon (native).','Logo, tajuk, harga dan telefon dimasukkan terus dalam video.','720p / 1080p, kamera depan/belakang, zum, jeda.','Video disimpan ke galeri: Movies/ProMultiCam.','Akan datang: telefon Kamera, tukar sudut, editor.']}
+ :{h:'App APK',tag:'Test version · Stage 1',dl:'Download APK',none:'APK is being prepared — try again soon',hwT:'How to install',
+  hw:['Tap Download APK.','Open ProMultiCam.apk from the notification or the Downloads folder.','If asked, allow "Install unknown apps" for this browser.','Tap Install, then Open.'],
+  nowT:'In this version',now:['Director: records one camera straight from the phone camera (native).','Logo, title, price and phone are put into the video.','720p / 1080p, front/back camera, zoom, pause.','Videos are saved to the gallery: Movies/ProMultiCam.','Coming next: Camera phones, angle switching, editor.']};
+document.getElementById('h').textContent=T.h;document.getElementById('tag').textContent=T.tag;document.getElementById('dlt').textContent=T.dl;
+document.getElementById('hwT').textContent=T.hwT;document.getElementById('nowT').textContent=T.nowT;
+for(const [id,l] of [['hw',T.hw],['now',T.now]])l.forEach(x=>{const li=document.createElement('li');li.textContent=x;document.getElementById(id).appendChild(li);});
+fetch('apk/version.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(v=>{const dl=document.getElementById('dl');
+  if(v){document.getElementById('ver').textContent='v'+v.v+' · '+v.date+' · '+v.mb+' MB';dl.classList.remove('off');}
+  else{document.getElementById('ver').textContent=T.none;}}).catch(()=>{document.getElementById('ver').textContent=T.none;});
+</script>
+</body>
+</html>
