@@ -200,8 +200,8 @@ body.ur90 .sheet,body.ur270 .sheet{max-height:92vw}
 input[type=range]{accent-color:var(--gold);width:100%}
 
 /* Director: full-phone main view */
-#master.show{position:fixed;inset:0;background:#000}
-.stage-full{position:absolute;inset:0;overflow:hidden;background:#000}
+#master.show{position:fixed;inset:0;background:#070605}
+.stage-full{position:absolute;inset:0;overflow:hidden;background:radial-gradient(75% 40% at 100% 0%,rgba(200,164,92,.16),transparent 70%),radial-gradient(70% 35% at 0% 100%,rgba(200,164,92,.10),transparent 70%),linear-gradient(180deg,#14110b 0%,#0a0907 55%,#060504 100%)}
 /* the picture sits between the top bar and the bottom controls, so nothing in the video is hidden or darkened */
 .stage-full #stage{position:absolute;left:0;right:0;top:var(--ovt,0px);bottom:var(--ovb,0px);width:100%;height:calc(100% - var(--ovt,0px) - var(--ovb,0px));object-fit:contain;display:block}
 #stageOv{position:absolute;left:0;right:0;top:var(--ovt,0px);bottom:var(--ovb,0px);width:100%;height:calc(100% - var(--ovt,0px) - var(--ovb,0px));object-fit:contain;pointer-events:none;display:none}
