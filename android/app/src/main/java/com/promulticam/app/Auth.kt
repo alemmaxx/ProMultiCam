@@ -8,6 +8,17 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import android.app.Activity
+import androidx.core.content.ContextCompat
+import androidx.credentials.CredentialManager
+import androidx.credentials.CredentialManagerCallback
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetCredentialResponse
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import java.time.Instant
 
 /* The same account as the web app (Firebase): log in, register, Pro status from the same database */
@@ -67,6 +78,32 @@ object Auth {
         loadProfileSync(); null
     }, done)
 
+    /* Google: the phone's Google account picker, then the same Firebase account as the web */
+    private const val WEB_CLIENT = "710803283811-uep9lfn344g3uk4on3otln85kdh90pab.apps.googleusercontent.com"
+    fun google(a: Activity, done: (String?) -> Unit) {
+        val req = GetCredentialRequest.Builder().addCredentialOption(GetSignInWithGoogleOption.Builder(WEB_CLIENT).build()).build()
+        CredentialManager.create(a).getCredentialAsync(a, req, null, ContextCompat.getMainExecutor(a),
+            object : CredentialManagerCallback<GetCredentialResponse, GetCredentialException> {
+                override fun onResult(r: GetCredentialResponse) {
+                    val c = r.credential
+                    if (c is CustomCredential && c.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                        val tok = try { GoogleIdTokenCredential.createFrom(c.data).idToken } catch (e: Exception) { null }
+                        if (tok == null) { done("GOOGLE"); return }
+                        bg({
+                            val j = post("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${'$'}KEY", JSONObject()
+                                .put("postBody", "id_token=${'$'}tok&providerId=google.com").put("requestUri", "http://localhost")
+                                .put("returnIdpCredential", true).put("returnSecureToken", true))
+                            j.optJSONObject("error")?.let { return@bg it.optString("message") }
+                            save(j)
+                            if (j.optBoolean("isNewUser")) try { post("https://${'$'}REGION-${'$'}PROJECT.cloudfunctions.net/pmc_initUser", JSONObject().put("data", JSONObject()), idToken) } catch (e: Exception) {}
+                            loadProfileSync(); null
+                        }, done)
+                    } else done("GOOGLE")
+                }
+                override fun onError(e: GetCredentialException) { done(if (e is GetCredentialCancellationException) "CANCEL" else "GOOGLE:" + (e.message ?: e.type)) }
+            })
+    }
+
     fun reset(em: String, done: (String?) -> Unit) = bg({
         val j = post("https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=$KEY", JSONObject().put("requestType", "PASSWORD_RESET").put("email", em))
         j.optJSONObject("error")?.optString("message")
@@ -106,6 +143,8 @@ object Auth {
         code.contains("INVALID") || code.contains("EMAIL_NOT_FOUND") -> Ui.t("Wrong email or password", "Emel atau kata laluan salah")
         code.contains("WEAK_PASSWORD") -> Ui.t("Password needs 6 characters or more", "Kata laluan perlu 6 aksara atau lebih")
         code.contains("TOO_MANY") -> Ui.t("Too many tries — wait a moment", "Terlalu banyak cubaan — tunggu sebentar")
+        code == "CANCEL" -> ""
+        code.startsWith("GOOGLE") -> Ui.t("Google sign-in did not work: ", "Log masuk Google gagal: ") + code.removePrefix("GOOGLE").removePrefix(":")
         code == "NETWORK" -> Ui.t("No internet connection", "Tiada sambungan internet")
         else -> code
     }
