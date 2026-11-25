@@ -90,12 +90,12 @@ object Auth {
                         val tok = try { GoogleIdTokenCredential.createFrom(c.data).idToken } catch (e: Exception) { null }
                         if (tok == null) { done("GOOGLE"); return }
                         bg({
-                            val j = post("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${'$'}KEY", JSONObject()
-                                .put("postBody", "id_token=${'$'}tok&providerId=google.com").put("requestUri", "http://localhost")
+                            val j = post("https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=$KEY", JSONObject()
+                                .put("postBody", "id_token=$tok&providerId=google.com").put("requestUri", "http://localhost")
                                 .put("returnIdpCredential", true).put("returnSecureToken", true))
                             j.optJSONObject("error")?.let { return@bg it.optString("message") }
                             save(j)
-                            if (j.optBoolean("isNewUser")) try { post("https://${'$'}REGION-${'$'}PROJECT.cloudfunctions.net/pmc_initUser", JSONObject().put("data", JSONObject()), idToken) } catch (e: Exception) {}
+                            if (j.optBoolean("isNewUser")) try { post("https://$REGION-$PROJECT.cloudfunctions.net/pmc_initUser", JSONObject().put("data", JSONObject()), idToken) } catch (e: Exception) {}
                             loadProfileSync(); null
                         }, done)
                     } else done("GOOGLE")
