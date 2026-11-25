@@ -13,11 +13,13 @@ const H=`
   <div class="ed-top">
     <div class="ed-stage" id="edStage"><canvas id="edCv"></canvas></div>
     <div class="se-ctl">
+      <button class="btn btn-sm" type="button" onclick="edToStart()" aria-label="Start" style="min-width:44px;padding:0 10px">⏮</button>
       <button class="btn btn-sm btn-gold" id="edPlay" onclick="edToggle()" style="min-width:72px"></button>
       <span class="hint" id="edTime" style="flex:1"></span>
       <button class="btn btn-sm" onclick="edUndo()" data-i18n="edUndo"></button>
     </div>
     <div class="ed-tl" id="edTl"><div class="ed-thumbs" id="edThumbs"></div><div id="edSegs"></div><div class="ed-ph" id="edPh"></div><div class="ed-rng" id="edRng"></div></div>
+    <div class="ed-tracks" id="edTracks"></div>
     <div class="se-prog" id="edProg"><div><i id="edBar"></i></div><span id="edProgTx"></span></div>
   </div>
   <div class="ed-body">
@@ -29,6 +31,15 @@ const H=`
 </div>
 <video id="edVid" playsinline preload="auto" style="display:none"></video>`;
 const CSS=`
+.ed-tracks{position:relative;display:flex;flex-direction:column;gap:3px;margin-top:4px;touch-action:none}
+.ed-tracks:empty{display:none}
+.trk{position:relative;height:22px;border-radius:6px;background:#141416}
+.trk .ic{position:absolute;left:3px;top:50%;transform:translateY(-50%);font-size:12px;z-index:3;pointer-events:none;opacity:.9}
+.trk .blk{position:absolute;top:2px;bottom:2px;border-radius:5px;font:700 10px var(--f);color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;line-height:18px;cursor:grab;min-width:6px;text-transform:none}
+.trk .blk.pt{width:8px!important;padding:0;margin-left:-4px;border-radius:99px}
+.trk .blk.on{outline:2px solid #fff;z-index:2}
+.trk .blk i{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize}.trk .blk i.l{left:0}.trk .blk i.r{right:0}
+.trk-ph{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;pointer-events:none;z-index:4;box-shadow:0 0 3px #000}
 #joinList .btn span{text-transform:none}#joinList .btn-gold,#joinList .btn-gold span,#joinList .btn-gold i{color:var(--on-gold,#1a1408)!important}
 
 .eds:not(.pop) .ed-body{display:none!important}
@@ -179,7 +190,9 @@ function applyEnh(){
 let duckLvl=1;
 function duckTick(){
   if(!E||!E.g)return;const g=E.g;g.an.getFloatTimeDomainData(g.buf);let e=0;for(let i=0;i<g.buf.length;i++)e+=g.buf[i]*g.buf[i];e=Math.sqrt(e/g.buf.length);
-  const want=E.p.duck&&e>0.03?0.28:1;duckLvl+=(want-duckLvl)*(want<duckLvl?0.35:0.05);g.mus.gain.value=duckLvl;
+  const want=E.p.duck&&e>0.03?0.28:1;duckLvl+=(want-duckLvl)*(want<duckLvl?0.35:0.05);
+  /* music lane: silent outside its start–end */
+  const inR=musInR(V().currentTime);E.musG=(E.musG==null?1:E.musG)+((inR?1:0)-(E.musG==null?1:E.musG))*0.25;g.mus.gain.value=duckLvl*E.musG;
 }
 
 /* ---------- drawing (preview = export) ---------- */
@@ -289,7 +302,7 @@ function drawSubs(c,W,H,x){
 }
 function uiAt(x){
   G('edTime').textContent=fm1(outTime(x))+' / '+fm1(keptDur());
-  const ph=G('edPh');if(ph&&E.dur)ph.style.left=(x/E.dur*100)+'%';
+  const ph=G('edPh');if(ph&&E.dur)ph.style.left=(x/E.dur*100)+'%';const tph=G('trkPh');if(tph&&E.dur)tph.style.left=(x/E.dur*100)+'%';
   const sg=segAt(x);if(E.tab==='cut'&&sg&&E.lastSeg!==sg.a+'|'+sg.b+'|'+sg.keep){E.lastSeg=sg.a+'|'+sg.b+'|'+sg.keep;if(!E.busy)renderPanel();}
 }
 
@@ -422,7 +435,8 @@ function sfxSync(x){if(!E.p.sfx||!E.p.sfx.length){sfxLastX=x;return;}if(sfxLastX
 /* custom music file in the editor */
 async function musicLoad(){if(E.p.music!=='custom'||E.musEl)return;try{const d=await editsDir();const f=await (await d.getFileHandle(E.name.replace(/[^\w.-]+/g,'_')+'.music')).getFile();musicSet(f);}catch(e){}}
 function musicSet(blob){if(E.musEl)freeAudio(E.musEl);const a=new Audio();a.src=URL.createObjectURL(blob);a.loop=true;a.preload='auto';try{const s=actx.createMediaElementSource(a);s.connect(musicGain);a._node=s;}catch(e){}E.musEl=a;E.musBlob=blob;}
-function musicPlay(x){if(E.p.music==='custom'&&E.musEl){const d=E.musEl.duration||0;E.musEl.currentTime=d?outPos(x)%d:0;E.musEl.play().catch(()=>{});}else if(MUSIC[E.p.music]){if(!mTimer){const keep=$('musicSel').value;$('musicSel').value=E.p.music;startMusic(false);$('musicSel').value=keep;}}}
+function musInR(x){const r=E.p.musR;return !r||(x>=r.s&&x<r.e);}
+function musicPlay(x){if(E.p.music==='custom'&&E.musEl){const d=E.musEl.duration||0,st=E.p.musR?outPos(E.p.musR.s):0;E.musEl.currentTime=d?Math.max(0,outPos(x)-st)%d:0;E.musEl.play().catch(()=>{});}else if(MUSIC[E.p.music]){if(!mTimer){const keep=$('musicSel').value;$('musicSel').value=E.p.music;startMusic(false);$('musicSel').value=keep;}}}
 function musicStop(){if(E&&E.musEl)E.musEl.pause();stopMusic();}
 /* reverse and boomerang: the part's frames are kept in memory and played back */
 async function buildFx(sg){
@@ -455,6 +469,7 @@ function tick(){
   const nw=performance.now();if(!E.lastDrawT||nw-E.lastDrawT>=32){E.lastDrawT=nw;drawAt();}
   if(E.playing)E.raf=requestAnimationFrame(tick);
 }
+window.edToStart=function(){if(!E)return;const was=E.playing;if(was)edPause();const a=firstKept();V().currentTime=a;uiAt(a);drawAt();if(was)edPlay();};
 window.edToggle=function(){if(E.playing)edPause();else edPlay();};
 function edPlay(fromStart){
   const v=V();if(fromStart)v.currentTime=firstKept();
@@ -581,7 +596,39 @@ function applyVtpl(tp){
   p.tpl=tp.id;
   if(typeof sizeCanvas==='function')sizeCanvas();changed();renderPanel();toast(t('vtDone'),4500);
 }
+const TRK=[
+  {k:'music',ic:'🎵',col:'#c8a45c',tab:'music',items:()=>E.p.music&&E.p.music!=='none'?[E.p.musR||(E.p.musR={s:0,e:+E.dur.toFixed(2)})]:[],mode:'range',name:()=>t(E.p.music==='custom'?'mOwn':'m_'+E.p.music)},
+  {k:'texts',ic:'🔤',col:'#7fb3ff',tab:'text',items:()=>E.p.texts||[],mode:'range',name:o=>o.txt||o.text||''},
+  {k:'stickers',ic:'😀',col:'#f2a7c3',tab:'sticker',items:()=>E.p.stickers||[],mode:'range',name:o=>t('stkN_'+o.kind)||''},
+  {k:'voices',ic:'🎙',col:'#7ed3a5',tab:'voice',items:()=>E.p.voices||[],mode:'len',name:o=>o.tts?'AI':'🎙'},
+  {k:'sfx',ic:'🔔',col:'#ffb36b',tab:'sfx',items:()=>E.p.sfx||[],mode:'point',name:()=>''},
+  {k:'steps',ic:'🪜',col:'#b9a2ff',tab:'steps',items:()=>E.p.steps||[],mode:'point',name:()=>''}];
+function goTab(tab){const g=TGROUPS.find(x=>x[1].includes(tab));if(g){(E.lastIn=E.lastIn||{})[g[0]]=tab;}E.tab=tab;E.pop=true;renderTabs();}
+function renderTracks(){const box=G('edTracks');if(!box||!E||!E.dur)return;box.innerHTML='';const D=E.dur,pc=x=>(clamp(x,0,D)/D*100)+'%';let any=false;
+  TRK.forEach(tr=>{const its=tr.items();if(!its.length)return;any=true;const lane=document.createElement('div');lane.className='trk';lane.innerHTML='<span class="ic"></span>';lane.querySelector('.ic').textContent=tr.ic;
+    its.forEach((o,i)=>{const b=document.createElement('div');b.className='blk'+(tr.mode==='point'?' pt':'')+(E.rsel&&E.rsel.o===o?' on':'');b.style.background=tr.col;
+      const a=tr.mode==='range'?o.s:o.t,e=tr.mode==='range'?o.e:tr.mode==='len'?o.t+(o.d||0):a;b.style.left=pc(a);if(tr.mode!=='point'&&a<D*0.05)b.style.paddingLeft='20px';if(tr.mode!=='point'){b.style.width=((Math.min(e,D)-a)/D*100)+'%';b.textContent=tr.name(o);}
+      if(tr.mode==='range'){b.insertAdjacentHTML('beforeend','<i class="l" data-k="s"></i><i class="r" data-k="e"></i>');}
+      b.dataset.k2=tr.k;b.dataset.i=i;lane.appendChild(b);});
+    box.appendChild(lane);});
+  if(any){const ph=document.createElement('div');ph.className='trk-ph';ph.id='trkPh';ph.style.left=pc(V().currentTime);box.appendChild(ph);}
+}
+(function(){const box=G('edTracks');let dr=null;
+  box.addEventListener('pointerdown',e=>{if(!E)return;const b=e.target.closest('.blk');const r=box.getBoundingClientRect(),D=E.dur;
+    if(!b){const x=clamp((e.clientX-r.left)/r.width,0,1)*D;if(E.playing)edPause();V().currentTime=x;uiAt(x);drawAt();return;}
+    e.preventDefault();const tr=TRK.find(q=>q.k===b.dataset.k2),o=tr.items()[+b.dataset.i];if(!o)return;
+    if(tr.k!=='music'){goTab(tr.tab);E.rsel={o,mode:tr.mode,list:tr.k};}else{goTab('music');E.rsel=null;}
+    snap();const k=e.target.dataset.k||(tr.mode==='range'?'move':'t');
+    dr={tr,o,k,x0:e.clientX,w:r.width,left:r.left,a0:tr.mode==='range'?o.s:o.t,b0:tr.mode==='range'?o.e:o.t+(o.d||0)};
+    renderPanel();renderRange();renderTracks();});
+  window.addEventListener('pointermove',e=>{if(!dr||!E)return;const {o,tr}=dr,D=E.dur,x=clamp((e.clientX-dr.left)/dr.w,0,1)*D,dx=(e.clientX-dr.x0)/dr.w*D;let show;
+    if(dr.k==='s'){o.s=+clamp(x,0,o.e-0.2).toFixed(2);show=o.s;}else if(dr.k==='e'){o.e=+clamp(x,o.s+0.2,D).toFixed(2);show=o.e;}
+    else if(dr.k==='t'&&tr.mode==='point'){o.t=+clamp(x,0,D).toFixed(2);show=o.t;}
+    else{const len=dr.b0-dr.a0,na=clamp(dr.a0+dx,0,Math.max(0,D-len));if(tr.mode==='range'){o.s=+na.toFixed(2);o.e=+(na+len).toFixed(2);}else o.t=+na.toFixed(2);show=na;}
+    if(!E.playing)V().currentTime=show;uiAt(show);renderTracks();renderRange();});
+  const up=()=>{if(!dr)return;dr=null;save();renderPanel();drawAt();};window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);})();
 function renderPanel(){
+  setTimeout(()=>{try{renderTracks();}catch(e){}},0);
   setTimeout(()=>{document.querySelectorAll('#edPanel .ed-card').forEach(c=>c.classList.toggle('rsel',!!c.querySelector('.ed-row .btn-gold')&&!!(E&&E.rsel)&&[...c.querySelectorAll('.btn-gold')].some(b=>b.textContent.startsWith('📍'))));renderRange();},0);
   const P=G('edPanel');P.innerHTML='';const x=V().currentTime,s=segAt(x),k=E.tab;
   if(k==='tpl'){
@@ -931,9 +978,10 @@ async function renderAudio(total){
   const speech=await off.startRendering();
   if(E.p.music==='none'||(E.p.music==='custom'&&!E.musBlob))return speech;
   const off2=new OfflineAudioContext(2,len,SR),sp=off2.createBufferSource();sp.buffer=speech;sp.connect(off2.destination);sp.start(0);
-  const mg=off2.createGain();mg.gain.value=E.p.musVol/100*0.8;const dk=off2.createGain();mg.connect(dk);dk.connect(off2.destination);
+  const mg=off2.createGain();mg.gain.value=E.p.musVol/100*0.8;const dk=off2.createGain(),rg=off2.createGain();mg.connect(dk);dk.connect(rg);rg.connect(off2.destination);
+  const mr=E.p.musR,ma=mr?outPos(mr.s):0,mb=mr?outPos(mr.e):total;if(mr){rg.gain.setValueAtTime(0,0);rg.gain.setValueAtTime(0,Math.max(0,ma-0.01));rg.gain.linearRampToValueAtTime(1,ma+0.25);rg.gain.setValueAtTime(1,Math.max(ma+0.25,mb-0.6));rg.gain.linearRampToValueAtTime(0,mb);}
   if(E.p.duck){const d=speech.getChannelData(0),hop=Math.round(SR*0.05);let lv=1;for(let i=0;i<d.length;i+=hop){let e=0;for(let j=i;j<Math.min(d.length,i+hop);j+=4)e+=d[j]*d[j];e=Math.sqrt(e/(hop/4));const want=e>0.03?0.28:1;lv+=(want-lv)*(want<lv?0.6:0.12);dk.gain.setValueAtTime(lv,i/SR);}}
-  if(E.p.music==='custom'){try{const mb=await off2.decodeAudioData(await E.musBlob.arrayBuffer());const ms=off2.createBufferSource();ms.buffer=mb;ms.loop=true;ms.connect(mg);ms.start(0);}catch(e){}return off2.startRendering();}
+  if(E.p.music==='custom'){try{const mb=await off2.decodeAudioData(await E.musBlob.arrayBuffer());const ms=off2.createBufferSource();ms.buffer=mb;ms.loop=true;ms.connect(mg);ms.start(ma);}catch(e){}return off2.startRendering();}
   const keep={a:actx,m:musicGain,n:noiseBuf,st:mStyle,step:mStep,next:mNext};
   const fake={currentTime:total,sampleRate:SR,createOscillator:()=>off2.createOscillator(),createGain:()=>off2.createGain(),createBiquadFilter:()=>off2.createBiquadFilter(),createBuffer:(...a)=>off2.createBuffer(...a),createBufferSource:()=>off2.createBufferSource()};
   try{actx=fake;musicGain=mg;noiseBuf=null;mStyle=E.p.music;mStep=0;mNext=0.05;mSchedule();}
