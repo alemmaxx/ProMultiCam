@@ -39,8 +39,20 @@ object Notifier {
         WorkManager.getInstance(c).enqueueUniquePeriodicWork("pmc-check", ExistingPeriodicWorkPolicy.KEEP, w)
     }
     /* how many support chats wait for the admin (also used for the badge) */
-    var waiting = 0; var userUnread = false
+    var waiting = 0; var userUnread = false; var newApk = ""
+    /* a newer app on the site? badge on "App APK" + one notification per new version */
+    fun checkApk(c: Context) {
+        try {
+            val j = okhttp3.OkHttpClient().newCall(okhttp3.Request.Builder().url("https://promulticam.web.app/apk/version.json?t=" + System.currentTimeMillis()).build()).execute().use { org.json.JSONObject(it.body?.string() ?: "{}") }
+            val mine = c.packageManager.getPackageInfo(c.packageName, 0).longVersionCode; val code = j.optLong("code")
+            newApk = if (code > mine) j.optString("v") else ""
+            val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
+            if (code > mine && code > sp.getLong("nApk", 0)) { sp.edit().putLong("nApk", code).apply()
+                show(c, 3, Ui.t("New ProMultiCam version ", "Versi baru ProMultiCam ") + j.optString("v"), Ui.t("Tap to update the app.", "Tekan untuk kemas kini app."), Intent(c, ApkActivity::class.java)) }
+        } catch (e: Exception) {}
+    }
     fun checkSync(c: Context) {
+        checkApk(c)
         Auth.init(c); if (!Auth.signedIn) return
         val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
         try {
@@ -66,7 +78,7 @@ object Notifier {
     private fun show(c: Context, id: Int, title: String, text: String, open: Intent) {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CH, Ui.t("Support messages", "Mesej sokongan"), NotificationManager.IMPORTANCE_HIGH))
+        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CH, Ui.t("Messages & updates", "Mesej & kemas kini"), NotificationManager.IMPORTANCE_HIGH))
         val pi = PendingIntent.getActivity(c, id, open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         nm.notify(id, NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_chat).setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true).setContentIntent(pi).setPriority(NotificationCompat.PRIORITY_HIGH).build())

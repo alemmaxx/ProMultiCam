@@ -38,7 +38,9 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin(); if (Auth.isAdmin != builtAdmin) recreate() }; alive = true; checkLoop() }
     override fun onPause() { super.onPause(); alive = false }
     private var adminBadge: android.widget.TextView? = null; private var supBadge: android.widget.TextView? = null; private var alive = false
+    private var apkBadge: android.widget.TextView? = null
     private fun paintBadges() {
+        apkBadge?.let { it.text = "NEW"; it.visibility = if (Notifier.newApk.isNotEmpty()) View.VISIBLE else View.GONE }
         adminBadge?.let { it.text = if (Notifier.waiting > 9) "9+" else Notifier.waiting.toString(); it.visibility = if (Notifier.waiting > 0) View.VISIBLE else View.GONE }
         supBadge?.let { it.text = "1"; it.visibility = if (Notifier.userUnread && !Auth.isAdmin) View.VISIBLE else View.GONE }
     }
@@ -115,10 +117,10 @@ class MainActivity : AppCompatActivity() {
             tl.setOnClickListener { f() }
             // red badge in the corner (new support messages)
             val cell = FrameLayout(c); cell.addView(tl, Ui.fl(-1, -1))
-            if (ic == R.drawable.ic_chat || l == "Super Admin") { val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
+            if (ic == R.drawable.ic_chat || ic == R.drawable.ic_apk || l == "Super Admin") { val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
                 bd.setPadding(Ui.px(c, 5), 0, Ui.px(c, 5), 0); bd.minWidth = Ui.px(c, 22); bd.visibility = View.GONE
                 cell.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END).apply { topMargin = Ui.px(c, 4); rightMargin = Ui.px(c, 6) })
-                if (l == "Super Admin") adminBadge = bd else supBadge = bd }
+                if (l == "Super Admin") adminBadge = bd else if (ic == R.drawable.ic_apk) apkBadge = bd else supBadge = bd }
             val p = GridLayout.LayoutParams(GridLayout.spec(i / 3), GridLayout.spec(i % 3, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
             g.addView(cell, p)
         }
