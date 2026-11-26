@@ -196,7 +196,19 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             override fun onSingleTapUp(e: android.view.MotionEvent): Boolean { focusAt(stage, e.x, e.y, false); return true }
             override fun onLongPress(e: android.view.MotionEvent) { focusAt(stage, e.x, e.y, true) }
         })
-        sv.setOnTouchListener { _, e -> tapper.onTouchEvent(e) }
+        var pinching = false
+        val pinch = android.view.ScaleGestureDetector(c, object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(g: android.view.ScaleGestureDetector): Boolean { pinching = true; return mainSrc != null }
+            override fun onScale(g: android.view.ScaleGestureDetector): Boolean {
+                val s = mainSrc ?: return false; val z = (s.zoom * g.scaleFactor).coerceIn(1f, 4f); s.zoom = z; prog.zoomMain = z
+                zoomTx.text = String.format(Locale.US, "%.1f×", z); zoomTx.animate().cancel(); zoomTx.alpha = 1f; return true }
+            override fun onScaleEnd(g: android.view.ScaleGestureDetector) { zoomTx.animate().alpha(0f).setStartDelay(900).setDuration(300).start() }
+        })
+        sv.setOnTouchListener { _, e ->
+            pinch.onTouchEvent(e)
+            if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) pinching = false
+            if (e.pointerCount > 1 || pinching) { if (e.actionMasked == android.view.MotionEvent.ACTION_UP) pinching = false; true } else tapper.onTouchEvent(e)
+        }
         val chips = LinearLayout(c); chips.orientation = LinearLayout.HORIZONTAL
         srcChip = Ui.label(c, "", 13f, Ui.GOLD, true); srcChip.background = Ui.round(0xB0000000.toInt(), Ui.dp(c, 99f)); srcChip.setPadding(d, d / 2, d, d / 2)
         lookChip = Ui.label(c, "", 13f, Ui.TEXT, true); lookChip.background = Ui.round(0xB0000000.toInt(), Ui.dp(c, 99f)); lookChip.setPadding(d, d / 2, d, d / 2)
@@ -209,7 +221,9 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         stage.addView(fpsTx, Ui.fl(-2, -2, Gravity.TOP or Gravity.END).apply { rightMargin = d; topMargin = d })
         // zoom: upright slider on the right, like the web
         zoomTx = Ui.label(c, "1.0×", 13f, Ui.GOLD, true)
-        stage.addView(zoomTx, Ui.fl(-2, -2, Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = d; bottomMargin = Ui.px(c, 150) })
+        // zoom with two fingers on the picture; the level shows for a moment
+        zoomTx.textSize = 22f; zoomTx.setPadding(d, d / 2, d, d / 2); zoomTx.background = Ui.round(0x99000000.toInt(), Ui.dp(c, 99f)); zoomTx.alpha = 0f
+        stage.addView(zoomTx, Ui.fl(-2, -2, Gravity.CENTER))
         zoomBar = SeekBar(c); zoomBar.max = 100; zoomBar.rotation = 270f
         zoomBar.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); zoomBar.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
         zoomBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -217,7 +231,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             override fun onStartTrackingTouch(b: SeekBar?) {}
             override fun onStopTrackingTouch(b: SeekBar?) {}
         })
-        stage.addView(zoomBar, Ui.fl(Ui.px(c, 200), -2, Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = -Ui.px(c, 70) })
+        zoomBar.visibility = View.GONE
         countTx = Ui.label(c, "", 96f, Color.WHITE, true); countTx.visibility = View.GONE; countTx.setShadowLayer(12f, 0f, 2f, Color.BLACK)
         stage.addView(countTx, Ui.fl(-2, -2, Gravity.CENTER))
         root.addView(stage, LinearLayout.LayoutParams(-1, 0, 1f)); stageV = stage
