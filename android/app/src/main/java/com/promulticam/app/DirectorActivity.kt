@@ -97,7 +97,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private val pickLogo = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) try {
             val bmp = contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: throw Exception("logo")
-            brand.setLogo(bmp); refreshOverlay(); logoView?.setImageBitmap(brand.logo)
+            brand.useLogo(bmp); refreshOverlay(); logoView?.setImageBitmap(brand.logo)
         } catch (e: Exception) { toast(t("Could not load the logo", "Gagal muat logo")) }
     }
 

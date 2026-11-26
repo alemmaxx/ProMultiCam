@@ -24,7 +24,7 @@ class Brand(private val ctx: Context) {
     var removeBg: Boolean get() = sp.getBoolean("logoBg", true); set(v) { sp.edit().putBoolean("logoBg", v).apply(); process() }
 
     /* a new logo: keep the original, then (if chosen) make its plain background see-through */
-    fun setLogo(src: Bitmap) {
+    fun useLogo(src: Bitmap) {
         val k = minOf(1f, 600f / maxOf(src.width, src.height))
         val b = if (k < 1f) Bitmap.createScaledBitmap(src, (src.width * k).toInt(), (src.height * k).toInt(), true) else src
         origFile.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }

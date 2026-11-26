@@ -78,7 +78,7 @@ class RecordActivity : AppCompatActivity() {
         if (uri != null) {
             try {
                 val bmp = contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: throw Exception("logo")
-                brand.setLogo(bmp); toast(t("Logo added", "Logo ditambah"))
+                brand.useLogo(bmp); toast(t("Logo added", "Logo ditambah"))
             } catch (e: Exception) { toast(t("Could not load the logo", "Gagal muat logo")) }
         }
     }
