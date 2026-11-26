@@ -250,6 +250,9 @@ class AdminChatActivity : PageActivity() {
                 main.post { if (!ok) { inp.setText(v); toast(t("Not sent", "Tidak dihantar")) } else poll(false) } }
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
         root.addView(row, Ui.lp(this, 6))
+        val ban = Ui.label(this, Ui.t("Issue: …", "Jenis masalah: …"), 14f, Ui.GOLD, true); ban.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 12f), Ui.GOLD, 1); ban.setPadding(d, d * 2 / 3, d, d * 2 / 3)
+        root.addView(ban, 1, Ui.lp(this, 6))
+        bg { val k = Fs.get("supportChats/$id")?.s("topic") ?: ""; main.post { ban.text = t("Issue: ", "Jenis masalah: ") + if (k.isEmpty()) t("not chosen", "tidak dipilih") else Topics.name(k) } }
         bg { Fs.write("supportChats/$id", mapOf("unreadAdmin" to false)) }
         poll(true)
     }

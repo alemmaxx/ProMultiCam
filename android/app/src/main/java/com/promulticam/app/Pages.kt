@@ -179,6 +179,14 @@ class SupportActivity : PageActivity() {
         Topics.ALL.forEach { k -> val b = Ui.pill(this, Topics.name(k), topic == k) { topic = k; sp.edit().putString("supTopic", k).apply(); tbs.forEachIndexed { j, q -> Ui.setPill(this, q, Topics.ALL[j] == topic) } }
             b.textSize = 13f; tbs.add(b); tr.addView(b, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
         root.addView(ths, Ui.lp(this, 4))
+        val ban = Ui.label(this, "", 14f, Ui.GOLD, true); ban.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 12f), Ui.GOLD, 1); ban.setPadding(d, d * 2 / 3, d, d * 2 / 3)
+        root.addView(ban, 1, Ui.lp(this, 6))
+        fun banner() { ban.text = t("Issue: ", "Jenis masalah: ") + if (topic.isEmpty()) t("choose below", "pilih di bawah") else Topics.name(topic) }
+        banner()
+        tbs.forEachIndexed { j, b -> b.setOnClickListener { topic = Topics.ALL[j]; sp.edit().putString("supTopic", topic).apply(); tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() } }
+        // the issue already saved on this conversation wins
+        Thread { val k = try { Fs.get("supportChats/" + Auth.uid)?.s("topic") ?: "" } catch (e: Exception) { "" }
+            if (k.isNotEmpty()) main.post { topic = k; tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() } }.start()
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL
         val inp = Ui.input(this, t("Type a message…", "Taip mesej…")); inp.maxLines = 4
         row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
