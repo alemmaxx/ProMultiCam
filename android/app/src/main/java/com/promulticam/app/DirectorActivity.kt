@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -192,8 +193,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         hs.addView(tiles)
         root.addView(hs, LinearLayout.LayoutParams(-1, Ui.px(c, 108)))
         addTile = LinearLayout(c); addTile.orientation = LinearLayout.VERTICAL; addTile.gravity = Gravity.CENTER
-        addTile.background = Ui.round(0xFF15140F.toInt(), Ui.dp(c, 12f), Ui.GOLD, Ui.px(c, 1))
-        addTile.addView(Ui.label(c, "+", 24f, Ui.GOLD, true)); addTile.addView(Ui.center(Ui.label(c, t("Camera", "Kamera"), 11f, Ui.GOLD, true)))
+        addTile.background = GradientDrawable().apply { setColor(0xFF15140F.toInt()); cornerRadius = Ui.dp(c, 10f); setStroke(Ui.px(c, 2), Ui.GOLD, Ui.dp(c, 6f), Ui.dp(c, 4f)) }
+        val pc = android.widget.ImageView(c); pc.setImageResource(R.drawable.ic_plus); pc.setColorFilter(0xFF1A1407.toInt())
+        pc.background = Ui.goldFace(c, Ui.dp(c, 16f)); val pp = Ui.px(c, 7); pc.setPadding(pp, pp, pp, pp)
+        addTile.addView(pc, LinearLayout.LayoutParams(Ui.px(c, 32), Ui.px(c, 32)))
+        addTile.addView(Ui.center(Ui.label(c, t("Camera", "Kamera"), 11f, Ui.GOLD, true)), Ui.lp(c, 6))
         addTile.setOnClickListener { connectSheet() }
         tiles.addView(addTile, LinearLayout.LayoutParams(Ui.px(c, 60), -1))
 
@@ -236,7 +240,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
 
     /* ---------- the panels (same as the web sheets) ---------- */
     private fun styleSheet() {
-        val s = Ui.sheet(this, t("Visual style", "Gaya Visual"))
+        val s = Ui.sheet(this, t("Visual Style", "Gaya Visual"))
+        s.body.addView(Ui.label(this, "Look", 13f, Ui.SUB, true))
         val grid = android.widget.GridLayout(this); grid.columnCount = 3
         val pills = ArrayList<Button>()
         Looks.ALL.forEachIndexed { i, l ->
@@ -262,14 +267,18 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             lb.add(b); lay.addView(b, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 })
         }
         s.body.addView(lay, Ui.lp(this, 6))
-        s.body.addView(Ui.section(this, t("Switch effect", "Kesan tukar")))
-        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL
-        val tb = ArrayList<Button>()
-        for ((id, name) in listOf("fade" to t("Soft fade", "Lembut"), "black" to t("Dip to black", "Gelap"), "cut" to t("Straight cut", "Terus"))) {
-            val b = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, p -> Ui.setPill(this, p, listOf("fade", "black", "cut")[j] == trans) } }
-            tb.add(b); tr.addView(b, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 })
+        fun soon(title: String, items: List<String>) {
+            s.body.addView(Ui.section(this, title))
+            val g = android.widget.GridLayout(this); g.columnCount = 3
+            items.forEachIndexed { i, n ->
+                val b = Ui.pill(this, n, i == 0) { if (i > 0) toast(t("Coming soon in the app. Available on the web now.", "Akan datang dalam app. Ada di web sekarang.")) }
+                if (i > 0) b.alpha = 0.55f
+                val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 3), android.widget.GridLayout.spec(i % 3, 1f)); p.width = 0; p.setMargins(4, 6, 4, 6); g.addView(b, p)
+            }
+            s.body.addView(g)
         }
-        s.body.addView(tr, Ui.lp(this, 6))
+        soon(t("AI background", "Latar AI"), listOf(t("Off", "Tiada"), "Blur", t("Kitchen", "Dapur"), "Studio", t("Office", "Pejabat"), t("Garden", "Taman")))
+        soon(t("Face stickers", "Stiker Muka"), listOf(t("Off", "Tiada"), t("Glasses", "Cermin mata"), t("Hat", "Topi"), t("Crown", "Mahkota"), t("Mask", "Topeng"), t("Cat", "Kucing")))
         s.dialog.show()
     }
 
@@ -365,6 +374,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
             ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(ar, Ui.lp(this, 6))
+        b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL; val tb = ArrayList<Button>()
+        for ((id, name) in listOf("fade" to t("Soft fade", "Lembut"), "black" to t("Dip to black", "Gelap"), "cut" to t("Straight cut", "Terus"))) {
+            val pb = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("fade", "black", "cut")[j] == trans) } }
+            tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
+        b.addView(tr, Ui.lp(this, 6))
+        b.addView(Ui.check(this, t("Noise filter", "Penapis bunyi"), sp.getBoolean("noise", false)) { v -> sp.edit().putBoolean("noise", v).apply() }, Ui.lp(this, 8))
         ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() }); pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
         s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
         s.dialog.show()
@@ -409,33 +425,85 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
 
     /* ---------- Studio: title & closing cards, teleprompter ---------- */
+    private val TPL = mapOf(
+        "cook" to arrayOf("warm", "pip", "fade", "1", "1", "0"), "music" to arrayOf("cine", "full", "fade", "1", "0", "0"),
+        "pod" to arrayOf("std", "split", "cut", "1", "1", "0"), "drama" to arrayOf("drama", "full", "fade", "0", "0", "1"))
+    private fun applyTpl(k: String?) {
+        sp.edit().putString("tpl", k ?: "").apply()
+        val c = TPL[k] ?: arrayOf("superior", "full", "fade", "0", "0", "0")
+        look = Looks.byId(c[0]); sp.edit().putString("look", look.id).putBoolean("intro", c[3] == "1").putBoolean("outro", c[4] == "1").putBoolean("story", c[5] == "1").apply()
+        prog.setLook(look.f); trans = c[2]; prog.trans = trans
+        layout = if (c[1] != "full" && srcs.count { it.track != null } < 2) "full" else c[1]; prog.layout = layout; pickSecond()
+        refreshOverlay(); paintChips()
+    }
     private fun studioDialog() {
-        val sh = Ui.sheet(this, "Studio Pro")
+        val sh = Ui.sheet(this, "Studio Pro", t("Save settings", "Simpan Tetapan") to { })
         val col = sh.body
-        col.addView(Ui.section(this, t("Title & closing cards", "Kad tajuk & penutup")))
-        col.addView(Ui.check(this, t("Title card (3s)", "Kad tajuk (3s)"), sp.getBoolean("intro", false)) { v -> sp.edit().putBoolean("intro", v).apply() })
-        col.addView(Ui.check(this, t("Closing card (3s)", "Kad penutup (3s)"), sp.getBoolean("outro", false)) { v -> sp.edit().putBoolean("outro", v).apply() })
-        val ot = Ui.input(this, t("Closing text, e.g. Order now!", "Teks penutup, cth. Tempah sekarang!"), sp.getString("outroTxt", "") ?: ""); col.addView(ot, Ui.lp(this, 6))
-        ot.addTextChangedListener(watch { sp.edit().putString("outroTxt", it).apply() })
+        // "how to use" next to the title
+        col.addView(Ui.btn(this, t("How to use", "Cara Guna")) { WebActivity.open(this, "manual") }.apply { setTextColor(Ui.GOLD); textSize = 14f }, LinearLayout.LayoutParams(-2, Ui.px(this, 44)))
+        // on now
+        val now = Ui.card(this)
+        now.addView(Ui.label(this, t("On now", "Aktif sekarang"), 14f, Ui.SUB, true))
+        val on = ArrayList<String>()
+        sp.getString("tpl", "")?.takeIf { it.isNotEmpty() }?.let { on.add(t("Template: ", "Templat: ") + tplName(it)) }
+        if (sp.getBoolean("story", false)) on.add(t("Story mode", "Mod Cerita"))
+        if (sp.getBoolean("intro", false)) on.add(t("Title card", "Kad tajuk")); if (sp.getBoolean("outro", false)) on.add(t("Closing card", "Kad penutup"))
+        now.addView(Ui.label(this, if (on.isEmpty()) t("Nothing on.", "Tiada yang aktif.") else on.joinToString(" · "), 15f, Ui.TEXT), Ui.lp(this, 6))
+        now.addView(Ui.btn(this, t("Turn everything off", "Matikan semua")) { applyTpl(null); sp.edit().putBoolean("story", false).putBoolean("intro", false).putBoolean("outro", false).apply(); sh.dialog.dismiss(); studioDialog() }, Ui.lp(this, 10))
+        col.addView(now, Ui.lp(this, 10))
+        col.addView(Ui.hr(this))
+        col.addView(Ui.section(this, t("Quick templates", "Templat Pantas")))
+        col.addView(Ui.hint(this, t("Tap to use.", "Tekan untuk guna.")))
+        val g = android.widget.GridLayout(this); g.columnCount = 2
+        val cur = sp.getString("tpl", "")
+        listOf("cook" to t("Warm, order card", "Hangat, kad tempahan"), "music" to t("Cinematic, title card", "Sinematik, kad tajuk"),
+               "pod" to t("Split screen, clear voice", "Skrin belah, suara jelas"), "drama" to t("Dramatic, scenes", "Dramatik, babak")).forEachIndexed { i, (k, d) ->
+            val cv = LinearLayout(this); cv.orientation = LinearLayout.VERTICAL; cv.setPadding(Ui.px(this, 12), Ui.px(this, 10), Ui.px(this, 12), Ui.px(this, 14))
+            cv.background = if (k == cur) Ui.raised(this, 0xFF2A2416.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(this, 12f), Ui.GOLD) else Ui.raised(this, Ui.CARD2, 0xFF0E0D0B.toInt(), Ui.dp(this, 12f), Ui.LINE)
+            cv.addView(Ui.label(this, tplName(k), 16f, Ui.TEXT, true)); cv.addView(Ui.label(this, d, 12f, Ui.SUB))
+            cv.setOnClickListener { applyTpl(k); sh.dialog.dismiss(); studioDialog(); toast(tplName(k) + " ✓") }
+            val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 2), android.widget.GridLayout.spec(i % 2, 1f)); p.width = 0; p.setMargins(4, 5, 4, 5); g.addView(cv, p)
+        }
+        col.addView(g, Ui.lp(this, 6))
+        col.addView(Ui.dangerBtn(this, t("Turn template off", "Matikan templat")) { applyTpl(null); sh.dialog.dismiss(); studioDialog() }, Ui.lp(this, 6))
+        col.addView(Ui.hr(this))
+        col.addView(Ui.check(this, t("Story mode", "Mod Cerita"), sp.getBoolean("story", false)) { v -> sp.edit().putBoolean("story", v).apply() })
+        col.addView(Ui.hint(this, t("Record scene by scene; take numbers go up by themselves.", "Rakam babak demi babak; nombor take naik sendiri.")))
+        col.addView(Ui.btn(this, "+ " + t("Next scene", "Babak seterusnya")) { val n = sp.getInt("scene", 1) + 1; sp.edit().putInt("scene", n).putInt("take", 0).apply(); toast(t("Scene ", "Babak ") + n) }, Ui.lp(this, 8))
         col.addView(Ui.hr(this))
         col.addView(Ui.section(this, "Teleprompter"))
         col.addView(Ui.hint(this, t("Camera phones only.", "Telefon Kamera sahaja.")))
         val tp = Ui.input(this, t("Your script…", "Skrip anda…"), sp.getString("tpText", "") ?: ""); tp.minLines = 4; tp.gravity = Gravity.TOP; col.addView(tp, Ui.lp(this, 6))
-        col.addView(Ui.label(this, t("Speed", "Laju"), 13f, Ui.SUB, true), Ui.lp(this, 10))
-        val spd = SeekBar(this); spd.max = 9; spd.progress = sp.getInt("tpSpeed", 4) - 1; spd.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); spd.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); col.addView(spd)
+        fun slider(label: String, max: Int, v: Int): SeekBar { val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
+            r.addView(Ui.label(this, label, 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 86), -2))
+            val sb = SeekBar(this); sb.max = max; sb.progress = v; sb.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); sb.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
+            r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); col.addView(r, Ui.lp(this, 8)); return sb }
+        val spd = slider(t("Speed", "Laju"), 9, sp.getInt("tpSpeed", 4) - 1)
+        val siz = slider(t("Text size", "Saiz teks"), 40, sp.getInt("tpSize", 34) - 20)
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL
         fun tpSend(cmd: String) {
-            sp.edit().putString("tpText", tp.text.toString()).putInt("tpSpeed", spd.progress + 1).apply()
-            val m = mapOf("t" to "tp", "cmd" to cmd, "text" to tp.text.toString(), "speed" to (spd.progress + 1), "size" to 34)
+            sp.edit().putString("tpText", tp.text.toString()).putInt("tpSpeed", spd.progress + 1).putInt("tpSize", siz.progress + 20).apply()
+            val m = mapOf("t" to "tp", "cmd" to cmd, "text" to tp.text.toString(), "speed" to (spd.progress + 1), "size" to (siz.progress + 20))
             srcs.forEach { it.data?.send(m) }
             if (srcs.none { it.data != null }) toast(t("Connect a camera phone first", "Sambung telefon Kamera dahulu"))
         }
         for ((l, cmd) in listOf(t("Start", "Mula") to "start", t("Pause", "Jeda") to "pause", t("From top", "Dari atas") to "reset"))
-            row.addView(Ui.btn(this, l, cmd == "start") { tpSend(cmd) }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 })
-        col.addView(row, Ui.lp(this, 8))
-        col.addView(Ui.btn(this, t("Hide teleprompter", "Sorok teleprompter")) { tpSend("hide") }, Ui.lp(this, 8))
+            row.addView(Ui.btn(this, l, cmd == "start") { tpSend(cmd) }.apply { textSize = 14f }, LinearLayout.LayoutParams(0, Ui.px(this, 50), 1f).apply { rightMargin = 6 })
+        col.addView(row, Ui.lp(this, 10))
+        col.addView(Ui.btn(this, t("Hide teleprompter", "Sorok teleprompter")) { tpSend("hide") }.apply { setTextColor(Ui.GOLD); textSize = 14f }, Ui.lp(this, 8))
+        col.addView(Ui.hr(this))
+        col.addView(Ui.section(this, t("Title & closing cards", "Kad Tajuk & Penutup")))
+        col.addView(Ui.check(this, t("Title card (3s)", "Kad tajuk (3s)"), sp.getBoolean("intro", false)) { v -> sp.edit().putBoolean("intro", v).apply() })
+        val sub = Ui.input(this, t("Subtitle (optional), e.g. Episode 1", "Subtajuk (pilihan), cth. Episod 1"), sp.getString("introSub", "") ?: ""); col.addView(sub, Ui.lp(this, 4))
+        sub.addTextChangedListener(watch { sp.edit().putString("introSub", it).apply() })
+        col.addView(Ui.check(this, t("Closing card (3s)", "Kad penutup (3s)"), sp.getBoolean("outro", false)) { v -> sp.edit().putBoolean("outro", v).apply() }, Ui.lp(this, 8))
+        val ot = Ui.input(this, t("Closing text, e.g. Order now!", "Teks penutup, cth. Tempah sekarang!"), sp.getString("outroTxt", "") ?: ""); col.addView(ot, Ui.lp(this, 4))
+        ot.addTextChangedListener(watch { sp.edit().putString("outroTxt", it).apply() })
+        col.addView(Ui.hint(this, t("Uses your title, logo, price and contact.", "Guna tajuk, logo, harga dan hubungan anda.")))
+        sh.dialog.setOnDismissListener { sp.edit().putString("tpText", tp.text.toString()).putInt("tpSpeed", spd.progress + 1).putInt("tpSize", siz.progress + 20).apply() }
         sh.dialog.show()
     }
+    private fun tplName(k: String) = when (k) { "cook" -> t("Cooking", "Masakan"); "music" -> t("Music video", "Video Muzik"); "pod" -> t("Podcast & interview", "Podcast & Temu Bual"); else -> t("Story & drama", "Cerita & Drama") }
 
     /* ---------- cameras ---------- */
     private fun startAll() {
@@ -571,14 +639,16 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     /* ---------- recording ---------- */
     private fun startRec() {
         if (mainSrc?.track == null) { toast(t("No camera yet", "Belum ada kamera")); return }
-        val f = Store.newFile(this, brand.title.ifEmpty { "Video" }); recFile = f
+        var nm = brand.title.ifEmpty { "Video" }
+        if (sp.getBoolean("story", false)) { val sc = sp.getInt("scene", 1); val tk = sp.getInt("take", 0) + 1; sp.edit().putInt("take", tk).apply(); nm += "_S${sc}T$tk" }
+        val f = Store.newFile(this, nm); recFile = f
         val pfd = try { ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE) } catch (e: Exception) { toast(t("Cannot save here", "Tidak boleh simpan")); return }
         recPfd = pfd
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val e = Encoder(W, H, pfd.fileDescriptor, audio)
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
-        if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
+        if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, sp.getString("introSub", "") ?: "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
         recStart = System.currentTimeMillis(); pausedMs = 0; pauseAt = 0; ending = false
         recBtn.text = "■ " + t("Stop", "Tamat"); pauseBtn.isEnabled = true; pauseBtn.alpha = 1f; qBtn.isEnabled = false
         timeTx.visibility = View.VISIBLE; tick()

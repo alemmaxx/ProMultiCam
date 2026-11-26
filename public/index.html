@@ -1058,10 +1058,26 @@ class Saver{
     await this.q;
     if(this.dir){try{await (await this.dir.getFileHandle('_done',{create:true})).createWritable().then(w=>w.close());}catch(e){}}
     const blob=this.dir?new Blob([await savedBlob(this.dir,type),...this.mem],{type}):new Blob(this.mem,{type});
+    if(window.PMCNative)sendToNative(blob,this.name);
     if(this.noDl)return{blob,where:t('draftWhere')};
     downloadBlob(blob,this.name);
     return{blob,where:'Downloads/'+this.name};
   }
+}
+/* Android app: hand a finished video back to the app (in pieces), and open an app video in the editor */
+async function sendToNative(blob,name){
+  try{const N=512*1024,n=Math.max(1,Math.ceil(blob.size/N));
+    for(let i=0;i<n;i++){const part=blob.slice(i*N,(i+1)*N);
+      const b64=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]||'');fr.readAsDataURL(part);});
+      PMCNative.put(name,b64,i===0,i===n-1);}
+    toast(t('savedApp'),3500);}catch(e){console.error('native',e);}
+}
+async function nativeEdit(f){
+  try{toast(t('mdPrep'));const b=await (await fetch('/__native/'+encodeURIComponent(f))).blob();
+    const root=await recRoot();try{await root.removeEntry(f,{recursive:true});}catch(e){}
+    const h=await root.getDirectoryHandle(f,{create:true});const w=await (await h.getFileHandle('000001',{create:true})).createWritable();await w.write(b);await w.close();
+    await (await h.getFileHandle('_done',{create:true})).createWritable().then(w=>w.close());
+    openEditor({name:f,h,done:true});}catch(e){console.error('nativeEdit',e);toast(t('mdFail'),4000);}
 }
 /* ---------- per-angle HD copies for editing after recording: OPFS angles/<recId>/<label>/ (chunk files) ---------- */
 async function anglesRoot(){const r=await navigator.storage.getDirectory();return r.getDirectoryHandle('angles',{create:true});}
@@ -2511,7 +2527,7 @@ function track(ev,params){try{if(window.gtag)gtag('event',ev,params||{});}catch(
 
 /* ---------- account, plans & Pro gating ---------- */
 const FREE_LOOKS=['std'],FREE_MAX=1,PRO_MAX=6;
-function isPro(){return !!(window.PMC&&PMC.isPro&&PMC.isPro());}
+function isPro(){try{if(window.PMCNative&&PMCNative.pro())return true;}catch(e){}return !!(window.PMC&&PMC.isPro&&PMC.isPro());}
 function overLimit(id){if(id==='local'||sources.find(x=>x.id===id))return false;return sources.filter(x=>!x.local).length>=(isPro()?PRO_MAX:FREE_MAX);}
 function money(v){return 'RM'+Number(v||0).toFixed(2).replace(/\.00$/,'');}
 function applyTier(){
@@ -3257,7 +3273,7 @@ initLang();applyI18n();initInstall();
   if(jc.length===6){history.replaceState(null,'',location.pathname);goSlave();selTab('data');$('joinCode').value=jc;toast(t('qrReady'),4000);track('join_link');return;}
   /* opened from the Android app: go straight to one panel */
   const op=new URLSearchParams(location.search).get('open');
-  if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount(),videos:()=>openVideos(),media:()=>openMediaEd()}[op];if(f)try{f();}catch(e){}};
+  if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount(),videos:()=>openVideos(),media:()=>openMediaEd(),edit:()=>nativeEdit(new URLSearchParams(location.search).get('f')||'')}[op];if(f)try{f();}catch(e){}};
     const w=n=>{if(window.PMC&&PMC.ready||n>20)go();else setTimeout(()=>w(n+1),300);};setTimeout(()=>w(0),400);return;}
   if(lsGet('pmc_guided','')!=='1')openGuide();
 })();

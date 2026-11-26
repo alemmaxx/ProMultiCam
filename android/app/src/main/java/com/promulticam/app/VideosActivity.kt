@@ -81,7 +81,7 @@ class VideosActivity : AppCompatActivity() {
                 btn(t("Save to Phone", "Simpan ke Telefon"), true) { saveToPhone(f) },
                 btn(t("Share", "Kongsi")) { share(f) },
                 btn(t("Continue", "Sambung")) { startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", f.absolutePath)) },
-                btn("Edit") { WebActivity.open(this, "videos"); toast(t("In the web app: Import Video, then Edit", "Dalam web: Import Video, kemudian Edit")) },
+                btn("Edit") { WebActivity.open(this, "edit", f.name) },
                 Ui.dangerBtn(this, t("Delete", "Padam")) { del(f) }.apply { textSize = 14f; maxLines = 1 })
             val g = android.widget.GridLayout(this); g.columnCount = 3
             items.forEachIndexed { i, x ->

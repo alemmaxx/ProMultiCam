@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(bg, Ui.fl(-1, -1))
         val shade = View(c); shade.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x9E080705.toInt(), 0x73080705, 0xC7080705.toInt()))
         root.addView(shade, Ui.fl(-1, -1))
-        val sv = ScrollView(c); val col = LinearLayout(c); col.orientation = LinearLayout.VERTICAL
+        val sv = ScrollView(c); sv.isFillViewport = true; val col = LinearLayout(c); col.orientation = LinearLayout.VERTICAL
         col.setPadding(Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 24)); sv.addView(col); root.addView(sv, Ui.fl(-1, -1))
 
         // top row: logo · language · log in
@@ -67,10 +67,10 @@ class MainActivity : AppCompatActivity() {
         col.addView(Ui.label(c, t("Choose role", "Pilih peranan"), 13f, Ui.SUB, true), Ui.lp(c, 14))
 
         // the two role cards
-        val roles = LinearLayout(c); roles.orientation = LinearLayout.HORIZONTAL
-        roles.addView(role(true) { sp.edit().putString("devName", name.text.toString().trim()).apply(); goDirector() }, LinearLayout.LayoutParams(0, Ui.px(c, 330), 1f).apply { rightMargin = Ui.px(c, 6) })
-        roles.addView(role(false) { sp.edit().putString("devName", name.text.toString().trim()).apply(); startActivity(Intent(c, CameraActivity::class.java)) }, LinearLayout.LayoutParams(0, Ui.px(c, 330), 1f).apply { leftMargin = Ui.px(c, 6) })
-        col.addView(roles, Ui.lp(c, 6))
+        val roles = LinearLayout(c); roles.orientation = LinearLayout.HORIZONTAL; roles.minimumHeight = Ui.px(c, 300)
+        roles.addView(role(true) { sp.edit().putString("devName", name.text.toString().trim()).apply(); goDirector() }, LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = Ui.px(c, 6) })
+        roles.addView(role(false) { sp.edit().putString("devName", name.text.toString().trim()).apply(); startActivity(Intent(c, CameraActivity::class.java)) }, LinearLayout.LayoutParams(0, -1, 1f).apply { leftMargin = Ui.px(c, 6) })
+        col.addView(roles, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = Ui.px(c, 6) })
 
         // tools
         val g = GridLayout(c); g.columnCount = 4
@@ -80,17 +80,17 @@ class MainActivity : AppCompatActivity() {
             Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { WebActivity.open(this, "test") },
             Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { WebActivity.open(this, "support") },
             Triple(R.drawable.ic_book, "Manual") { WebActivity.open(this, "manual") },
-            Triple(R.drawable.ic_video, t("Quick record", "Rakam pantas")) { startActivity(Intent(c, RecordActivity::class.java)) },
+            Triple(R.drawable.ic_apk, "App APK") { WebActivity.open(this, "apk") },
             Triple(R.drawable.ic_info, t("About", "Tentang")) { WebActivity.open(this, "about") })
         tools.forEachIndexed { i, (ic, l, f) ->
             val tl = LinearLayout(c); tl.orientation = LinearLayout.VERTICAL; tl.gravity = Gravity.CENTER
-            tl.background = if (i == 0) Ui.raised(c, 0xCC2A2416.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.GOLD) else Ui.raised(c, 0xB812100D.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE)
+            tl.background = if (i == 0) Ui.raised(c, 0xFF262117.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.GOLD) else Ui.raised(c, 0xB812100D.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE)
             tl.setPadding(Ui.px(c, 4), Ui.px(c, 8), Ui.px(c, 4), Ui.px(c, 12))
-            val iv = ImageView(c); iv.setImageResource(ic); iv.imageTintList = ColorStateList.valueOf(if (i == 0) Ui.GOLD else Ui.TEXT)
+            val iv = ImageView(c); iv.setImageResource(ic); iv.imageTintList = ColorStateList.valueOf(if (i == 0) Ui.GOLD else Ui.SUB)
             tl.addView(iv, LinearLayout.LayoutParams(Ui.px(c, 22), Ui.px(c, 22)))
             val tx = Ui.center(Ui.label(c, l, 11f, if (i == 0) Ui.GOLD else Ui.TEXT, true)); tl.addView(tx, Ui.lp(c, 4))
             tl.setOnClickListener { f() }
-            val p = GridLayout.LayoutParams(GridLayout.spec(i / 4), GridLayout.spec(i % 4, 1f)); p.width = 0; p.height = Ui.px(c, 68); p.setMargins(Ui.px(c, 3), Ui.px(c, 3), Ui.px(c, 3), Ui.px(c, 3))
+            val p = GridLayout.LayoutParams(GridLayout.spec(i / 4), GridLayout.spec(i % 4, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
             g.addView(tl, p)
         }
         col.addView(g, Ui.lp(c, 12))

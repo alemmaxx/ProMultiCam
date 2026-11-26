@@ -94,7 +94,8 @@ class Brand(private val ctx: Context) {
         val ps = Paint(pt).apply { color = Ui.GOLD; textSize = m * 0.05f }
         val big = if (closing) closingText.ifEmpty { cTitle } else cTitle
         if (big.isNotEmpty()) c.drawText(big, W / 2f, H * 0.5f, pt)
-        if (cPrice.isNotEmpty()) c.drawText(cPrice, W / 2f, H * 0.58f, ps)
+        if (!closing && closingText.isNotEmpty()) c.drawText(closingText, W / 2f, H * 0.56f, Paint(ps).apply { color = Color.WHITE; textSize = m * 0.045f })
+        if (cPrice.isNotEmpty()) c.drawText(cPrice, W / 2f, H * (if (!closing && closingText.isNotEmpty()) 0.63f else 0.58f), ps)
         if (closing && cPhone.isNotEmpty()) c.drawText(cPhone, W / 2f, H * 0.65f, Paint(pt).apply { textSize = m * 0.05f })
         return b
     }
