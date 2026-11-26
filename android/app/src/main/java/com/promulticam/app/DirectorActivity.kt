@@ -244,7 +244,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         root.addView(row); rowV = row
         qBtn = Ui.btn(c, "") {}   // quality lives in Settings
         lookBtn = Ui.btn(c, "") {}; layBtn = Ui.btn(c, "") {}; trBtn = Ui.btn(c, "") {}
-        paintChips(); fpsLoop()
+        paintChips(); fpsLoop(); main.postDelayed({ visLoop() }, 500)
         return root
     }
     private lateinit var addTile: LinearLayout
@@ -348,6 +348,31 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.label(this, t("Phone / contact (optional)", "Telefon / hubungi (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val ph = Ui.input(this, t("e.g. 012-345 6789 or Order via the bio link", "cth: 012-345 6789 atau Tempah di pautan bio"), brand.phone); b.addView(ph, Ui.lp(this, 6))
         b.addView(Ui.check(this, t("Brand in the video", "Jenama dalam video"), brand.on) { v -> brand.on = v; refreshOverlay() }, Ui.lp(this, 8))
+        // each part: always, hidden, or shown for some seconds (once at the start, or again and again)
+        b.addView(Ui.label(this, t("When to show", "Bila dipaparkan"), 15f, Ui.TEXT, true), Ui.lp(this, 14))
+        b.addView(Ui.hint(this, t("Time counts from the start of the recording.", "Masa dikira dari mula rakaman.")))
+        for ((k, nm) in listOf("logo" to "Logo", "title" to t("Title", "Tajuk"), "price" to t("Price", "Harga"), "phone" to t("Phone", "Telefon"))) {
+            val box = Ui.card(this); box.addView(Ui.label(this, nm, 14f, Ui.GOLD, true))
+            val modes = Flow(this, Ui.px(this, 6)); val more = LinearLayout(this); more.orientation = LinearLayout.VERTICAL
+            val mb = ArrayList<Button>()
+            fun paintMode() { val m = sp.getString("vis_$k", "on"); mb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("on", "off", "timed")[j] == m) }; more.visibility = if (m == "timed") View.VISIBLE else View.GONE }
+            for ((id, l) in listOf("on" to t("Always", "Sentiasa"), "off" to t("Hidden", "Tiada"), "timed" to t("For some seconds", "Ikut masa"))) {
+                val p = Ui.pill(this, l, false) { sp.edit().putString("vis_$k", id).apply(); paintMode(); visTick(true) }; p.textSize = 13f; mb.add(p); modes.addView(p) }
+            box.addView(modes, Ui.lp(this, 6))
+            val r1 = LinearLayout(this); r1.gravity = Gravity.CENTER_VERTICAL
+            r1.addView(Ui.label(this, t("Show for", "Papar selama"), 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
+            val du = Ui.input(this, "5", sp.getInt("dur_$k", 5).toString(), android.text.InputType.TYPE_CLASS_NUMBER); du.addTextChangedListener(watch { v -> sp.edit().putInt("dur_$k", v.toIntOrNull()?.coerceIn(1, 3600) ?: 5).apply() })
+            r1.addView(du, LinearLayout.LayoutParams(Ui.px(this, 90), -2)); r1.addView(Ui.label(this, "  " + t("seconds", "saat"), 13f, Ui.SUB))
+            more.addView(r1, Ui.lp(this, 8))
+            more.addView(Ui.label(this, t("Repeat", "Ulang"), 13f, Ui.SUB, true), Ui.lp(this, 8))
+            val reps = Flow(this, Ui.px(this, 6)); val rb = ArrayList<Button>(); val ev = listOf(0, 30, 60, 120, 300)
+            fun paintRep() { val e = sp.getInt("every_$k", 0); rb.forEachIndexed { j, q -> Ui.setPill(this, q, ev[j] == e) } }
+            for (e in ev) { val p = Ui.pill(this, when (e) { 0 -> t("Once at start", "Sekali di awal"); 30 -> t("Every 30 s", "Setiap 30 saat"); 60 -> t("Every 1 min", "Setiap 1 min"); 120 -> t("Every 2 min", "Setiap 2 min"); else -> t("Every 5 min", "Setiap 5 min") }, false) { sp.edit().putInt("every_$k", e).apply(); paintRep() }
+                p.textSize = 12f; rb.add(p); reps.addView(p) }
+            more.addView(reps, Ui.lp(this, 4))
+            box.addView(more); paintMode(); paintRep()
+            b.addView(box, Ui.lp(this, 8))
+        }
         b.addView(Ui.hr(this))
         b.addView(Ui.section(this, t("Overlay", "Paparan")))
         val og = android.widget.GridLayout(this); og.columnCount = 2
@@ -692,6 +717,20 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         timeTx.visibility = View.VISIBLE; tick()
         sendLive(); srcs.forEach { it.data?.send(mapOf("t" to "q", "hi" to true)) }
     }
+    /* which parts of the brand show now; the picture is redrawn only when that changes */
+    private var visKey = ""
+    private fun recSec(): Long = if (enc == null) -1 else ((if (pauseAt > 0) pauseAt else System.currentTimeMillis()) - recStart - pausedMs) / 1000
+    private fun visTick(force: Boolean = false) {
+        val t0 = recSec(); val h = HashSet<String>()
+        for (k in listOf("logo", "title", "price", "phone")) when (sp.getString("vis_$k", "on")) {
+            "off" -> h.add(k)
+            "timed" -> if (t0 >= 0) { val du = sp.getInt("dur_$k", 5); val ev = sp.getInt("every_$k", 0); val show = if (ev > 0) t0 % maxOf(ev, du + 1) < du else t0 < du; if (!show) h.add(k) }
+        }
+        val key = h.sorted().joinToString(","); if (key != visKey || force) { visKey = key; brand.hidden = h
+            val card = ending || (enc != null && sp.getBoolean("intro", false) && System.currentTimeMillis() - recStart < 3100)   // title / closing card on screen
+            if (!card) refreshOverlay() }
+    }
+    private fun visLoop() { if (stopped) return; visTick(); main.postDelayed({ visLoop() }, 250) }
     private fun tick() {
         val e = enc ?: return
         val ms = (if (pauseAt > 0) pauseAt else System.currentTimeMillis()) - recStart - pausedMs

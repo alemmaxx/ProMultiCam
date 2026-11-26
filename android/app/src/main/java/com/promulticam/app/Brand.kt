@@ -108,11 +108,14 @@ class Brand(private val ctx: Context) {
     var desc: String get() = sp.getString("desc", "") ?: ""; set(v) { sp.edit().putString("desc", v).apply() }
     var menu: String get() = sp.getString("menu", "") ?: ""; set(v) { sp.edit().putString("menu", v).apply() }
     @Volatile var speaker = ""
+    /* parts hidden right now (off, or outside their time) */
+    @Volatile var hidden: Set<String> = emptySet()
     @Volatile var bars = false
 
     /* draw upright into a W x H area: the same designs as the web */
     fun draw(c: Canvas, W: Int, H: Int) {
         val f = font.ifEmpty { Overlay.DEF_FONT[style] ?: "bricolage" }
-        Overlay.draw(c, Overlay.In(ctx, W, H, Auth.isPro, bars, style, col, f, logoPos, cTitle, cPrice, cPhone, shop, desc, menu, speaker, logo))
+        val h = hidden
+        Overlay.draw(c, Overlay.In(ctx, W, H, Auth.isPro, bars, style, col, f, logoPos, if ("title" in h) "" else cTitle, if ("price" in h) "" else cPrice, if ("phone" in h) "" else cPhone, shop, desc, menu, speaker, if ("logo" in h) null else logo))
     }
 }
