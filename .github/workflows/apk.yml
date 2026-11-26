@@ -42,7 +42,7 @@ jobs:
           get lobster.ttf "lobster/Lobster-Regular.ttf"
           get pacifico.ttf "pacifico/Pacifico-Regular.ttf"
           get dancing.ttf "dancingscript/DancingScript%5Bwght%5D.ttf"
-          get marker.ttf "permanentmarker/PermanentMarker-Regular.ttf"
+          curl -fsSL -o "$d/marker.ttf" "https://raw.githubusercontent.com/google/fonts/main/apache/permanentmarker/PermanentMarker-Regular.ttf" || echo "font marker missing"
           ls -la $d
       - name: Build
         env:
