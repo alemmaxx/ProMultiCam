@@ -372,26 +372,71 @@ class ApkActivity : PageActivity() {
         c.addView(Ui.label(this, "ProMultiCam $mine", 20f, Ui.TEXT, true), Ui.lp(this, 4))
         val st = Ui.label(this, t("Checking for updates…", "Menyemak versi baru…"), 14f, Ui.GOLD, true); c.addView(st, Ui.lp(this, 8))
         body.addView(c)
-        val up = Ui.btn(this, t("Download update", "Muat turun versi baru"), true) { download() }; up.visibility = View.GONE
+        up = Ui.btn(this, t("Download update", "Muat turun versi baru"), true) { download() }; up.visibility = View.GONE
         body.addView(up, Ui.lp(this, 12))
-        body.addView(Ui.hint(this, t("After downloading, open the file and tap Update. Your videos stay.", "Selepas muat turun, buka fail dan tekan Kemas kini. Video anda kekal.")))
+        // download progress
+        prog = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); prog.max = 100; prog.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); prog.visibility = View.GONE
+        body.addView(prog, LinearLayout.LayoutParams(-1, Ui.px(this, 14)).apply { topMargin = Ui.px(this@ApkActivity, 14) })
+        pTx = Ui.label(this, "", 14f, Ui.TEXT, true); body.addView(pTx, Ui.lp(this, 6))
+        inst = Ui.btn(this, t("Install now", "Pasang sekarang"), true) { install() }; inst.visibility = View.GONE
+        body.addView(inst, Ui.lp(this, 12))
+        body.addView(Ui.hint(this, t("Your videos stay after the update.", "Video anda kekal selepas kemas kini.")))
         bg {
             val j = OkHttpClient().newCall(Request.Builder().url("$VJ?t=" + System.currentTimeMillis()).build()).execute().use { JSONObject(it.body?.string() ?: "{}") }
             main.post {
                 if (isFinishing) return@post
                 val n = j.optLong("code"); val v = j.optString("v"); val mb = j.optString("mb"); val dt = j.optString("date")
-                if (n > code) { st.text = t("New version $v ($mb MB, $dt)", "Versi baru $v ($mb MB, $dt)"); up.visibility = View.VISIBLE }
+                if (n > code) { st.text = t("New version $v ($mb MB, $dt)", "Versi baru $v ($mb MB, $dt)"); if (dlId < 0) up.visibility = View.VISIBLE }
                 else st.text = t("You have the latest version.", "Anda guna versi terkini.")
             }
         }
+        // a download that is still going (page opened again)
+        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); dlId = sp.getLong("apkDl", -1L); if (dlId >= 0) watch()
     }
+    private lateinit var up: android.widget.Button; private lateinit var inst: android.widget.Button
+    private lateinit var prog: android.widget.ProgressBar; private lateinit var pTx: TextView
+    private var dlId = -1L; private var alive = true
+    override fun onDestroy() { alive = false; super.onDestroy() }
+    private fun dm() = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
     private fun download() {
         try {
-            val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-            dm.enqueue(DownloadManager.Request(Uri.parse(APK)).setTitle("ProMultiCam.apk").setMimeType("application/vnd.android.package-archive")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ProMultiCam.apk"))
-            toast(t("Downloading… open it from the notification when done.", "Sedang muat turun… buka dari notifikasi bila siap."))
+            File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "ProMultiCam.apk").delete()
+            dlId = dm().enqueue(DownloadManager.Request(Uri.parse(APK + "?t=" + System.currentTimeMillis())).setTitle("ProMultiCam").setDescription(t("App update", "Kemas kini app"))
+                .setMimeType("application/vnd.android.package-archive").setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "ProMultiCam.apk"))
+            getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().putLong("apkDl", dlId).apply()
+            up.visibility = View.GONE; watch()
         } catch (e: Exception) { toast(t("Could not download", "Gagal muat turun")) }
+    }
+    /* show how far the download is, every half second */
+    private fun watch() {
+        if (!alive || dlId < 0) return
+        prog.visibility = View.VISIBLE
+        var status = -1; var got = 0L; var tot = 0L
+        try { dm().query(DownloadManager.Query().setFilterById(dlId))?.use { c -> if (c.moveToFirst()) {
+            status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)); got = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)); tot = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)) } } } catch (e: Exception) {}
+        val mb = { b: Long -> String.format(Locale.US, "%.1f", b / 1048576.0) }
+        when (status) {
+            DownloadManager.STATUS_SUCCESSFUL -> { prog.progress = 100; pTx.text = "✅ " + t("Downloaded. Tap Install now.", "Siap dimuat turun. Tekan Pasang sekarang."); inst.visibility = View.VISIBLE; return }
+            DownloadManager.STATUS_FAILED, -1 -> { prog.visibility = View.GONE; pTx.text = t("Download failed. Try again.", "Muat turun gagal. Cuba lagi."); up.visibility = View.VISIBLE
+                getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().remove("apkDl").apply(); dlId = -1; return }
+            DownloadManager.STATUS_PAUSED -> pTx.text = t("Waiting for the internet…", "Menunggu internet…")
+            else -> { val pc = if (tot > 0) (got * 100 / tot).toInt() else 0; prog.isIndeterminate = tot <= 0; prog.progress = pc
+                pTx.text = t("Downloading… ", "Sedang muat turun… ") + (if (tot > 0) "$pc%  (${mb(got)} / ${mb(tot)} MB)" else mb(got) + " MB") }
+        }
+        main.postDelayed({ watch() }, 500)
+    }
+    private fun install() {
+        if (android.os.Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+            toast(t("Allow installing from this app, then come back and tap Install now.", "Benarkan pasang dari app ini, kemudian kembali dan tekan Pasang sekarang."))
+            try { startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))) } catch (e: Exception) {}
+            return
+        }
+        val f = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "ProMultiCam.apk")
+        val u = try { Store.uri(this, f) } catch (e: Exception) { null } ?: try { dm().getUriForDownloadedFile(dlId) } catch (e: Exception) { null }
+        if (u == null) { toast(t("File not found. Download again.", "Fail tiada. Muat turun semula.")); return }
+        getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().remove("apkDl").apply()
+        try { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(u, "application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        catch (e: Exception) { toast(t("Could not open the installer", "Gagal buka pemasang")) }
     }
 }

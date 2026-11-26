@@ -50,6 +50,7 @@ import androidx.media3.common.audio.ChannelMixingMatrix
 import androidx.media3.common.audio.SpeedChangingAudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.effect.BitmapOverlay
+import androidx.media3.effect.MatrixTransformation
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.RgbMatrix
@@ -95,6 +96,11 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
     private val scaleDet = ScaleGestureDetector(c, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(d: ScaleGestureDetector): Boolean { pps = (pps * d.scaleFactor).coerceIn(6 * dp, 400 * dp); invalidate(); return true } })
     private val slop = ViewConfiguration.get(c).scaledTouchSlop
+    private var reorder = false; private var dragIdx = -1; private var dragX = 0f
+    private val lp = Runnable { if (dragIdx >= 0) { reorder = true; ed.snap(); performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); invalidate() } }
+    private val sq get() = 56 * dp; private val gap get() = 6 * dp
+    private fun rowLeft() = width / 2f - ed.clips.size * (sq + gap) / 2f
+    private fun target() = ((dragX - rowLeft()) / (sq + gap)).toInt().coerceIn(0, maxOf(0, ed.clips.size - 1))
     private var mode = 0; private var downX = 0f; private var lastX = 0f; private var moved = false; private var multi = false
     // modes: 0 scrub, 1 clip left, 2 clip right, 3 item move, 4 item left, 5 item right
     private fun clipStart(i: Int): Long { var o = 0L; for (k in 0 until i) o += ed.clips[k].dur; return o }
@@ -117,14 +123,22 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
     override fun onTouchEvent(e: MotionEvent): Boolean {
         parent?.requestDisallowInterceptTouchEvent(true)
         scaleDet.onTouchEvent(e)
-        if (e.pointerCount > 1) { multi = true; return true }
+        if (e.pointerCount > 1) { multi = true; removeCallbacks(lp); return true }
+        if (reorder) {
+            when (e.actionMasked) { MotionEvent.ACTION_MOVE -> { dragX = e.x; invalidate() }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { reorder = false; val to = target(); val from = dragIdx; dragIdx = -1; ed.moveClip(from, to); invalidate() } }
+            return true
+        }
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { multi = false; downX = e.x; lastX = e.x; moved = false; mode = hitMode(e.x, e.y); if (mode != 0) ed.snap() }
+            MotionEvent.ACTION_DOWN -> { multi = false; downX = e.x; lastX = e.x; moved = false; mode = hitMode(e.x, e.y); if (mode != 0) ed.snap()
+                dragIdx = -1
+                if (mode == 0 && e.y >= mainTop && e.y <= mainTop + mainH && ed.clips.size > 1) { val u = us(e.x); var o = 0L
+                    for ((i, c) in ed.clips.withIndex()) { if (u >= o && u < o + c.dur) { dragIdx = i; dragX = e.x; postDelayed(lp, 380); break }; o += c.dur } } }
             MotionEvent.ACTION_MOVE -> {
                 if (multi) return true
                 val dx = e.x - lastX; lastX = e.x
                 if (!moved && abs(e.x - downX) < slop) return true
-                moved = true
+                moved = true; removeCallbacks(lp)
                 val dUs = (dx / pps * 1e6f).toLong()
                 when (mode) {
                     0 -> { time = (time - dUs).coerceIn(0, maxOf(0, ed.total() - 1)); ed.onScrub(time) }
@@ -149,7 +163,7 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
                 if (mode != 0) ed.onLive()
                 invalidate()
             }
-            MotionEvent.ACTION_UP -> { if (!moved && !multi) tap(e.x, e.y) else if (mode != 0) ed.onEdited(); mode = 0 }
+            MotionEvent.ACTION_UP -> { removeCallbacks(lp); if (!moved && !multi) tap(e.x, e.y) else if (mode != 0) ed.onEdited(); mode = 0 }
         }
         return true
     }
@@ -177,6 +191,20 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
     override fun onDraw(cv: Canvas) {
         lanes()
         cv.drawColor(0xFF0F0E0C.toInt())
+        if (reorder) {   // clips as squares; drag one to its new place
+            val n = ed.clips.size; val tg = target(); val l0 = rowLeft(); val y = mainTop
+            cv.drawText(Ui.t("Drag to a new place, then let go", "Seret ke tempat baru, kemudian lepaskan"), 10 * dp, ruleH, tp)
+            fun sqAt(c: Clip, x: Float, lift: Boolean) { val r = RectF(x, y - (if (lift) 8 * dp else 0f), x + sq, y + sq - (if (lift) 8 * dp else 0f))
+                p.color = 0xFF24221D.toInt(); cv.drawRoundRect(r, 8 * dp, 8 * dp, p)
+                ed.thumb(c, (c.inUs / 1_000_000) * 1_000_000)?.let { b -> cv.save(); val path = android.graphics.Path(); path.addRoundRect(r, 8 * dp, 8 * dp, android.graphics.Path.Direction.CW); cv.clipPath(path); cv.drawBitmap(b, null, r, null); cv.restore() }
+                if (lift) { p.style = Paint.Style.STROKE; p.strokeWidth = 3 * dp; p.color = Ui.GOLD; cv.drawRoundRect(r, 8 * dp, 8 * dp, p); p.style = Paint.Style.FILL } }
+            var j = 0
+            ed.clips.forEachIndexed { i, c -> if (i != dragIdx) { val slot = if (j < tg) j else j + 1; sqAt(c, l0 + slot * (sq + gap), false); j++ } }
+            p.color = 0x55D9B44A; cv.drawRoundRect(RectF(l0 + tg * (sq + gap), y, l0 + tg * (sq + gap) + sq, y + sq), 8 * dp, 8 * dp, p)
+            ed.clips.getOrNull(dragIdx)?.let { sqAt(it, dragX - sq / 2, true) }
+            if (n == 0) return
+            return
+        }
         // ruler
         val sec = pps / dp; val step = when { sec < 10 -> 10; sec < 22 -> 5; sec < 45 -> 2; else -> 1 }
         val a0 = maxOf(0, (us(0f) / 1_000_000).toInt() - 1); val a1 = (us(width.toFloat()) / 1_000_000).toInt() + 1
@@ -195,8 +223,8 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
                 while (xx < r) { if (xx + tw > 0 && xx < width) { val at = cl.inUs + ((xx - l) / pps * 1e6f * cl.speed).toLong()
                     ed.thumb(cl, (at / 1_000_000) * 1_000_000)?.let { cv.drawBitmap(it, null, RectF(xx, mainTop, xx + tw, mainTop + mainH), null) } }
                     xx += tw }
-                if (cl.speed != 1f || cl.vol != 1f || cl.look != "std") { val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = 10 * dp; q.setShadowLayer(3f, 0f, 1f, Color.BLACK)
-                    cv.drawText(listOfNotNull(if (cl.speed != 1f) "${cl.speed}×" else null, if (cl.vol == 0f) "🔇" else null, if (cl.look != "std") "🎨" else null).joinToString(" "), rect.left + 4 * dp, rect.bottom - 4 * dp, q) }
+                if (cl.speed != 1f || cl.vol != 1f || cl.look != "std" || cl.fx != "none") { val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = 10 * dp; q.setShadowLayer(3f, 0f, 1f, Color.BLACK)
+                    cv.drawText(listOfNotNull(if (cl.speed != 1f) "${cl.speed}×" else null, if (cl.vol == 0f) "🔇" else null, if (cl.look != "std") "🎨" else null, if (cl.fx != "none") "✨" else null).joinToString(" "), rect.left + 4 * dp, rect.bottom - 4 * dp, q) }
                 cv.restore()
                 if ((sel as? Sel.C)?.i == i) selR = rect
             }
@@ -302,6 +330,7 @@ class EditorActivity : AppCompatActivity() {
         frame = AspectRatioFrameLayout(this); frame.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
         box = FrameLayout(this); box.setBackgroundColor(Color.BLACK); box.clipChildren = true
         tv = TextureView(this); box.addView(tv, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+        mask = MaskView(this); box.addView(mask, FrameLayout.LayoutParams(-1, -1))
         veil = View(this); veil.alpha = 0f; veil.setBackgroundColor(Color.BLACK); box.addView(veil, FrameLayout.LayoutParams(-1, -1))
         stage = Stage(this, this); box.addView(stage, FrameLayout.LayoutParams(-1, -1))
         frame.addView(box, FrameLayout.LayoutParams(-1, -1))
@@ -394,12 +423,22 @@ class EditorActivity : AppCompatActivity() {
         if (hard || abs(mplayer.currentPosition * 1000 - u) > 150_000) mplayer.seekTo(u / 1000)
         if (player.isPlaying && !mplayer.isPlaying) mplayer.play()
     }
-    /* the switch effect in the preview: a quick dip to black or white at the joins */
+    /* switch effects and clip effects in the preview (the same maths as when saving) */
     private fun veilAt(u: Long) {
-        var a = 0f; var white = false; var o = 0L
-        clips.forEachIndexed { i, c -> if (i > 0 && c.trans != "none") { val d = abs(u - o); val w = if (c.trans == "flash") 150_000L else 350_000L
-            if (d < w) { val v = 1f - d.toFloat() / w; if (v > a) { a = v; white = c.trans != "black" } } }; o += c.dur }
-        veil.setBackgroundColor(if (white) Color.WHITE else Color.BLACK); veil.alpha = a
+        if (clips.isEmpty()) return
+        val (i, l) = locate(u); val c = clips[i]
+        val st = Fx.state(c.fx, if (i > 0) c.trans else "none", clips.getOrNull(i + 1)?.trans ?: "none", l, c.dur)
+        val white = st.white > st.dark; veil.setBackgroundColor(if (white) Color.WHITE else Color.BLACK); veil.alpha = maxOf(st.dark, st.white)
+        mask.st = st; mask.invalidate()
+        if (i == player.currentMediaItemIndex) { tv.scaleX = (if (c.mirror) -1f else 1f) * st.s; tv.scaleY = st.s; tv.rotation = c.rot + st.rot
+            tv.translationX = st.tx * box.width / 2; tv.translationY = -st.ty * box.height / 2 }
+    }
+    class MaskView(c: Context) : View(c) { var st: Fx.St? = null; override fun onDraw(cv: Canvas) { st?.let { Fx.drawMask(cv, it, width.toFloat(), height.toFloat()) } } }
+    private lateinit var mask: MaskView
+    fun moveClip(from: Int, to: Int) {
+        if (from < 0 || from >= clips.size) return
+        if (from != to) { val c = clips.removeAt(from); clips.add(to, c) } else undo.removeLastOrNull()
+        tl.sel = Sel.C(to); rebuild(start(to))
     }
     private fun paintOverlay(u: Long, force: Boolean = false) {
         val k = art.key(layers, u) + "#" + W + "x" + H; if (k == ovKey && !force) return; ovKey = k
@@ -426,6 +465,7 @@ class EditorActivity : AppCompatActivity() {
         val nw = (vidW * k).toInt(); val nh = (vidH * k).toInt()
         if (lp.width != nw || lp.height != nh) { lp.width = nw; lp.height = nh; lp.gravity = Gravity.CENTER; tv.layoutParams = lp }
         tv.rotation = rot.toFloat(); tv.scaleX = if (c?.mirror == true) -1f else 1f
+        veilAt(tl.time)
     }
 
     /* rebuild the player after a change, staying at the same time */
@@ -461,10 +501,10 @@ class EditorActivity : AppCompatActivity() {
     fun scaleLayer(i: Int, f: Float) { val l = layers.getOrNull(i) ?: return; l.scale = (l.scale * f).coerceIn(0.3f, 4f); paintOverlay(tl.time, true) }
     fun onAddEnd() { tl.time = maxOf(0, total() - 1); askAdd(false) }
     fun onTrans(i: Int) {
-        val c = clips[i]; val opts = listOf("none" to t("None", "Tiada"), "black" to t("Dip to black", "Gelap"), "white" to t("Dip to white", "Putih"), "flash" to t("Flash", "Kilat"))
+        val c = clips[i]; val opts = Fx.TRANS.map { it to Fx.transName(it) }
         AlertDialog.Builder(this).setTitle(t("Switch effect", "Kesan tukar"))
-            .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == c.trans }) { dl, w -> snap(); c.trans = opts[w].first; dl.dismiss(); rebuild(start(i) - 400_000) }
-            .setNeutralButton(t("Use for all", "Guna untuk semua")) { _, _ -> snap(); val v = c.trans.takeIf { it != "none" } ?: "black"; clips.forEachIndexed { k, q -> if (k > 0) q.trans = v }; rebuild(tl.time) }
+            .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == c.trans }) { dl, w -> snap(); c.trans = opts[w].first; dl.dismiss(); val at = maxOf(0, start(i) - 700_000); rebuild(at); main.postDelayed({ if (!player.isPlaying) player.play() }, 150) }
+            .setNeutralButton(t("Use for all", "Guna untuk semua")) { _, _ -> snap(); val v = c.trans.takeIf { it != "none" } ?: "fade"; clips.forEachIndexed { k, q -> if (k > 0) q.trans = v }; rebuild(tl.time) }
             .show()
     }
 
@@ -487,6 +527,7 @@ class EditorActivity : AppCompatActivity() {
         tool("T", t("Text", "Teks")) { newText() }
         tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
         tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch("image/*") }
+        tool("✨", t("Effects", "Efek")) { if (clips.isNotEmpty()) fxSheet(locate(tl.time).first) }
         tool("🎨", t("Filters", "Filter")) { if (clips.isNotEmpty()) filterSheet(locate(tl.time).first) }
         tool("☀", t("Adjust", "Laras")) { if (clips.isNotEmpty()) adjustSheet(locate(tl.time).first) }
         tool("🏷", t("Brand", "Jenama")) { brand() }
@@ -506,6 +547,7 @@ class EditorActivity : AppCompatActivity() {
         tool("✂", t("Split", "Belah")) { split() }
         tool("⏩", t("Speed", "Laju"), c.speed != 1f) { speedSheet(i) }
         tool("🔈", t("Volume", "Volum"), c.vol != 1f) { volSheet(t("Clip volume", "Volum klip"), c.vol) { v -> c.vol = v; clipLook() } }
+        tool("✨", t("Effects", "Efek"), c.fx != "none") { fxSheet(i) }
         tool("🎨", t("Filters", "Filter"), c.look != "std") { filterSheet(i) }
         tool("☀", t("Adjust", "Laras"), c.bri != 0f || c.con != 0f || c.sat != 0f) { adjustSheet(i) }
         tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
@@ -657,6 +699,14 @@ class EditorActivity : AppCompatActivity() {
         pills(s.body, t("Clip ", "Klip ") + (i + 1), Looks.ALL.map { it.id to (if (Ui.ms) it.ms else it.en) }, { c.look }) { v -> c.look = v; clipLook(); tl.invalidate() }
         s.body.addView(Ui.btn(this, t("Use for all clips", "Guna untuk semua klip")) { clips.forEach { it.look = c.look }; clipLook(); tl.invalidate(); toast("✓") }, Ui.lp(this, 12))
         s.dialog.window?.setLayout(-1, Ui.px(this, 300)); s.dialog.show()
+    }
+    private fun fxSheet(i: Int) {
+        val c = clips[i]; val s = Ui.sheet(this, t("Effects", "Efek")); snap()
+        pills(s.body, (if (c.still) t("Photo ", "Gambar ") else t("Clip ", "Klip ")) + (i + 1), Fx.EFFECTS.map { it to Fx.fxName(it) }, { c.fx }) { v -> c.fx = v; tl.invalidate(); rebuild(start(i)); main.postDelayed({ if (!player.isPlaying) player.play() }, 150) }
+        s.body.addView(Ui.btn(this, t("Use for all photos", "Guna untuk semua gambar")) { clips.forEach { if (it.still) it.fx = c.fx }; tl.invalidate(); toast("✓") }, Ui.lp(this, 12))
+        s.body.addView(Ui.btn(this, t("Use for all clips", "Guna untuk semua klip")) { clips.forEach { it.fx = c.fx }; tl.invalidate(); toast("✓") }, Ui.lp(this, 8))
+        s.body.addView(Ui.hint(this, t("Switch effects: tap the small square between two clips.", "Kesan tukar: tekan petak kecil antara dua klip.")))
+        s.dialog.window?.setLayout(-1, Ui.px(this, 360)); s.dialog.show()
     }
     private fun adjustSheet(i: Int) {
         val c = clips[i]; val s = Ui.sheet(this, t("Adjust", "Laras")); snap()
@@ -873,9 +923,14 @@ class EditorActivity : AppCompatActivity() {
             if (c.speed != 1f) fx.add(SpeedChangeEffect(c.speed))
             fx.add(Presentation.createForWidthAndHeight(W, H, Presentation.LAYOUT_SCALE_TO_FIT))
             val inT = c.trans.takeIf { i > 0 } ?: "none"; val outT = clips.getOrNull(i + 1)?.trans ?: "none"
-            if (c.filter() != "brightness(1.0) contrast(1.0) saturate(1.0)" || inT != "none" || outT != "none") { val (m, o) = Looks.matrix(c.filter()); fx.add(ColorFx(m, o, inT, outT, c.dur)) }
+            val moving = c.fx != "none" || inT != "none" || outT != "none"
+            if (moving) fx.add(MotionFx(c.fx, inT, outT, c.dur, W, H))
+            if (moving || c.filter() != "brightness(1.0) contrast(1.0) saturate(1.0)") { val (m, o) = Looks.matrix(c.filter()); fx.add(ColorFx(m, o, c.fx, inT, outT, c.dur)) }
             val base = off; val du = c.dur
-            if (lays.any { it.e > base && it.s < base + du }) fx.add(OverlayEffect(ImmutableList.of(LayerFx(art, lays, base, W, H))))
+            val ov = ArrayList<androidx.media3.effect.TextureOverlay>()
+            if (inT in listOf("wipe", "circle", "doors") || outT in listOf("wipe", "circle", "doors")) ov.add(MaskFx(c.fx, inT, outT, c.dur, W, H))
+            if (lays.any { it.e > base && it.s < base + du }) ov.add(LayerFx(art, lays, base, W, H))
+            if (ov.isNotEmpty()) fx.add(OverlayEffect(ImmutableList.copyOf(ov)))
             off += du
             val au = ArrayList<AudioProcessor>()
             if (c.speed != 1f) au.add(SpeedChangingAudioProcessor(Speed(c.speed)))
@@ -908,18 +963,35 @@ class EditorActivity : AppCompatActivity() {
         prog()
     }
 
-    /* colours of a clip, plus the switch effect at its start and end (time counted from the clip's first picture) */
-    class ColorFx(private val m: FloatArray, private val o: FloatArray, private val inT: String, private val outT: String, private val dur: Long) : RgbMatrix {
+    /* colours of a clip, plus darkening / whitening of the switch effects (time counted from the clip's first picture) */
+    class ColorFx(private val m: FloatArray, private val o: FloatArray, private val eff: String, private val inT: String, private val outT: String, private val dur: Long) : RgbMatrix {
         private var first = -1L
         override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray {
             if (first < 0) first = presentationTimeUs
-            val t = presentationTimeUs - first
-            var f = 1f; var white = false
-            fun win(k: String) = if (k == "flash") 150_000f else 350_000f
-            if (inT != "none" && t < win(inT)) { f = t / win(inT); white = inT != "black" }
-            if (outT != "none" && dur - t < win(outT)) { val g = ((dur - t) / win(outT)).coerceAtLeast(0f); if (g < f) { f = g; white = outT != "black" } }
-            val r = FloatArray(16); for (i in 0..2) { for (j in 0..2) r[j * 4 + i] = m[j * 4 + i] * f; r[12 + i] = o[i] * f + if (white) 1 - f else 0f }; r[15] = 1f
+            val st = Fx.state(eff, inT, outT, presentationTimeUs - first, dur)
+            val f = (1 - st.dark) * (1 - st.white); val w = st.white
+            val r = FloatArray(16); for (i in 0..2) { for (j in 0..2) r[j * 4 + i] = m[j * 4 + i] * f; r[12 + i] = o[i] * f + w }; r[15] = 1f
             return r
+        }
+    }
+    /* zoom / move / turn of a clip and of the slide, zoom and whip switches */
+    class MotionFx(private val eff: String, private val inT: String, private val outT: String, private val dur: Long, private val W: Int, private val H: Int) : MatrixTransformation {
+        private var first = -1L
+        override fun getMatrix(presentationTimeUs: Long): android.graphics.Matrix {
+            if (first < 0) first = presentationTimeUs
+            val st = Fx.state(eff, inT, outT, presentationTimeUs - first, dur)
+            val mm = android.graphics.Matrix(); mm.setScale(W / 2f, H / 2f); mm.postRotate(-st.rot); mm.postScale(st.s, st.s); mm.postScale(2f / W, 2f / H); mm.postTranslate(st.tx, st.ty)
+            return mm
+        }
+    }
+    /* the black shapes of the wipe, circle and doors switches */
+    class MaskFx(private val eff: String, private val inT: String, private val outT: String, private val dur: Long, private val W: Int, private val H: Int) : BitmapOverlay() {
+        private var first = -1L; private val clear = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); private var last: Bitmap = clear
+        override fun getBitmap(presentationTimeUs: Long): Bitmap {
+            if (first < 0) first = presentationTimeUs
+            val st = Fx.state(eff, inT, outT, presentationTimeUs - first, dur)
+            if (st.mask.isEmpty() || st.vis >= 1f) { last = clear; return clear }
+            val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); Fx.drawMask(Canvas(b), st, W.toFloat(), H.toFloat()); last = b; return b
         }
     }
     /* what sits on top, drawn while saving */

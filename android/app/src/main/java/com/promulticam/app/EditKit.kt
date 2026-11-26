@@ -29,9 +29,9 @@ import kotlin.math.sin
 class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) {
     var speed = 1f; var vol = 1f; var look = "std"; var bri = 0f; var con = 0f; var sat = 0f; var rot = 0; var mirror = false
     var trans = "none"   // the switch effect at the START of this clip (from the clip before)
-    var fileDur = Long.MAX_VALUE; var img = ""
+    var fileDur = Long.MAX_VALUE; var img = ""; var fx = "none"
     val dur: Long get() = ((outUs - inUs) / speed).toLong()
-    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img }
+    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx }
     fun filter(): String { val l = Looks.ALL.firstOrNull { it.id == look }?.f ?: ""; return "$l brightness(${1 + bri}) contrast(${1 + con}) saturate(${1 + sat})".trim() }
 }
 /* things on top of the video: text, sticker, photo, brand */
@@ -250,4 +250,59 @@ object Snd {
     }
     fun durUs(a: FloatArray?) = if (a == null) 0L else a.size * 1_000_000L / RATE
     @Suppress("unused") fun peak(a: FloatArray) = a.maxOfOrNull { abs(it) } ?: 0f
+}
+
+/* ---------------- switch effects between clips and moving effects on a clip (shared by preview and saving) ---------------- */
+object Fx {
+    val TRANS = listOf("none", "fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
+    val EFFECTS = listOf("none", "zoomin", "zoomout", "panl", "panr", "shake", "pulse", "sway", "blink")
+    fun transName(k: String) = when (k) { "none" -> Ui.t("None", "Tiada"); "fade" -> Ui.t("Fade", "Pudar"); "black" -> Ui.t("Dip to black", "Gelap"); "white" -> Ui.t("Dip to white", "Putih")
+        "flash" -> Ui.t("Flash", "Kilat"); "slide" -> Ui.t("Slide", "Gelongsor"); "slideup" -> Ui.t("Slide up", "Gelongsor naik"); "zoom" -> "Zoom"; "whip" -> Ui.t("Whip", "Libas")
+        "wipe" -> Ui.t("Wipe", "Sapu"); "circle" -> Ui.t("Circle", "Bulatan"); else -> Ui.t("Doors", "Pintu") }
+    fun fxName(k: String) = when (k) { "none" -> Ui.t("None", "Tiada"); "zoomin" -> Ui.t("Zoom in", "Zum masuk"); "zoomout" -> Ui.t("Zoom out", "Zum keluar"); "panl" -> Ui.t("Pan left", "Gerak kiri")
+        "panr" -> Ui.t("Pan right", "Gerak kanan"); "shake" -> Ui.t("Shake", "Gegar"); "pulse" -> Ui.t("Pulse", "Denyut"); "sway" -> Ui.t("Sway", "Hayun"); else -> Ui.t("Flash beat", "Kilat rentak") }
+    /* half of the switch time, on each side of the join */
+    fun win(k: String): Long = when (k) { "none" -> 0L; "flash", "whip" -> 150_000L; "fade", "zoom" -> 190_000L; "black" -> 240_000L; "slide", "slideup" -> 180_000L; else -> 220_000L }
+    class St { var s = 1f; var tx = 0f; var ty = 0f; var rot = 0f; var dark = 0f; var white = 0f; var mask = ""; var vis = 1f; var maskIn = true }
+    private fun ease(q: Float) = 1 - (1 - q) * (1 - q) * (1 - q)
+    /* t: time inside this clip (as played), dur: clip length; inT: effect from the clip before; outT: effect into the next clip */
+    fun state(eff: String, inT: String, outT: String, t: Long, dur: Long): St {
+        val st = St(); val sec = t / 1e6f; val p = if (dur > 0) (t.toFloat() / dur).coerceIn(0f, 1f) else 0f
+        when (eff) {
+            "zoomin" -> st.s = 1f + 0.15f * p
+            "zoomout" -> st.s = 1.15f - 0.15f * p
+            "panl" -> { st.s = 1.15f; st.tx = 0.13f - 0.26f * p }
+            "panr" -> { st.s = 1.15f; st.tx = -0.13f + 0.26f * p }
+            "shake" -> { st.s = 1.06f; st.tx = 0.02f * sin(sec * 40.0).toFloat(); st.ty = 0.02f * sin(sec * 33.0 + 1).toFloat() }
+            "pulse" -> st.s = 1f + 0.05f * (0.5f + 0.5f * sin(2 * PI * sec * 2).toFloat())
+            "sway" -> { st.s = 1.08f; st.rot = 2.5f * sin(2 * PI * sec * 0.5).toFloat() }
+            "blink" -> { val f = sec % 1f; if (f < 0.12f) st.white = 0.5f * (1 - f / 0.12f) }
+        }
+        fun apply(k: String, q0: Float, incoming: Boolean) {
+            val q = q0.coerceIn(0f, 1f); val e = ease(q); val dir = if (incoming) 1f else -1f
+            when (k) {
+                "fade", "black" -> st.dark = maxOf(st.dark, 1 - q)
+                "white", "flash" -> st.white = maxOf(st.white, 1 - q)
+                "slide" -> st.tx += dir * 2f * (1 - e)
+                "slideup" -> st.ty += -dir * 2f * (1 - e)
+                "zoom" -> { st.s *= 1 + 0.6f * (1 - q); st.dark = maxOf(st.dark, (1 - q) * 0.5f) }
+                "whip" -> { st.tx += dir * 2f * (1 - e); st.white = maxOf(st.white, (1 - q) * 0.25f) }
+                "wipe", "circle", "doors" -> { st.mask = k; st.vis = q; st.maskIn = incoming }
+            }
+        }
+        val wi = win(inT); if (wi > 0 && t < wi) apply(inT, t.toFloat() / wi, true)
+        val wo = win(outT); if (wo > 0 && dur - t < wo) apply(outT, (dur - t).toFloat() / wo, false)
+        return st
+    }
+    /* black parts of a wipe / circle / doors switch */
+    fun drawMask(c: Canvas, st: St, W: Float, H: Float) {
+        if (st.mask.isEmpty() || st.vis >= 1f) return
+        val p = Paint(); p.color = Color.BLACK; val v = st.vis
+        when (st.mask) {
+            "wipe" -> if (st.maskIn) c.drawRect(v * W, 0f, W, H, p) else c.drawRect(0f, 0f, (1 - v) * W, H, p)
+            "doors" -> { val w = (1 - v) * W / 2; c.drawRect(0f, 0f, w, H, p); c.drawRect(W - w, 0f, W, H, p) }
+            "circle" -> { val path = android.graphics.Path(); path.fillType = android.graphics.Path.FillType.EVEN_ODD
+                path.addRect(0f, 0f, W, H, android.graphics.Path.Direction.CW); path.addCircle(W / 2, H / 2, v * kotlin.math.hypot(W / 2, H / 2), android.graphics.Path.Direction.CW); c.drawPath(path, p) }
+        }
+    }
 }
