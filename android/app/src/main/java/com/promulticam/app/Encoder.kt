@@ -90,11 +90,14 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
                 } else if (n > 0 && !paused) {
                     if (baseUs < 0) baseUs = nowUs()
                     gain = agc(pcm, n, gain)
-                    val ii = aenc.dequeueInputBuffer(10_000)
-                    if (ii >= 0) {
-                        val ib = aenc.getInputBuffer(ii)!!; ib.clear(); val len = minOf(n, ib.remaining()); ib.put(pcm, 0, len)
+                    // feed ALL the sound read: the encoder's buffers can be smaller than one read
+                    var off = 0; var tries = 0
+                    while (off < n && tries < 50) {
+                        val ii = aenc.dequeueInputBuffer(10_000)
+                        if (ii < 0) { tries++; drainAudio(aenc, info); continue }
+                        val ib = aenc.getInputBuffer(ii)!!; ib.clear(); val len = minOf(n - off, ib.remaining()); ib.put(pcm, off, len)
                         aenc.queueInputBuffer(ii, 0, len, baseUs + samples * 1_000_000L / sr, 0)
-                        samples += len / 2
+                        samples += len / 2; off += len
                     }
                 }
             }
@@ -111,6 +114,18 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
         try { aenc.stop() } catch (e: Exception) {}; aenc.release()
     }
 
+    /* write out whatever the sound encoder has ready (keeps its buffers free) */
+    private fun drainAudio(aenc: MediaCodec, info: MediaCodec.BufferInfo) {
+        while (true) {
+            val o = aenc.dequeueOutputBuffer(info, 0)
+            if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) synchronized(lock) { aTrack = muxer.addTrack(aenc.outputFormat); startMuxerIfReady() }
+            else if (o >= 0) {
+                val b = aenc.getOutputBuffer(o)
+                if (b != null && info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) synchronized(lock) { if (started) muxer.writeSampleData(aTrack, b, info) }
+                aenc.releaseOutputBuffer(o, false)
+            } else break
+        }
+    }
     private var gain = 2f
     /* automatic level: lifts a quiet voice (up to 8x), never clips, leaves silence alone */
     private fun agc(b: ByteArray, n: Int, g0: Float): Float {
