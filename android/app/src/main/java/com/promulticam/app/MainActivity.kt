@@ -73,13 +73,12 @@ class MainActivity : AppCompatActivity() {
         col.addView(roles, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = Ui.px(c, 6) })
 
         // tools
-        val g = GridLayout(c); g.columnCount = 4
+        val g = GridLayout(c); g.columnCount = 3
         val tools = listOf(
             Triple(R.drawable.ic_crown, t("Plans", "Pelan")) { Nav.open(this, "pro") },
             Triple(R.drawable.ic_video, t("Videos", "Video")) { startActivity(Intent(c, VideosActivity::class.java)) },
             Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { Nav.open(this, "test") },
             Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { Nav.open(this, "support") },
-            Triple(R.drawable.ic_book, "Manual") { Nav.open(this, "manual") },
             Triple(R.drawable.ic_apk, "App APK") { Nav.open(this, "apk") },
             Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") })
         tools.forEachIndexed { i, (ic, l, f) ->
@@ -90,7 +89,7 @@ class MainActivity : AppCompatActivity() {
             tl.addView(iv, LinearLayout.LayoutParams(Ui.px(c, 22), Ui.px(c, 22)))
             val tx = Ui.center(Ui.label(c, l, 11f, if (i == 0) Ui.GOLD else Ui.TEXT, true)); tl.addView(tx, Ui.lp(c, 4))
             tl.setOnClickListener { f() }
-            val p = GridLayout.LayoutParams(GridLayout.spec(i / 4), GridLayout.spec(i % 4, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
+            val p = GridLayout.LayoutParams(GridLayout.spec(i / 3), GridLayout.spec(i % 3, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
             g.addView(tl, p)
         }
         col.addView(g, Ui.lp(c, 12))

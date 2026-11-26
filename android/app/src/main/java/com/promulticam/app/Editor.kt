@@ -129,7 +129,12 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
                 when (mode) {
                     0 -> { time = (time - dUs).coerceIn(0, maxOf(0, ed.total() - 1)); ed.onScrub(time) }
                     1, 2 -> { val c = ed.clips[(sel as Sel.C).i]; val d = (dUs * c.speed).toLong()
-                        if (mode == 1) c.inUs = (c.inUs + d).coerceIn(0, c.outUs - 200_000) else c.outUs = (c.outUs + d).coerceIn(c.inUs + 200_000, c.fileDur) }
+                        if (mode == 1) {
+                            // the front edge follows the finger: the clip gets shorter/longer at its start and the view moves with it
+                            val old = c.inUs; c.inUs = (c.inUs + d).coerceIn(0, c.outUs - 200_000)
+                            time -= ((c.inUs - old) / c.speed).toLong()
+                        } else c.outUs = (c.outUs + d).coerceIn(c.inUs + 200_000, c.fileDur)
+                        ed.trimPeek(c, if (mode == 1) c.inUs else c.outUs - 1) }
                     else -> { val tot = ed.total(); val sl = sel
                         var a: Long; var b: Long
                         if (sl is Sel.L) { a = ed.layers[sl.i].s; b = ed.layers[sl.i].e } else if (sl is Sel.S) { a = ed.sounds[sl.i].s; b = ed.sounds[sl.i].e } else return true
@@ -429,6 +434,7 @@ class EditorActivity : AppCompatActivity() {
         val tot = total(); val u = at.coerceIn(0, maxOf(0, tot - 1))
         layers.forEach { if (it.e > tot) it.e = tot; if (it.kind == "brand") it.e = tot }; layers.removeAll { it.s >= tot - 100_000 && tot > 0 }
         sounds.forEach { if (it.e > tot) it.e = tot }; sounds.removeAll { it.s >= tot - 100_000 && tot > 0 }
+        builtIn = clips.map { it.inUs }
         if (items.isEmpty()) player.clearMediaItems() else { val (i, l) = locate(u); player.setMediaItems(items, i, (l * clips[i].speed / 1000).toLong()); player.prepare() }
         when (val s = tl.sel) { is Sel.C -> if (s.i >= clips.size) tl.sel = Sel.None; is Sel.L -> if (s.i >= layers.size) tl.sel = Sel.None; is Sel.S -> if (s.i >= sounds.size) tl.sel = Sel.None; else -> {} }
         tl.time = u; tl.invalidate(); ovKey = "?"; paintOverlay(u); showTime(u); clipLook(); refreshTools(); mixLater()
@@ -437,6 +443,16 @@ class EditorActivity : AppCompatActivity() {
     private fun restore(s: Snap) { clips = ArrayList(s.c); layers = ArrayList(s.l); sounds = ArrayList(s.s); origVol = s.ov; setFormat(s.w, s.h); tl.sel = Sel.None; rebuild(tl.time) }
     private fun doUndo() { val s = undo.removeLastOrNull() ?: run { toast(t("Nothing to undo", "Tiada untuk undo")); return }; redo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); restore(s) }
     private fun doRedo() { val s = redo.removeLastOrNull() ?: return; undo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); restore(s) }
+    private var peek: Pair<Clip, Long>? = null
+    private var builtIn: List<Long> = emptyList()
+    fun trimPeek(c: Clip, mediaUs: Long) {
+        val i = clips.indexOf(c); if (i < 0) return
+        if (player.isPlaying) player.pause()
+        peek = c to mediaUs; main.removeCallbacks(peekRun); main.postDelayed(peekRun, 60)
+    }
+    private val peekRun = Runnable { val (c, m) = peek ?: return@Runnable; val i = clips.indexOf(c); if (i < 0) return@Runnable
+        // the player still has the old cut: show the edge picture from the whole file position
+        player.seekTo(i, maxOf(0L, (m - (builtIn.getOrNull(i) ?: c.inUs)) / 1000)) }
     fun onLive() { ovKey = "?"; paintOverlay(tl.time); showTime(tl.time) }
     fun onEdited() { rebuild(tl.time) }
     fun onSelect(s: Sel) { tl.sel = s; stage.sel = (s as? Sel.L)?.i ?: -1; tl.invalidate(); stage.invalidate(); refreshTools() }
@@ -475,7 +491,6 @@ class EditorActivity : AppCompatActivity() {
         tool("☀", t("Adjust", "Laras")) { if (clips.isNotEmpty()) adjustSheet(locate(tl.time).first) }
         tool("🏷", t("Brand", "Jenama")) { brand() }
         tool("⬚", t("Format", "Format")) { formatSheet() }
-        tool("🖼", t("Cover", "Kulit")) { cover() }
         tool("＋", t("Add clip", "Tambah klip")) { askAdd(false) }
     }
     private fun audioTools() {
