@@ -90,6 +90,7 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
                 } else if (n > 0 && !paused) {
                     if (baseUs < 0) baseUs = nowUs()
                     gain = agc(pcm, n, gain)
+                    val vv = vol; if (vv < 0.999f) for (i in 0 until n / 2) { val v = (pcm[2 * i].toInt() and 0xff) or (pcm[2 * i + 1].toInt() shl 8); val o = (v.toShort() * vv).toInt(); pcm[2 * i] = o.toByte(); pcm[2 * i + 1] = (o shr 8).toByte() }
                     // feed ALL the sound read: the encoder's buffers can be smaller than one read
                     var off = 0; var tries = 0
                     while (off < n && tries < 50) {
@@ -128,6 +129,7 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
     }
     private var gain = 2f
     /* automatic level: lifts a quiet voice (up to 8x), never clips, leaves silence alone */
+    @Volatile var vol = 1f   // sound level for the fade in / out of a recording
     private fun agc(b: ByteArray, n: Int, g0: Float): Float {
         val cnt = n / 2; var sum = 0.0; var peak = 1
         for (i in 0 until cnt) { val v = (b[2 * i].toInt() and 0xff) or (b[2 * i + 1].toInt() shl 8); val a = Math.abs(v.toShort().toInt()); sum += a.toDouble() * a; if (a > peak) peak = a }

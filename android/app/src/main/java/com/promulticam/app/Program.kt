@@ -211,7 +211,14 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
             plain.drawRgb(ovTex, FLIP, W, H, x, y, w, hh)
             GLES20.glDisable(GLES20.GL_BLEND)
         }
+        val dm = dim
+        if (dm > 0.002f) {   // fade of the whole picture to black (start / end of a recording)
+            GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+            fade.cm = ZERO; fade.alpha = dm.coerceAtMost(1f); fade.drawRgb(tex[cur], LookDrawer.ID, W, H, x, y, w, hh); fade.cm = LookDrawer.ID.copyOf()
+            GLES20.glDisable(GLES20.GL_BLEND)
+        }
     }
+    @Volatile var dim = 0f
 
     private fun uploadOverlay(b: Bitmap) {
         if (ovTex == 0) { val a = IntArray(1); GLES20.glGenTextures(1, a, 0); ovTex = a[0] }

@@ -458,6 +458,28 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             val pb = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("fade", "black", "cut")[j] == trans) } }
             tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(tr, Ui.lp(this, 6))
+        // fade at the start and end of each recording (also each Continue / Resume)
+        b.addView(Ui.label(this, t("Fade in / out of the recording", "Pudar awal & akhir rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val fr = Flow(this, Ui.px(this, 6)); val fbs = ArrayList<Button>()
+        val fadeRows = LinearLayout(this); fadeRows.orientation = LinearLayout.VERTICAL
+        fun fmode() = when { recFi() > 0 && recFo() > 0 -> "both"; recFi() > 0 -> "in"; recFo() > 0 -> "out"; else -> "none" }
+        val ids = listOf("none", "in", "out", "both")
+        fun secRow(label: String, key: String): View { val r = LinearLayout(this); r.gravity = Gravity.CENTER_VERTICAL
+            r.addView(Ui.label(this, label, 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
+            val cur = sp.getFloat(key, 0f).takeIf { it > 0 } ?: 1f; val vt = Ui.label(this, String.format(Locale.US, "%.1fs", cur), 13f, Ui.TEXT, true)
+            val sb = SeekBar(this); sb.max = 28; sb.progress = ((cur - 0.2f) * 10).toInt().coerceIn(0, 28); sb.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); sb.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
+            sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(x: SeekBar?, p: Int, u: Boolean) { if (!u) return; val v = 0.2f + p / 10f; vt.text = String.format(Locale.US, "%.1fs", v); if (sp.getFloat(key, 0f) > 0) sp.edit().putFloat(key, v).apply() }
+                override fun onStartTrackingTouch(x: SeekBar?) {}; override fun onStopTrackingTouch(x: SeekBar?) {} })
+            r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 48), -2)); r.tag = sb; return r }
+        val inR = secRow(t("Fade in", "Pudar masuk"), "recFi"); val outR = secRow(t("Fade out", "Pudar keluar"), "recFo")
+        fun paintF() { val m = fmode(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
+        for ((j, l) in listOf(t("None", "Tiada"), t("Start only", "Awal sahaja"), t("End only", "Akhir sahaja"), t("Start & end", "Awal & akhir")).withIndex()) {
+            val pb = Ui.pill(this, l, false) { val wantIn = ids[j] == "in" || ids[j] == "both"; val wantOut = ids[j] == "out" || ids[j] == "both"
+                fun v(r: View) = 0.2f + (r.tag as SeekBar).progress / 10f
+                sp.edit().putFloat("recFi", if (wantIn) v(inR) else 0f).putFloat("recFo", if (wantOut) v(outR) else 0f).apply(); paintF() }
+            pb.textSize = 12f; fbs.add(pb); fr.addView(pb) }
+        b.addView(fr, Ui.lp(this, 4)); fadeRows.addView(inR, Ui.lp(this, 6)); fadeRows.addView(outR, Ui.lp(this, 4)); b.addView(fadeRows); paintF()
+        b.addView(Ui.hint(this, t("Picture to black and sound, also when you Pause/Resume or Continue a video.", "Gambar ke hitam dan bunyi, juga semasa Jeda/Sambung atau Sambung video.")))
         b.addView(Ui.check(this, t("Noise filter", "Penapis bunyi"), sp.getBoolean("noise", false)) { v -> sp.edit().putBoolean("noise", v).apply() }, Ui.lp(this, 8))
         ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() }); pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
         s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
@@ -728,6 +750,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val e = Encoder(W, H, pfd.fileDescriptor, audio)
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
+        fadeIn(e)
         if (resumeFile != null && trans != "cut") { if (stillReady) prog.fadeIn() else { stillReady = false } }
         if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, sp.getString("introSub", "") ?: "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
         recStart = System.currentTimeMillis(); pausedMs = 0; pauseAt = 0; ending = false
@@ -775,18 +798,35 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     private fun togglePause() {
         val e = enc ?: return
-        if (e.paused) { if (trans != "cut") prog.fadeIn(); e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
+        if (fading) return
+        if (!e.paused && recFo() > 0 && !fadeOutDone) { fadeOut { togglePause(); prog.dim = 0f }; return }
+        if (e.paused) { if (trans != "cut") prog.fadeIn(); fadeIn(e); e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
         else { if (trans != "cut") prog.holdLast(); e.pause(); pauseAt = System.currentTimeMillis(); pauseBtn.text = "▶ " + t("Resume", "Sambung") }
+    }
+    /* fade in / out of a recording (picture to black and sound), set in Settings */
+    private fun recFi() = sp.getFloat("recFi", 0f); private fun recFo() = sp.getFloat("recFo", 0f)
+    private var fading = false; private var fadeOutDone = false
+    private fun ramp(up: Boolean, sec: Float, done: () -> Unit) {
+        val t0 = System.currentTimeMillis(); val ms = (sec * 1000).toLong().coerceAtLeast(50)
+        fun step() { val p = ((System.currentTimeMillis() - t0).toFloat() / ms).coerceIn(0f, 1f); val g = if (up) p else 1 - p
+            prog.dim = 1 - g; enc?.vol = g; if (p < 1f) main.postDelayed({ step() }, 30) else done() }
+        step()
+    }
+    private fun fadeIn(e: Encoder) { val fi = recFi(); if (fi <= 0f) { prog.dim = 0f; e.vol = 1f; return }; prog.dim = 1f; e.vol = 0f; ramp(true, fi) { } }
+    private fun fadeOut(then: () -> Unit) {
+        val fo = recFo(); val e = enc
+        if (fo <= 0f || e == null || e.paused || fadeOutDone) { fadeOutDone = false; then(); return }
+        fading = true; ramp(false, fo) { fading = false; fadeOutDone = true; then(); fadeOutDone = false }
     }
     private fun stopRec() {
         val e = enc ?: return
-        if (ending) return
+        if (ending || fading) return
         if (sp.getBoolean("outro", false)) {
             ending = true; if (e.paused) togglePause()
             prog.setOverlay(brand.card(W, H, true, sp.getString("outroTxt", "") ?: ""))
             recBtn.text = t("Closing…", "Penutup…"); recBtn.isEnabled = false
-            main.postDelayed({ finishStop(e) }, 3000)
-        } else finishStop(e)
+            main.postDelayed({ fadeOut { finishStop(e); prog.dim = 0f } }, 3000)
+        } else fadeOut { finishStop(e); prog.dim = 0f }
     }
     private fun finishStop(e: Encoder) {
         recBtn.isEnabled = false; recBtn.text = t("Saving…", "Menyimpan…")
