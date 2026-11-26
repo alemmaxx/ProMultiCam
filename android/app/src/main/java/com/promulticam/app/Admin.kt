@@ -39,7 +39,7 @@ object Notifier {
         WorkManager.getInstance(c).enqueueUniquePeriodicWork("pmc-check", ExistingPeriodicWorkPolicy.KEEP, w)
     }
     /* how many support chats wait for the admin (also used for the badge) */
-    var waiting = 0
+    var waiting = 0; var userUnread = false
     fun checkSync(c: Context) {
         Auth.init(c); if (!Auth.signedIn) return
         val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
@@ -54,7 +54,8 @@ object Notifier {
                         Intent(c, AdminActivity::class.java).putExtra("tab", 4))
                 }
             } else {
-                val d = Fs.get("supportChats/" + Auth.uid) ?: return
+                val d = Fs.get("supportChats/" + Auth.uid) ?: run { userUnread = false; return }
+                userUnread = d.b("unreadUser") && d.s("lastFrom") == "admin"
                 if (d.b("unreadUser") && d.s("lastFrom") == "admin" && d.t("lastAt") > sp.getLong("nUser", 0)) {
                     sp.edit().putLong("nUser", d.t("lastAt")).apply()
                     show(c, 2, Ui.t("Reply from ProMultiCam support", "Balasan dari sokongan ProMultiCam"), d.s("lastMsg"), Intent(c, SupportActivity::class.java))
@@ -188,15 +189,26 @@ class AdminActivity : PageActivity() {
             r.addView(br, Ui.lp(this, 6)); pc.addView(r) }
         body.addView(pc, Ui.lp(this, 12))
     }
-    private fun support(th: List<Fs.Doc>) {
-        Notifier.waiting = th.count { it.b("unreadAdmin") }
-        if (th.isEmpty()) { body.addView(Ui.label(this, t("No support messages yet.", "Belum ada mesej sokongan."), 14f, Ui.SUB)); return }
+    private var topicF = ""
+    private fun support(all: List<Fs.Doc>) {
+        Notifier.waiting = all.count { it.b("unreadAdmin") }
+        // filter by kind of issue
+        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val fr = LinearLayout(this); hs.addView(fr)
+        (listOf("" to t("All", "Semua")) + Topics.ALL.map { it to Topics.name(it) } + listOf("none" to t("No type", "Tiada jenis"))).forEach { (k, l) ->
+            val n = all.count { if (k.isEmpty()) true else if (k == "none") it.s("topic").isEmpty() else it.s("topic") == k }
+            val nn = all.count { it.b("unreadAdmin") && (if (k.isEmpty()) true else if (k == "none") it.s("topic").isEmpty() else it.s("topic") == k) }
+            if (n == 0 && k.isNotEmpty()) return@forEach
+            fr.addView(Ui.pill(this, "$l ($n)" + if (nn > 0) " ●" else "", topicF == k) { topicF = k; body.removeAllViews(); support(all) }.apply { textSize = 13f }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
+        body.addView(hs, Ui.lp(this, 2))
+        val th = all.filter { if (topicF.isEmpty()) true else if (topicF == "none") it.s("topic").isEmpty() else it.s("topic") == topicF }
+        if (th.isEmpty()) { body.addView(Ui.label(this, t("No support messages yet.", "Belum ada mesej sokongan."), 14f, Ui.SUB), Ui.lp(this, 10)); return }
         th.forEach { x -> val c = Ui.card(this)
             if (x.b("unreadAdmin")) c.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 16f), Ui.GOLD, Ui.px(this, 2))
             val top = LinearLayout(this); top.gravity = Gravity.CENTER_VERTICAL
             top.addView(Ui.label(this, x.s("email").ifEmpty { x.id }, 14f, Ui.TEXT, true).apply { maxLines = 1 }, LinearLayout.LayoutParams(0, -2, 1f))
             if (x.b("unreadAdmin")) top.addView(Ui.label(this, " ● " + t("New", "Baru") + " ", 11f, Ui.GOLD, true))
             c.addView(top)
+            if (x.s("topic").isNotEmpty()) c.addView(Ui.label(this, Topics.name(x.s("topic")), 12f, Ui.GOLD, true), Ui.lp(this, 2))
             c.addView(Ui.label(this, (if (x.s("lastFrom") == "admin") t("You: ", "Anda: ") else "") + x.s("lastMsg"), 13f, Ui.SUB).apply { maxLines = 2 }, Ui.lp(this, 4))
             if (x.t("lastAt") > 0) c.addView(Ui.label(this, dtt.format(Date(x.t("lastAt"))), 11f, Ui.SUB))
             c.setOnClickListener { startActivity(Intent(this, AdminChatActivity::class.java).putExtra("id", x.id).putExtra("email", x.s("email"))) }

@@ -35,7 +35,7 @@ service cloud.firestore {
       allow read: if isSuper() || (signedIn() && request.auth.uid == uid);
       allow create, update: if isSuper() || (signedIn() && request.auth.uid == uid
         && request.resource.data.uid == uid
-        && request.resource.data.keys().hasOnly(['uid', 'email', 'lastMsg', 'lastAt', 'lastFrom', 'unreadAdmin', 'unreadUser'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'lastMsg', 'lastAt', 'lastFrom', 'unreadAdmin', 'unreadUser', 'topic'])
         && request.resource.data.lastMsg is string && request.resource.data.lastMsg.size() <= 300);
       allow delete: if isSuper();
       match /messages/{mid} {

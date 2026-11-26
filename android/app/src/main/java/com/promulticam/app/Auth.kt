@@ -157,7 +157,7 @@ object Auth {
         }
         return out.reversed()
     }
-    fun chatSend(text: String): Boolean {
+    fun chatSend(text: String, topic: String = ""): Boolean {
         val u = uid ?: return false; val tk = tokenSync() ?: return false
         val base = "projects/$PROJECT/databases/$DB/documents"
         val id = java.util.UUID.randomUUID().toString().replace("-", "").take(20)
@@ -167,7 +167,8 @@ object Auth {
             .put("updateTransforms", org.json.JSONArray().put(JSONObject().put("fieldPath", "at").put("setToServerValue", "REQUEST_TIME")))
             .put("currentDocument", JSONObject().put("exists", false))
         val w2 = JSONObject().put("update", JSONObject().put("name", "$base/supportChats/$u").put("fields", JSONObject().put("uid", sv(u)).put("email", sv(email ?: "")).put("lastMsg", sv(text.take(300)))
-            .put("lastFrom", sv("user")).put("unreadAdmin", bv(true)).put("unreadUser", bv(false))))
+            .put("lastFrom", sv("user")).put("unreadAdmin", bv(true)).put("unreadUser", bv(false)).also { if (topic.isNotEmpty()) it.put("topic", sv(topic)) }))
+            .put("updateMask", JSONObject().put("fieldPaths", org.json.JSONArray(listOf("uid", "email", "lastMsg", "lastFrom", "unreadAdmin", "unreadUser") + (if (topic.isNotEmpty()) listOf("topic") else emptyList()))))
             .put("updateTransforms", org.json.JSONArray().put(JSONObject().put("fieldPath", "lastAt").put("setToServerValue", "REQUEST_TIME")))
         val body = JSONObject().put("writes", org.json.JSONArray().put(w1).put(w2))
         val rb = Request.Builder().url("$FS:commit").header("Authorization", "Bearer $tk").post(body.toString().toRequestBody(json))

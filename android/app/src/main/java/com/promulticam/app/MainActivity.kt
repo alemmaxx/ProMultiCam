@@ -37,11 +37,20 @@ class MainActivity : AppCompatActivity() {
     private var builtAdmin = false
     override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin(); if (Auth.isAdmin != builtAdmin) recreate() }; alive = true; checkLoop() }
     override fun onPause() { super.onPause(); alive = false }
-    private var adminTx: android.widget.TextView? = null; private var alive = false
+    private var adminBadge: android.widget.TextView? = null; private var supBadge: android.widget.TextView? = null; private var alive = false
+    private fun paintBadges() {
+        adminBadge?.let { it.text = if (Notifier.waiting > 9) "9+" else Notifier.waiting.toString(); it.visibility = if (Notifier.waiting > 0) View.VISIBLE else View.GONE }
+        supBadge?.let { it.text = "1"; it.visibility = if (Notifier.userUnread && !Auth.isAdmin) View.VISIBLE else View.GONE }
+    }
+    private fun askExit() {
+        androidx.appcompat.app.AlertDialog.Builder(this).setMessage(t("Close ProMultiCam?", "Tutup ProMultiCam?"))
+            .setPositiveButton(t("Close", "Tutup")) { _, _ -> finishAffinity() }.setNegativeButton(t("Cancel", "Batal"), null).show()
+    }
+    @Deprecated("back") override fun onBackPressed() { askExit() }
     /* new support messages: notification + count on the Super Admin button, every 30 s while open */
     private fun checkLoop() {
         if (!alive) return
-        Thread { Notifier.checkSync(this); runOnUiThread { adminTx?.text = "Super Admin" + if (Notifier.waiting > 0) " (${Notifier.waiting})" else "" } }.start()
+        Thread { Notifier.checkSync(this); runOnUiThread { paintBadges() } }.start()
         window.decorView.postDelayed({ checkLoop() }, 30_000)
     }
 
@@ -58,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         // top row: logo · language · log in
         val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
         val logo = ImageView(c); logo.setImageResource(R.drawable.ic_logo); logo.background = Ui.raised(c, 0xFF1C1B19.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE); logo.setPadding(Ui.px(c, 4), Ui.px(c, 2), Ui.px(c, 4), Ui.px(c, 6))
+        top.addView(Ui.iconBtn(c, R.drawable.ic_back) { askExit() }, LinearLayout.LayoutParams(Ui.px(c, 50), Ui.px(c, 50)).apply { rightMargin = Ui.px(c, 6) })
         top.addView(logo, LinearLayout.LayoutParams(Ui.px(c, 50), Ui.px(c, 50)))
         top.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
         val langB = Ui.btn(c, if (Ui.ms) "Bahasa Melayu ▾" else "English ▾") { Ui.setLang(c, if (Ui.ms) "en" else "ms"); recreate() }; langB.textSize = 13f
@@ -102,10 +112,15 @@ class MainActivity : AppCompatActivity() {
             val iv = ImageView(c); iv.setImageResource(ic); iv.imageTintList = ColorStateList.valueOf(if (i == 0) Ui.GOLD else Ui.SUB)
             tl.addView(iv, LinearLayout.LayoutParams(Ui.px(c, 22), Ui.px(c, 22)))
             val tx = Ui.center(Ui.label(c, l, 11f, if (i == 0) Ui.GOLD else Ui.TEXT, true)); tl.addView(tx, Ui.lp(c, 4))
-            if (l == "Super Admin") adminTx = tx
             tl.setOnClickListener { f() }
+            // red badge in the corner (new support messages)
+            val cell = FrameLayout(c); cell.addView(tl, Ui.fl(-1, -1))
+            if (ic == R.drawable.ic_chat || l == "Super Admin") { val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
+                bd.setPadding(Ui.px(c, 5), 0, Ui.px(c, 5), 0); bd.minWidth = Ui.px(c, 22); bd.visibility = View.GONE
+                cell.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END).apply { topMargin = Ui.px(c, 4); rightMargin = Ui.px(c, 6) })
+                if (l == "Super Admin") adminBadge = bd else supBadge = bd }
             val p = GridLayout.LayoutParams(GridLayout.spec(i / 3), GridLayout.spec(i % 3, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
-            g.addView(tl, p)
+            g.addView(cell, p)
         }
         col.addView(g, Ui.lp(c, 12))
         setContentView(root)

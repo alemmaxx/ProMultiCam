@@ -883,7 +883,8 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     <div class="row-between"><h3 data-i18n="support"></h3><button class="icon-btn" aria-label="Close" onclick="closeSupport()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <span class="hint" data-i18n="supportHint"></span>
     <div id="chatList" class="chat-list"></div>
-    <div style="display:flex;gap:8px;align-items:flex-end">
+    <select class="input" id="chatTopic" style="width:100%;margin:0 0 8px"></select>
+      <div style="display:flex;gap:8px;align-items:flex-end">
       <textarea class="input" id="chatInput" rows="1" maxlength="2000" data-i18n-ph="chatPh" style="flex:1;min-width:0;resize:none;max-height:120px"></textarea>
       <button class="btn btn-gold" onclick="sendChat()" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
     </div>
@@ -2602,7 +2603,9 @@ function openLegal(sec){
 }
 function closeLegal(){$('legalView').classList.remove('show');}
 let chatUnsub=null;
-function openSupport(){
+const SUP_TOPICS=[['pay','Payment & plan','Bayaran & pelan'],['account','Account & login','Akaun & log masuk'],['connect','Camera connection','Sambungan kamera'],['record','Recording & video','Rakaman & video'],['editor','Editor','Editor'],['idea','Suggestion','Cadangan'],['other','Other','Lain-lain']];
+function supTopics(){const s=$('chatTopic');if(!s)return;const keep=s.value||lsGet('pmc_supTopic','');s.innerHTML='<option value="">'+(LANG==='ms'?'Pilih jenis masalah…':'Choose the issue…')+'</option>'+SUP_TOPICS.map(x=>'<option value="'+x[0]+'">'+(LANG==='ms'?x[2]:x[1])+'</option>').join('');s.value=keep;s.onchange=()=>{try{localStorage.setItem('pmc_supTopic',s.value);}catch(e){}};}
+function openSupport(){supTopics();
   if(!window.PMC||!PMC.user){toast(t('loginNeeded2'));openAccount();return;}
   closeSheet('acctSheet');openSheet('chatSheet');
   if(chatUnsub)chatUnsub();
@@ -2618,7 +2621,8 @@ function openSupport(){
 function closeSupport(){closeSheet('chatSheet');if(chatUnsub){chatUnsub();chatUnsub=null;}}
 async function sendChat(){
   const i=$('chatInput'),v=i.value.trim();if(!v)return;i.value='';
-  try{await PMC.chatSend(v);}catch(e){i.value=v;toast(t('eGeneric'));}
+  const tp=$('chatTopic')&&$('chatTopic').value;if(!tp){i.value=v;toast(LANG==='ms'?'Pilih jenis masalah dahulu':'Choose the issue first');return;}
+  try{await PMC.chatSend(v,tp);}catch(e){i.value=v;toast(t('eGeneric'));}
 }
 let rcpts=[],rcptCur=null;
 async function loadReceipts(){

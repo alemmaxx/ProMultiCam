@@ -233,8 +233,10 @@ function startSupport(){
   unsubs.push(F.onSnapshot(F.query(F.collection(db,'supportChats'),F.orderBy('lastAt','desc'),F.limit(300)),s=>{
     threads=s.docs.map(d=>({id:d.id,...d.data()}));const n=threads.filter(x=>x.unreadAdmin).length;$('supCount').textContent=n?'('+n+')':'';renderThreads();}));
 }
+const TOPIC={pay:'Bayaran & pelan',account:'Akaun & log masuk',connect:'Sambungan kamera',record:'Rakaman & video',editor:'Editor',idea:'Cadangan',other:'Lain-lain'};let thTopic='';
 function renderThreads(){
-  $('thList').innerHTML=threads.map(x=>`<button class="th${thCur===x.id?' on':''}" data-id="${esc(x.id)}"><b><span>${esc(x.email||x.id)}</span>${x.unreadAdmin?'<i class="nd"></i>':''}</b><span>${x.lastFrom==='admin'?'Anda: ':''}${esc(x.lastMsg||'')}</span><span>${x.lastAt?.toMillis?new Date(x.lastAt.toMillis()).toLocaleString('ms-MY'):''}</span></button>`).join('')||'<span class="muted">Belum ada mesej sokongan.</span>';
+  if(!$('thFilter')){const f=document.createElement('select');f.id='thFilter';f.className='input';f.style.margin='0 0 8px';f.innerHTML='<option value="">Semua jenis</option>'+Object.entries(TOPIC).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')+'<option value="none">Tiada jenis</option>';f.onchange=()=>{thTopic=f.value;renderThreads();};$('thList').parentElement.insertBefore(f,$('thList'));}
+  $('thList').innerHTML=threads.filter(x=>!thTopic||(thTopic==='none'?!x.topic:x.topic===thTopic)).map(x=>`<button class="th${thCur===x.id?' on':''}" data-id="${esc(x.id)}"><b><span>${esc(x.email||x.id)}</span>${x.unreadAdmin?'<i class="nd"></i>':''}</b>${x.topic?`<span style="color:var(--gold)">${esc(TOPIC[x.topic]||x.topic)}</span>`:''}<span>${x.lastFrom==='admin'?'Anda: ':''}${esc(x.lastMsg||'')}</span><span>${x.lastAt?.toMillis?new Date(x.lastAt.toMillis()).toLocaleString('ms-MY'):''}</span></button>`).join('')||'<span class="muted">Belum ada mesej sokongan.</span>';
 }
 $('thList').onclick=e=>{const b=e.target.closest('.th');if(b)openThread(b.dataset.id);};
 function openThread(id){

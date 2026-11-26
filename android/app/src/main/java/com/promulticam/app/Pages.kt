@@ -172,13 +172,21 @@ class SupportActivity : PageActivity() {
     private var lastN = -1
     override fun build() {
         list = body
+        // the kind of issue, so support can sort messages
+        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); var topic = sp.getString("supTopic", "") ?: ""
+        root.addView(Ui.label(this, t("Issue", "Jenis masalah"), 12f, Ui.SUB, true), Ui.lp(this, 6))
+        val ths = android.widget.HorizontalScrollView(this); ths.isHorizontalScrollBarEnabled = false; val tr = LinearLayout(this); ths.addView(tr); val tbs = ArrayList<android.widget.Button>()
+        Topics.ALL.forEach { k -> val b = Ui.pill(this, Topics.name(k), topic == k) { topic = k; sp.edit().putString("supTopic", k).apply(); tbs.forEachIndexed { j, q -> Ui.setPill(this, q, Topics.ALL[j] == topic) } }
+            b.textSize = 13f; tbs.add(b); tr.addView(b, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
+        root.addView(ths, Ui.lp(this, 4))
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL
         val inp = Ui.input(this, t("Type a message…", "Taip mesej…")); inp.maxLines = 4
         row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(Ui.btn(this, t("Send", "Hantar"), true) {
             val v = inp.text.toString().trim().take(2000); if (v.isEmpty()) return@btn
+            if (topic.isEmpty()) { toast(t("Choose the issue first", "Pilih jenis masalah dahulu")); return@btn }
             inp.setText("")
-            Thread { val ok = try { Auth.chatSend(v) } catch (e: Exception) { false }; main.post { if (!ok) { inp.setText(v); toast(t("Not sent. Try again.", "Tidak dihantar. Cuba lagi.")) } else poll(false) } }.start()
+            Thread { val ok = try { Auth.chatSend(v, topic) } catch (e: Exception) { false }; main.post { if (!ok) { inp.setText(v); toast(t("Not sent. Try again.", "Tidak dihantar. Cuba lagi.")) } else poll(false) } }.start()
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
         root.addView(row, Ui.lp(this, 6))
         poll(true)

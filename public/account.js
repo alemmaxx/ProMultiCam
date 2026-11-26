@@ -42,11 +42,12 @@ try {
       const q = F.query(F.collection(db, `supportChats/${u.uid}/messages`), F.orderBy('at', 'asc'), F.limitToLast(200));
       return F.onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().at?.toMillis?.() || Date.now() }))), () => cb([]));
     },
-    chatSend: async (text) => {
+    chatSend: async (text, topic) => {
       const u = auth.currentUser; if (!u) throw new Error('auth');
       text = String(text || '').trim().slice(0, 2000); if (!text) return;
       await F.addDoc(F.collection(db, `supportChats/${u.uid}/messages`), { from: 'user', text, at: F.serverTimestamp() });
-      await F.setDoc(F.doc(db, `supportChats/${u.uid}`), { uid: u.uid, email: u.email || '', lastMsg: text.slice(0, 300), lastAt: F.serverTimestamp(), lastFrom: 'user', unreadAdmin: true, unreadUser: false });
+      const d = { uid: u.uid, email: u.email || '', lastMsg: text.slice(0, 300), lastAt: F.serverTimestamp(), lastFrom: 'user', unreadAdmin: true, unreadUser: false }; if (topic) d.topic = String(topic).slice(0, 20);
+      await F.setDoc(F.doc(db, `supportChats/${u.uid}`), d, { merge: true });
     },
     chatMarkRead: async () => {
       const u = auth.currentUser; if (!u) return;
