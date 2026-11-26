@@ -8,7 +8,7 @@ val ksFile = System.getenv("PMC_KEYSTORE")?.let { file(it) } ?: file("../pmc-tes
 
 android {
     namespace = "com.promulticam.app"
-    compileSdk = 34
+    compileSdk = 35
     defaultConfig {
         applicationId = "com.promulticam.app"
         minSdk = 26
@@ -53,7 +53,7 @@ dependencies {
     implementation("io.getstream:stream-webrtc-android:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.zxing:core:3.5.3")
-    val media3 = "1.4.1"
+    val media3 = "1.5.1"
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-transformer:$media3")
     implementation("androidx.media3:media3-effect:$media3")
