@@ -41,7 +41,8 @@ class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) 
 class Layer(var kind: String, var s: Long, var e: Long) {
     var text = ""; var font = "bricolage"; var col = "white"; var style = "boxword"; var anim = "pop"
     var x = 0.5f; var y = 0.78f; var scale = 1f; var file = ""
-    fun copy() = Layer(kind, s, e).also { it.text = text; it.font = font; it.col = col; it.style = style; it.anim = anim; it.x = x; it.y = y; it.scale = scale; it.file = file }
+    var ar = 0.5625f; var vin = 0L; var vdur = 0L   // video over video: width/height, start inside the file, file length
+    fun copy() = Layer(kind, s, e).also { it.text = text; it.font = font; it.col = col; it.style = style; it.anim = anim; it.x = x; it.y = y; it.scale = scale; it.file = file; it.ar = ar; it.vin = vin; it.vdur = vdur }
 }
 /* extra sound: music, sound effect, AI voice */
 class Sound(var kind: String, var s: Long, var e: Long) {
@@ -62,6 +63,7 @@ class TextArt(private val c: Context) {
         fun ink(col: Int): Int { val r = Color.red(col); val g = Color.green(col); val b = Color.blue(col); return if ((r * 299 + g * 587 + b * 114) / 1000 > 150) 0xFF111111.toInt() else Color.WHITE }
     }
     private val photos = HashMap<String, Bitmap?>()
+    var pipFrame = false   // thin white border around a video-over-video
     private var brandBmp: Bitmap? = null; private var brandKey = ""
     private fun photo(f: String): Bitmap? = photos.getOrPut(f) { try { val o = BitmapFactory.Options(); o.inSampleSize = 1; BitmapFactory.decodeFile(f, o) } catch (e: Exception) { null } }
 
@@ -103,6 +105,9 @@ class TextArt(private val c: Context) {
         cv.save(); cv.translate(cx, cy); cv.scale(sc, sc)
         val sa = cv.saveLayerAlpha(null, (alpha * 255).toInt())
         val r: RectF = when (l.kind) {
+            "pip" -> { val w = m * 0.42f * l.scale; val h = w / l.ar; val rr = RectF(-w / 2, -h / 2, w / 2, h / 2)
+                if (pipFrame) { val pf = Paint(Paint.ANTI_ALIAS_FLAG); pf.style = Paint.Style.STROKE; pf.strokeWidth = m * 0.006f; pf.color = Color.WHITE; cv.drawRoundRect(rr, m * 0.02f, m * 0.02f, pf) }
+                rr }
             "photo" -> { val bm = photo(l.file); if (bm == null) RectF() else {
                 val w = m * 0.42f * l.scale; val h = w * bm.height / bm.width
                 val rr = RectF(-w / 2, -h / 2, w / 2, h / 2)

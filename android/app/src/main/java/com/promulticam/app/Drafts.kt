@@ -26,7 +26,7 @@ object Drafts {
             .put("look", k.look).put("bri", k.bri.toDouble()).put("con", k.con.toDouble()).put("sat", k.sat.toDouble()).put("rot", k.rot).put("mirror", k.mirror).put("trans", k.trans)
             .put("fileDur", k.fileDur).put("img", k.img).put("fx", k.fx).put("fi", k.fi.toDouble()).put("fo", k.fo.toDouble()).put("fadeVid", k.fadeVid) }))
         j.put("layers", JSONArray(layers.map { l -> JSONObject().put("kind", l.kind).put("s", l.s).put("e", l.e).put("text", l.text).put("font", l.font).put("col", l.col).put("style", l.style)
-            .put("anim", l.anim).put("x", l.x.toDouble()).put("y", l.y.toDouble()).put("scale", l.scale.toDouble()).put("file", l.file) }))
+            .put("anim", l.anim).put("x", l.x.toDouble()).put("y", l.y.toDouble()).put("scale", l.scale.toDouble()).put("file", l.file).put("ar", l.ar.toDouble()).put("vin", l.vin).put("vdur", l.vdur) }))
         j.put("sounds", JSONArray(sounds.map { s -> JSONObject().put("kind", s.kind).put("s", s.s).put("e", s.e).put("file", s.file).put("sfx", s.sfx).put("vol", s.vol.toDouble())
             .put("text", s.text).put("fade", s.fade).put("fi", s.fi.toDouble()).put("fo", s.fo.toDouble()) }))
         val f = file(c, id); val tmp = File(f.parentFile, "$id.tmp"); tmp.writeText(j.toString()); tmp.renameTo(f)
@@ -41,7 +41,7 @@ object Drafts {
                 k.fileDur = o.optLong("fileDur", Long.MAX_VALUE); k.img = o.optString("img"); k.fx = o.optString("fx", "none"); k.fi = o.optDouble("fi", 0.0).toFloat(); k.fo = o.optDouble("fo", 0.0).toFloat(); k.fadeVid = o.optBoolean("fadeVid", true) }) }
         val layers = ArrayList<Layer>(); val b = j.optJSONArray("layers") ?: JSONArray()
         for (i in 0 until b.length()) { val o = b.getJSONObject(i); layers.add(Layer(o.getString("kind"), o.getLong("s"), o.getLong("e")).also { l -> l.text = o.optString("text"); l.font = o.optString("font", "bricolage"); l.col = o.optString("col", "white")
-            l.style = o.optString("style", "boxword"); l.anim = o.optString("anim", "none"); l.x = o.optDouble("x", 0.5).toFloat(); l.y = o.optDouble("y", 0.78).toFloat(); l.scale = o.optDouble("scale", 1.0).toFloat(); l.file = o.optString("file") }) }
+            l.style = o.optString("style", "boxword"); l.anim = o.optString("anim", "none"); l.x = o.optDouble("x", 0.5).toFloat(); l.y = o.optDouble("y", 0.78).toFloat(); l.scale = o.optDouble("scale", 1.0).toFloat(); l.file = o.optString("file"); l.ar = o.optDouble("ar", 0.5625).toFloat(); l.vin = o.optLong("vin"); l.vdur = o.optLong("vdur") }) }
         val sounds = ArrayList<Sound>(); val d = j.optJSONArray("sounds") ?: JSONArray()
         for (i in 0 until d.length()) { val o = d.getJSONObject(i); val s = Sound(o.getString("kind"), o.getLong("s"), o.getLong("e")).also { s -> s.file = o.optString("file"); s.sfx = o.optString("sfx", "ding"); s.vol = o.optDouble("vol", 1.0).toFloat()
             s.text = o.optString("text"); s.fade = o.optBoolean("fade", true); s.fi = o.optDouble("fi", 0.5).toFloat(); s.fo = o.optDouble("fo", 0.5).toFloat() }
