@@ -167,65 +167,57 @@ class PlansActivity : PageActivity() {
 /* ---------------- Support chat (same chat as the web) ---------------- */
 class SupportActivity : PageActivity() {
     override val title0 get() = t("Support", "Sokongan")
-    private lateinit var list: LinearLayout
     private var alive = true
     private var lastN = -1
+    private var pending: String? = null
+    private lateinit var inp: android.widget.EditText
+    private var topic = ""
+    private val pick = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { u -> if (u != null) attach(u) }
     override fun build() {
-        list = body
         // the kind of issue, so support can sort messages
-        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); var topic = sp.getString("supTopic", "") ?: ""
-        root.addView(Ui.label(this, t("Issue", "Jenis masalah"), 12f, Ui.SUB, true), Ui.lp(this, 6))
-        val ths = android.widget.HorizontalScrollView(this); ths.isHorizontalScrollBarEnabled = false; val tr = LinearLayout(this); ths.addView(tr); val tbs = ArrayList<android.widget.Button>()
-        Topics.ALL.forEach { k -> val b = Ui.pill(this, Topics.name(k), topic == k) { topic = k; sp.edit().putString("supTopic", k).apply(); tbs.forEachIndexed { j, q -> Ui.setPill(this, q, Topics.ALL[j] == topic) } }
-            b.textSize = 13f; tbs.add(b); tr.addView(b, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
-        root.addView(ths, Ui.lp(this, 4))
+        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); topic = sp.getString("supTopic", "") ?: ""
         val ban = Ui.label(this, "", 14f, Ui.GOLD, true); ban.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 12f), Ui.GOLD, 1); ban.setPadding(d, d * 2 / 3, d, d * 2 / 3)
         root.addView(ban, 1, Ui.lp(this, 6))
         fun banner() { ban.text = t("Issue: ", "Jenis masalah: ") + if (topic.isEmpty()) t("choose below", "pilih di bawah") else Topics.name(topic) }
         banner()
-        tbs.forEachIndexed { j, b -> b.setOnClickListener { topic = Topics.ALL[j]; sp.edit().putString("supTopic", topic).apply(); tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() } }
+        root.addView(Ui.label(this, t("Issue", "Jenis masalah"), 12f, Ui.SUB, true), Ui.lp(this, 6))
+        val fl = Flow(this, Ui.px(this, 6)); val tbs = ArrayList<android.widget.Button>()
+        Topics.ALL.forEachIndexed { j, k -> val b = Ui.pill(this, Topics.name(k), topic == k) { topic = Topics.ALL[j]; sp.edit().putString("supTopic", topic).apply(); tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() }
+            b.textSize = 12f; tbs.add(b); fl.addView(b) }
+        root.addView(fl, Ui.lp(this, 4))
         // the issue already saved on this conversation wins
-        Thread { val k = try { Fs.get("supportChats/" + Auth.uid)?.s("topic") ?: "" } catch (e: Exception) { "" }
-            if (k.isNotEmpty()) main.post { topic = k; tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() } }.start()
+        bg { val k = Fs.get("supportChats/" + Auth.uid)?.s("topic") ?: ""
+            if (k.isNotEmpty()) main.post { topic = k; tbs.forEachIndexed { jj, q -> Ui.setPill(this, q, Topics.ALL[jj] == topic) }; banner() } }
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL
-        val inp = Ui.input(this, t("Type a message…", "Taip mesej…")); inp.maxLines = 4
+        row.addView(Ui.btn(this, "📎") { pick.launch("image/*") }, LinearLayout.LayoutParams(Ui.px(this, 52), -2).apply { rightMargin = d / 2 })
+        inp = Ui.input(this, t("Type a message…", "Taip mesej…")); inp.maxLines = 4
         row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(Ui.btn(this, t("Send", "Hantar"), true) {
-            val v = inp.text.toString().trim().take(2000); if (v.isEmpty()) return@btn
-            if (topic.isEmpty()) { toast(t("Choose the issue first", "Pilih jenis masalah dahulu")); return@btn }
-            inp.setText("")
-            Thread { val ok = try { Auth.chatSend(v, topic) } catch (e: Exception) { false }; main.post { if (!ok) { inp.setText(v); toast(t("Not sent. Try again.", "Tidak dihantar. Cuba lagi.")) } else poll(false) } }.start()
-        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
+        row.addView(Ui.btn(this, t("Send", "Hantar"), true) { send(inp.text.toString().trim().take(2000), null) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
         root.addView(row, Ui.lp(this, 6))
         poll(true)
         Thread { try { Fs.write("supportChats/" + Auth.uid, mapOf("uid" to Auth.uid, "unreadUser" to false)) } catch (e: Exception) {} }.start()
     }
+    private fun send(v: String, img: String?) {
+        if (v.isEmpty() && img == null) return
+        if (topic.isEmpty()) { toast(t("Choose the issue first", "Pilih jenis masalah dahulu")); return }
+        inp.setText("")
+        bg { val ok = Chat.send(Auth.uid ?: "", "user", v, img, topic); main.post { if (!ok) { inp.setText(v); toast(t("Not sent. Try again.", "Tidak dihantar. Cuba lagi.")) } else poll(false) } }
+    }
+    /* proof photo: preview, optional note, send */
+    private fun attach(u: android.net.Uri) {
+        if (topic.isEmpty()) { toast(t("Choose the issue first", "Pilih jenis masalah dahulu")); return }
+        bg { val b = Chat.photo(this, u); main.post {
+            if (b == null) { toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")); return@post }
+            val note = Ui.input(this, t("Note (optional)", "Nota (pilihan)"), inp.text.toString())
+            androidx.appcompat.app.AlertDialog.Builder(this).setTitle(t("Send this photo?", "Hantar gambar ini?")).setView(LinearLayout(this).apply { setPadding(d * 2, d, d * 2, 0); addView(note, LinearLayout.LayoutParams(-1, -2)) })
+                .setPositiveButton(t("Send", "Hantar")) { _, _ -> send(note.text.toString().trim().take(2000), b) }.setNegativeButton(t("Cancel", "Batal"), null).show() } }
+    }
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun poll(again: Boolean) {
-        Thread {
-            val l = try { Auth.chatList() } catch (e: Exception) { null }
-            main.post {
-                if (!alive) return@post
-                if (l != null && l.size != lastN) { lastN = l.size; show(l) }
-                if (again) main.postDelayed({ if (alive) poll(true) }, 5000)
-            }
-        }.start()
-    }
-    private fun show(l: List<Triple<String, String, Long>>) {
-        list.removeAllViews()
-        val fmt = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
-        if (l.isEmpty()) bubble(false, t("Hi! How can we help you with ProMultiCam?", "Hai! Apa yang boleh kami bantu tentang ProMultiCam?"), "")
-        l.forEach { (from, text, at) -> bubble(from == "user", text, (if (from == "admin") "ProMultiCam · " else "") + if (at > 0) fmt.format(Date(at)) else "") }
-        (list.parent as? ScrollView)?.post { (list.parent as ScrollView).fullScroll(View.FOCUS_DOWN) }
-    }
-    private fun bubble(me: Boolean, text: String, sub: String) {
-        val b = LinearLayout(this); b.orientation = LinearLayout.VERTICAL; b.setPadding(d, d * 3 / 4, d, d * 3 / 4)
-        b.background = Ui.round(if (me) 0xFF262117.toInt() else Ui.CARD2, Ui.dp(this, 14f), if (me) Ui.GOLD else Ui.LINE, 1)
-        b.addView(Ui.label(this, text, 15f, Ui.TEXT).apply { setTextIsSelectable(true) })
-        if (sub.isNotEmpty()) b.addView(Ui.label(this, sub, 11f, Ui.SUB))
-        val wrap = LinearLayout(this); wrap.gravity = if (me) Gravity.END else Gravity.START
-        wrap.addView(b, LinearLayout.LayoutParams(-2, -2).apply { if (me) leftMargin = d * 4 else rightMargin = d * 4 })
-        list.addView(wrap, Ui.lp(this, 8))
+        bg { val l = Fs.list("messages", "at", desc = false, limit = 300, parent = "supportChats/" + Auth.uid)
+            main.post { if (!alive) return@post
+                if (l.size != lastN) { lastN = l.size; Chat.show(this, body, l, "user", t("Hi! How can we help you with ProMultiCam?", "Hai! Apa yang boleh kami bantu tentang ProMultiCam?")) }
+                if (again) main.postDelayed({ if (alive) poll(true) }, 5000) } }
     }
 }
 

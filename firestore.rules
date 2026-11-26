@@ -40,9 +40,11 @@ service cloud.firestore {
       allow delete: if isSuper();
       match /messages/{mid} {
         allow read: if isSuper() || (signedIn() && request.auth.uid == uid);
-        allow create: if request.resource.data.text is string
-          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
-          && request.resource.data.keys().hasOnly(['from', 'text', 'at'])
+        // text, and optionally one picture (proof) as a small JPEG in base64
+        allow create: if request.resource.data.text is string && request.resource.data.text.size() <= 2000
+          && (request.resource.data.text.size() > 0 || request.resource.data.get('img', '') != '')
+          && (!('img' in request.resource.data) || (request.resource.data.img is string && request.resource.data.img.size() <= 700000))
+          && request.resource.data.keys().hasOnly(['from', 'text', 'at', 'img'])
           && ((isSuper() && request.resource.data.from == 'admin')
               || (signedIn() && request.auth.uid == uid && request.resource.data.from == 'user'));
         allow update: if false;

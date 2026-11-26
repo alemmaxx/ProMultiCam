@@ -96,10 +96,10 @@ class AdminActivity : PageActivity() {
     private fun day(ms: Long) = if (ms > 0) dt.format(Date(ms)) else "—"
     override fun build() {
         if (!Auth.isAdmin) { body.addView(Ui.label(this, t("Super Admin only.", "Untuk Super Admin sahaja."), 15f)); return }
-        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val r = LinearLayout(this); hs.addView(r)
+        val r = Flow(this, Ui.px(this, 6))
         tabs = listOf(t("Summary", "Ringkasan"), t("Customers", "Pelanggan"), t("Payments", "Bayaran"), t("Prices & promo", "Harga & Promo"), t("Support", "Sokongan")).mapIndexed { i, s ->
-            Ui.pill(this, s, i == 0) { show(i) }.also { r.addView(it, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) } }
-        root.addView(hs, 1, Ui.lp(this, 8))
+            Ui.pill(this, s, i == 0) { show(i) }.also { it.textSize = 13f; r.addView(it) } }
+        root.addView(r, 1, Ui.lp(this, 8))
         show(intent.getIntExtra("tab", 0))
     }
     override fun onResume() { super.onResume(); if (::tabs.isInitialized && tab == 4) show(4) }
@@ -205,13 +205,13 @@ class AdminActivity : PageActivity() {
     private fun support(all: List<Fs.Doc>) {
         Notifier.waiting = all.count { it.b("unreadAdmin") }
         // filter by kind of issue
-        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val fr = LinearLayout(this); hs.addView(fr)
+        val fr = Flow(this, Ui.px(this, 6))
         (listOf("" to t("All", "Semua")) + Topics.ALL.map { it to Topics.name(it) } + listOf("none" to t("No type", "Tiada jenis"))).forEach { (k, l) ->
             val n = all.count { if (k.isEmpty()) true else if (k == "none") it.s("topic").isEmpty() else it.s("topic") == k }
             val nn = all.count { it.b("unreadAdmin") && (if (k.isEmpty()) true else if (k == "none") it.s("topic").isEmpty() else it.s("topic") == k) }
             if (n == 0 && k.isNotEmpty()) return@forEach
-            fr.addView(Ui.pill(this, "$l ($n)" + if (nn > 0) " ●" else "", topicF == k) { topicF = k; body.removeAllViews(); support(all) }.apply { textSize = 13f }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
-        body.addView(hs, Ui.lp(this, 2))
+            fr.addView(Ui.pill(this, "$l ($n)" + if (nn > 0) " ●" else "", topicF == k) { topicF = k; body.removeAllViews(); support(all) }.apply { textSize = 12f }) }
+        body.addView(fr, Ui.lp(this, 2))
         val th = all.filter { if (topicF.isEmpty()) true else if (topicF == "none") it.s("topic").isEmpty() else it.s("topic") == topicF }
         if (th.isEmpty()) { body.addView(Ui.label(this, t("No support messages yet.", "Belum ada mesej sokongan."), 14f, Ui.SUB), Ui.lp(this, 10)); return }
         th.forEach { x -> val c = Ui.card(this)
@@ -233,22 +233,13 @@ class AdminChatActivity : PageActivity() {
     override val title0 get() = intent.getStringExtra("email")?.ifEmpty { null } ?: t("Support", "Sokongan")
     private val id get() = intent.getStringExtra("id") ?: ""
     private var alive = true; private var lastN = -1
+    private lateinit var inp: android.widget.EditText
+    private val pick = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { u -> if (u != null) bg { val b = Chat.photo(this, u); main.post { if (b != null) send(inp.text.toString().trim(), b) else toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")) } } }
     override fun build() {
         val row = LinearLayout(this); row.gravity = Gravity.CENTER_VERTICAL
-        val inp = Ui.input(this, t("Reply…", "Balas…")); inp.maxLines = 4; row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(Ui.btn(this, t("Send", "Hantar"), true) {
-            val v = inp.text.toString().trim().take(2000); if (v.isEmpty()) return@btn; inp.setText("")
-            bg { val ok = Fs.commit(listOf(
-                    org.json.JSONObject().put("update", org.json.JSONObject().put("name", "projects/kukusanmy/databases/promulticam/documents/supportChats/$id/messages/" + Fs.newId())
-                        .put("fields", org.json.JSONObject().put("from", Fs.enc("admin")).put("text", Fs.enc(v))))
-                        .put("updateTransforms", org.json.JSONArray().put(org.json.JSONObject().put("fieldPath", "at").put("setToServerValue", "REQUEST_TIME")))
-                        .put("currentDocument", org.json.JSONObject().put("exists", false)),
-                    org.json.JSONObject().put("update", org.json.JSONObject().put("name", "projects/kukusanmy/databases/promulticam/documents/supportChats/$id")
-                        .put("fields", org.json.JSONObject().put("lastMsg", Fs.enc(v.take(300))).put("lastFrom", Fs.enc("admin")).put("unreadUser", Fs.enc(true)).put("unreadAdmin", Fs.enc(false))))
-                        .put("updateMask", org.json.JSONObject().put("fieldPaths", org.json.JSONArray(listOf("lastMsg", "lastFrom", "unreadUser", "unreadAdmin"))))
-                        .put("updateTransforms", org.json.JSONArray().put(org.json.JSONObject().put("fieldPath", "lastAt").put("setToServerValue", "REQUEST_TIME")))))
-                main.post { if (!ok) { inp.setText(v); toast(t("Not sent", "Tidak dihantar")) } else poll(false) } }
-        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
+        row.addView(Ui.btn(this, "📎") { pick.launch("image/*") }, LinearLayout.LayoutParams(Ui.px(this, 52), -2).apply { rightMargin = d / 2 })
+        inp = Ui.input(this, t("Reply…", "Balas…")); inp.maxLines = 4; row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(Ui.btn(this, t("Send", "Hantar"), true) { send(inp.text.toString().trim().take(2000), null) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
         root.addView(row, Ui.lp(this, 6))
         val ban = Ui.label(this, Ui.t("Issue: …", "Jenis masalah: …"), 14f, Ui.GOLD, true); ban.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 12f), Ui.GOLD, 1); ban.setPadding(d, d * 2 / 3, d, d * 2 / 3)
         root.addView(ban, 1, Ui.lp(this, 6))
@@ -256,19 +247,16 @@ class AdminChatActivity : PageActivity() {
         bg { Fs.write("supportChats/$id", mapOf("unreadAdmin" to false)) }
         poll(true)
     }
+    private fun send(v: String, img: String?) {
+        if (v.isEmpty() && img == null) return
+        inp.setText("")
+        bg { val ok = Chat.send(id, "admin", v, img); main.post { if (!ok) { inp.setText(v); toast(t("Not sent", "Tidak dihantar")) } else poll(false) } }
+    }
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun poll(again: Boolean) {
         bg { val l = Fs.list("messages", "at", desc = false, limit = 300, parent = "supportChats/$id")
             main.post { if (!alive) return@post
-                if (l.size != lastN) { lastN = l.size; body.removeAllViews(); val f = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
-                    l.forEach { m -> val me = m.s("from") == "admin"
-                        val b = LinearLayout(this); b.orientation = LinearLayout.VERTICAL; b.setPadding(d, d * 3 / 4, d, d * 3 / 4)
-                        b.background = Ui.round(if (me) 0xFF262117.toInt() else Ui.CARD2, Ui.dp(this, 14f), if (me) Ui.GOLD else Ui.LINE, 1)
-                        b.addView(Ui.label(this, m.s("text"), 15f, Ui.TEXT).apply { setTextIsSelectable(true) })
-                        if (m.t("at") > 0) b.addView(Ui.label(this, f.format(Date(m.t("at"))), 11f, Ui.SUB))
-                        val w = LinearLayout(this); w.gravity = if (me) Gravity.END else Gravity.START
-                        w.addView(b, LinearLayout.LayoutParams(-2, -2).apply { if (me) leftMargin = d * 4 else rightMargin = d * 4 }); body.addView(w, Ui.lp(this, 8)) }
-                    (body.parent as? ScrollView)?.post { (body.parent as ScrollView).fullScroll(View.FOCUS_DOWN) } }
+                if (l.size != lastN) { lastN = l.size; Chat.show(this, body, l, "admin", null) }
                 if (again) main.postDelayed({ if (alive) poll(true) }, 5000) } }
     }
 }
