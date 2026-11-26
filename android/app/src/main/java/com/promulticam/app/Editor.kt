@@ -341,7 +341,7 @@ class EditorActivity : AppCompatActivity() {
         frame = AspectRatioFrameLayout(this); frame.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
         box = FrameLayout(this); box.setBackgroundColor(Color.BLACK); box.clipChildren = true
         tv = TextureView(this); box.addView(tv, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
-        pipTv = TextureView(this); pipTv.visibility = View.INVISIBLE; box.addView(pipTv, FrameLayout.LayoutParams(10, 10))
+        repeat(PIPS) { val v = TextureView(this); v.visibility = View.INVISIBLE; box.addView(v, FrameLayout.LayoutParams(10, 10)); pipTvs.add(v) }
         mask = MaskView(this); box.addView(mask, FrameLayout.LayoutParams(-1, -1))
         veil = View(this); veil.alpha = 0f; veil.setBackgroundColor(Color.BLACK); box.addView(veil, FrameLayout.LayoutParams(-1, -1))
         stage = Stage(this, this); box.addView(stage, FrameLayout.LayoutParams(-1, -1))
@@ -364,7 +364,7 @@ class EditorActivity : AppCompatActivity() {
 
         player = ExoPlayer.Builder(this).build(); player.setVideoTextureView(tv)
         mplayer = ExoPlayer.Builder(this).build()
-        pplayer = ExoPlayer.Builder(this).build(); pplayer.setVideoTextureView(pipTv); pplayer.volume = 0f; art.pipFrame = true
+        pipTvs.forEach { v -> val pp = ExoPlayer.Builder(this).build(); pp.setVideoTextureView(v); pp.volume = 0f; pplayers.add(pp) }; art.pipFrame = true
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(p: Boolean) { playBtn.text = if (p) "‖" else "▶"; if (p) loop() else mplayer.pause() }
             override fun onPlaybackStateChanged(s: Int) { if (s == Player.STATE_ENDED) { player.pause(); seekTo(0); tl.time = 0; tl.invalidate() } }
@@ -388,7 +388,7 @@ class EditorActivity : AppCompatActivity() {
         else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ askAdd(true) }, 300) }
         mainTools()
     }
-    override fun onDestroy() { player.release(); mplayer.release(); pplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
+    override fun onDestroy() { player.release(); mplayer.release(); pplayers.forEach { it.release() }; tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
         if (!busy) { val keep = Drafts.used(this); work.listFiles()?.forEach { if (it.absolutePath !in keep) it.delete() } }; super.onDestroy() }
     override fun onPause() { super.onPause(); if (player.isPlaying) player.pause(); saveDraft() }
 
@@ -438,7 +438,8 @@ class EditorActivity : AppCompatActivity() {
         main.postDelayed({ loop() }, 33)
     }
     /* ---------------- video over video ---------------- */
-    private lateinit var pipTv: TextureView; private lateinit var pplayer: ExoPlayer; private var pipFile = ""
+    private val PIPS = 3
+    private val pipTvs = ArrayList<TextureView>(); private val pplayers = ArrayList<ExoPlayer>(); private val pipFiles = arrayOfNulls<String>(3)
     private val pickPip = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addPip(u) }
     private fun addPip(u: Uri) {
         if (clips.isEmpty()) return
@@ -449,17 +450,21 @@ class EditorActivity : AppCompatActivity() {
                 if (l.e - l.s < 500_000) { l.s = maxOf(0, total() - minOf(pr.third, total())); l.e = total() }
                 layers.add(l); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time); toast(t("Drag to move, two fingers to resize", "Seret untuk alih, dua jari untuk ubah saiz")) } }.start()
     }
+    /* up to 3 videos on top play at the same time, each in its own small player */
     private fun pipSync(u: Long, hard: Boolean) {
-        val l = layers.firstOrNull { it.kind == "pip" && u >= it.s && u < it.e }
-        if (l == null || box.width <= 0) { if (pipTv.visibility == View.VISIBLE) { pipTv.visibility = View.INVISIBLE; pplayer.pause() }; return }
-        if (pipFile != l.file) { pipFile = l.file; pplayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(l.file)))); pplayer.prepare() }
-        val k = box.width.toFloat() / W; val m = minOf(W, H).toFloat(); val w = m * 0.42f * l.scale; val h = w / l.ar
-        val lp = pipTv.layoutParams as FrameLayout.LayoutParams; val nw = (w * k).toInt(); val nh = (h * k).toInt(); val nl = ((l.x * W - w / 2) * k).toInt(); val nt = ((l.y * H - h / 2) * k).toInt()
-        if (lp.width != nw || lp.height != nh || lp.leftMargin != nl || lp.topMargin != nt) { lp.width = nw; lp.height = nh; lp.leftMargin = nl; lp.topMargin = nt; lp.gravity = Gravity.TOP or Gravity.START; pipTv.layoutParams = lp }
-        pipTv.visibility = View.VISIBLE
-        val target = (u - l.s + l.vin) / 1000
-        if (hard || abs(pplayer.currentPosition - target) > 250) pplayer.seekTo(target)
-        if (player.isPlaying && !pplayer.isPlaying) pplayer.play() else if (!player.isPlaying && pplayer.isPlaying) pplayer.pause()
+        val act = layers.filter { it.kind == "pip" && u >= it.s && u < it.e }.take(PIPS)
+        for (k in 0 until PIPS) {
+            val tv = pipTvs[k]; val pp = pplayers[k]; val l = act.getOrNull(k)
+            if (l == null || box.width <= 0) { if (tv.visibility == View.VISIBLE) { tv.visibility = View.INVISIBLE; pp.pause() }; continue }
+            if (pipFiles[k] != l.file) { pipFiles[k] = l.file; pp.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(l.file)))); pp.prepare() }
+            val kk = box.width.toFloat() / W; val m = minOf(W, H).toFloat(); val w = m * 0.42f * l.scale; val h = w / l.ar
+            val lp = tv.layoutParams as FrameLayout.LayoutParams; val nw = (w * kk).toInt(); val nh = (h * kk).toInt(); val nl = ((l.x * W - w / 2) * kk).toInt(); val nt = ((l.y * H - h / 2) * kk).toInt()
+            if (lp.width != nw || lp.height != nh || lp.leftMargin != nl || lp.topMargin != nt) { lp.width = nw; lp.height = nh; lp.leftMargin = nl; lp.topMargin = nt; lp.gravity = Gravity.TOP or Gravity.START; tv.layoutParams = lp }
+            tv.visibility = View.VISIBLE
+            val target = (u - l.s + l.vin) / 1000
+            if (hard || abs(pp.currentPosition - target) > 250) pp.seekTo(target)
+            if (player.isPlaying && !pp.isPlaying) pp.play() else if (!player.isPlaying && pp.isPlaying) pp.pause()
+        }
     }
     private var tick = 0
     private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (tl.time >= total() - 60_000) seekTo(0); player.play() } }
@@ -1029,23 +1034,28 @@ class EditorActivity : AppCompatActivity() {
         }
         val seqs = ArrayList<EditedMediaItemSequence>(); seqs.add(EditedMediaItemSequence(items))
         // video over video: one more picture track; black gaps where nothing shows (made see-through by the compositor)
-        val pips = if (noPip) emptyList() else layers.filter { it.kind == "pip" }.sortedBy { it.s }.fold(ArrayList<Layer>()) { a, l -> if (a.isEmpty() || l.s >= a.last().e) a.add(l.copy()); a }
+        // videos on top, sorted into up to 3 lanes; videos in one lane never overlap
+        val lanes = ArrayList<ArrayList<Layer>>()
+        if (!noPip) layers.filter { it.kind == "pip" }.sortedBy { it.s }.forEach { l -> val ln = lanes.firstOrNull { it.last().e <= l.s }; if (ln != null) ln.add(l.copy()) else if (lanes.size < PIPS) lanes.add(arrayListOf(l.copy())) }
+        val pips = lanes.flatten()
         var compSet: androidx.media3.effect.VideoCompositorSettings? = null
-        if (pips.isNotEmpty()) {
+        if (pips.isNotEmpty()) for (lane in lanes) {
             val pi = ArrayList<EditedMediaItem>(); var at = 0L; val m = minOf(W, H)
             fun gap(us: Long) { if (us < 50_000) return; val g = File(work, "gap_" + us + ".mp4"); if (!g.exists()) StillClip.make(Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }, 320, 180, us, g)
                 pi.add(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(g))).setRemoveAudio(true).build()) }
-            pips.forEach { l -> gap(l.s - at)
+            lane.forEach { l -> gap(l.s - at)
                 val pw = (m * 0.42f * l.scale).toInt() / 2 * 2; val ph = (pw / l.ar).toInt() / 2 * 2
                 val mi = MediaItem.Builder().setUri(Uri.fromFile(File(l.file))).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.vin / 1000).setEndPositionMs((l.vin + l.e - l.s) / 1000).build()).build()
                 pi.add(EditedMediaItem.Builder(mi).setRemoveAudio(true).setEffects(Effects(listOf(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)))).build()); at = l.e }
             seqs.add(EditedMediaItemSequence(pi))
-            val pl = pips; val ww = W; val hh = H
+        }
+        if (pips.isNotEmpty()) {
+            val ll = lanes.toList(); val ww = W; val hh = H
             compSet = object : androidx.media3.effect.VideoCompositorSettings {
                 override fun getOutputSize(inputSizes: MutableList<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(ww, hh)
                 override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
-                    if (inputId == 0) return androidx.media3.effect.OverlaySettings.Builder().build()
-                    val l = pl.firstOrNull { presentationTimeUs >= it.s && presentationTimeUs < it.e }
+                    if (inputId == 0 || inputId > ll.size) return androidx.media3.effect.OverlaySettings.Builder().build()
+                    val l = ll[inputId - 1].firstOrNull { presentationTimeUs >= it.s && presentationTimeUs < it.e }
                     return if (l == null) androidx.media3.effect.OverlaySettings.Builder().setAlphaScale(0f).build()
                     else androidx.media3.effect.OverlaySettings.Builder().setBackgroundFrameAnchor(l.x * 2 - 1, 1 - l.y * 2).build()
                 }
