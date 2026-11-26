@@ -481,6 +481,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
 
     private fun refreshOverlay() {
+        fadeGen++
         brand.speaker = mainSrc?.name ?: ""
         prog.vRect = if (Auth.isPro && brand.on) Overlay.videoRect(brand.style, W, H) else null
         prog.setOverlay(brand.render(W, H, look))
@@ -726,9 +727,26 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             "off" -> h.add(k)
             "timed" -> if (t0 >= 0) { val du = sp.getInt("dur_$k", 5); val ev = sp.getInt("every_$k", 0); val show = if (ev > 0) t0 % maxOf(ev, du + 1) < du else t0 < du; if (!show) h.add(k) }
         }
-        val key = h.sorted().joinToString(","); if (key != visKey || force) { visKey = key; brand.hidden = h
+        val key = h.sorted().joinToString(","); if (key != visKey || force) { visKey = key; val old = brand.hidden; brand.hidden = h
             val card = ending || (enc != null && sp.getBoolean("intro", false) && System.currentTimeMillis() - recStart < 3100)   // title / closing card on screen
-            if (!card) refreshOverlay() }
+            if (!card) { if (force || old == h) refreshOverlay() else fadeOverlay(old, h) } }
+    }
+    /* parts appear and disappear softly: blend the picture without them into the picture with them */
+    private var fadeGen = 0
+    private fun fadeOverlay(from: Set<String>, to: Set<String>) {
+        val gen = ++fadeGen; val w = W; val hh = H
+        Thread {
+            brand.hidden = from; val a = brand.render(w, hh, look); brand.hidden = to; val b = brand.render(w, hh, look)
+            if (a == null || b == null) { main.post { if (gen == fadeGen) refreshOverlay() }; return@Thread }
+            val steps = 10; val add = android.graphics.Paint().apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.ADD) }
+            for (i in 1..steps) {
+                if (gen != fadeGen || stopped) return@Thread
+                val p = i / steps.toFloat(); val out = android.graphics.Bitmap.createBitmap(w, hh, android.graphics.Bitmap.Config.ARGB_8888); val c = android.graphics.Canvas(out)
+                c.drawBitmap(a, 0f, 0f, android.graphics.Paint().apply { alpha = ((1 - p) * 255).toInt() }); add.alpha = (p * 255).toInt(); c.drawBitmap(b, 0f, 0f, add)
+                prog.setOverlay(out); Thread.sleep(60)
+            }
+            main.post { if (gen == fadeGen) { brand.speaker = mainSrc?.name ?: ""; prog.setOverlay(b) } }
+        }.start()
     }
     private fun visLoop() { if (stopped) return; visTick(); main.postDelayed({ visLoop() }, 250) }
     private fun tick() {
