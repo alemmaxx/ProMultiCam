@@ -124,6 +124,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     /* ---------- turning the phone (like the web): the screen turns, and when not recording the video format follows so the logo and names sit right ---------- */
     private lateinit var turn: Turn
+    /* "Continue" from Videos comes back to this same Director (no second Director behind it) */
+    override fun onNewIntent(i: Intent) { super.onNewIntent(i); i.getStringExtra("resume")?.let { if (enc == null) { resumeFile = File(it); stillReady = false; main.postDelayed({ loadStill() }, 300); toast(t("Continue: the next recording joins this video", "Sambung: rakaman seterusnya masuk ke video ini")) } } }
     override fun onResume() { super.onResume(); if (::turn.isInitialized && sp.getBoolean("follow", true)) turn.enable() }
     override fun onPause() { super.onPause(); if (::turn.isInitialized) turn.disable() }
     /* like the web: the screen turns and the picture stays upright, but the video format you chose (9:16 or 16:9) never changes by itself */

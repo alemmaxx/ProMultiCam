@@ -30,8 +30,11 @@ class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) 
     var speed = 1f; var vol = 1f; var look = "std"; var bri = 0f; var con = 0f; var sat = 0f; var rot = 0; var mirror = false
     var trans = "none"   // the switch effect at the START of this clip (from the clip before)
     var fileDur = Long.MAX_VALUE; var img = ""; var fx = "none"
+    var fi = 0f; var fo = 0f; var fadeVid = true   // fade in / out (seconds) of sound, and of the picture to black
+    /* sound level at time t (µs) inside the clip: rises at the start, falls at the end, like a hill */
+    fun env(t: Long): Float { var g = 1f; if (fi > 0) g = minOf(g, t / (fi * 1e6f)); if (fo > 0) g = minOf(g, (dur - t) / (fo * 1e6f)); return g.coerceIn(0f, 1f) }
     val dur: Long get() = ((outUs - inUs) / speed).toLong()
-    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx }
+    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx; it.fi = fi; it.fo = fo; it.fadeVid = fadeVid }
     fun filter(): String { val l = Looks.ALL.firstOrNull { it.id == look }?.f ?: ""; return "$l brightness(${1 + bri}) contrast(${1 + con}) saturate(${1 + sat})".trim() }
 }
 /* things on top of the video: text, sticker, photo, brand */
@@ -42,8 +45,8 @@ class Layer(var kind: String, var s: Long, var e: Long) {
 }
 /* extra sound: music, sound effect, AI voice */
 class Sound(var kind: String, var s: Long, var e: Long) {
-    var file = ""; var sfx = "ding"; var vol = 1f; var text = ""; var fade = true
-    fun copy() = Sound(kind, s, e).also { it.file = file; it.sfx = sfx; it.vol = vol; it.text = text; it.fade = fade }
+    var file = ""; var sfx = "ding"; var vol = 1f; var text = ""; var fade = true; var fi = 0.5f; var fo = 0.5f
+    fun copy() = Sound(kind, s, e).also { it.file = file; it.sfx = sfx; it.vol = vol; it.text = text; it.fade = fade; it.fi = fi; it.fo = fo }
 }
 
 /* ---------------- drawing what sits on top of the video (same for preview and saving) ---------------- */
@@ -232,11 +235,12 @@ object Snd {
             while (pos < total) {
                 val n = minOf(blk, total - pos); java.util.Arrays.fill(buf, 0f)
                 src.forEach { (s, a) -> if (a != null && a.isNotEmpty()) {
-                    val st = (s.s * RATE / 1_000_000).toInt(); val en = minOf(total, (s.e * RATE / 1_000_000).toInt()); val fadeN = RATE / 2
+                    val st = (s.s * RATE / 1_000_000).toInt(); val en = minOf(total, (s.e * RATE / 1_000_000).toInt())
                     val from = maxOf(pos, st); val to = minOf(pos + n, en)
                     for (i in from until to) { val k = i - st
                         val v = if (s.kind == "music") a[k % a.size] else if (k < a.size) a[k] else 0f
-                        var g = s.vol; if (s.kind == "music" && s.fade) { if (k < fadeN) g *= k / fadeN.toFloat(); if (en - i < fadeN) g *= (en - i) / fadeN.toFloat() }
+                        var g = s.vol; if (s.kind == "music" && s.fade) { val fiN = (s.fi * RATE).toInt(); val foN = (s.fo * RATE).toInt()
+                            if (fiN > 0 && k < fiN) g *= k / fiN.toFloat(); if (foN > 0 && en - i < foN) g *= (en - i) / foN.toFloat() }
                         buf[i - pos] += v * g } } }
                 bytes.clear(); for (i in 0 until n) bytes.putShort((buf[i].coerceIn(-1f, 1f) * 32767).toInt().toShort())
                 raf.write(bytes.array(), 0, n * 2); pos += n
@@ -266,8 +270,10 @@ object Fx {
     class St { var s = 1f; var tx = 0f; var ty = 0f; var rot = 0f; var dark = 0f; var white = 0f; var mask = ""; var vis = 1f; var maskIn = true }
     private fun ease(q: Float) = 1 - (1 - q) * (1 - q) * (1 - q)
     /* t: time inside this clip (as played), dur: clip length; inT: effect from the clip before; outT: effect into the next clip */
-    fun state(eff: String, inT: String, outT: String, t: Long, dur: Long): St {
+    fun state(eff: String, inT: String, outT: String, t: Long, dur: Long, fadeIn: Float = 0f, fadeOut: Float = 0f): St {
         val st = St(); val sec = t / 1e6f; val p = if (dur > 0) (t.toFloat() / dur).coerceIn(0f, 1f) else 0f
+        // the clip's own fade in / out to black
+        var g = 1f; if (fadeIn > 0) g = minOf(g, t / (fadeIn * 1e6f)); if (fadeOut > 0) g = minOf(g, (dur - t) / (fadeOut * 1e6f)); st.dark = 1 - g.coerceIn(0f, 1f)
         when (eff) {
             "zoomin" -> st.s = 1f + 0.15f * p
             "zoomout" -> st.s = 1.15f - 0.15f * p

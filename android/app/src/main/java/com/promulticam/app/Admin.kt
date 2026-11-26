@@ -79,7 +79,8 @@ object Notifier {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CH, Ui.t("Messages & updates", "Mesej & kemas kini"), NotificationManager.IMPORTANCE_HIGH))
-        val pi = PendingIntent.getActivity(c, id, open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        // back from the opened page goes to the home page, not out of the app
+        val pi = androidx.core.app.TaskStackBuilder.create(c).addNextIntent(Intent(c, MainActivity::class.java)).addNextIntent(open).getPendingIntent(id, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         nm.notify(id, NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_chat).setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true).setContentIntent(pi).setPriority(NotificationCompat.PRIORITY_HIGH).build())
     }

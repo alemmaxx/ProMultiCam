@@ -80,7 +80,7 @@ class VideosActivity : AppCompatActivity() {
                 btn("▶ " + t("Preview", "Tonton")) { startActivity(Intent(this, PlayerActivity::class.java).putExtra("path", f.absolutePath)) },
                 btn(t("Save to Phone", "Simpan ke Telefon"), true) { saveToPhone(f) },
                 btn(t("Share", "Kongsi")) { share(f) },
-                btn(t("Continue", "Sambung")) { startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", f.absolutePath)) },
+                btn(t("Continue", "Sambung")) { startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", f.absolutePath).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)) },
                 btn("Edit") { Nav.open(this, "edit", f.name) },
                 Ui.dangerBtn(this, t("Delete", "Padam")) { del(f) }.apply { textSize = 14f; maxLines = 1 })
             val g = android.widget.GridLayout(this); g.columnCount = 3
