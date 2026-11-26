@@ -49,7 +49,10 @@ object Rtc {
     /* the phone camera as a WebRTC video track */
     class Cam(val capturer: CameraVideoCapturer, val source: VideoSource, val track: VideoTrack, val helper: SurfaceTextureHelper, var front: Boolean) {
         fun stop() { try { capturer.stopCapture() } catch (e: Exception) {}; capturer.dispose(); helper.dispose(); track.dispose(); source.dispose() }
-        fun flip() { capturer.switchCamera(null); front = !front }
+        fun flip() { capturer.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
+            override fun onCameraSwitchDone(f: Boolean) { lock30() }; override fun onCameraSwitchError(e: String?) {} }); front = !front }
+        /* keep a steady 30 fps (the camera would slow to 15–20 fps in dim light); tried a few times while the camera starts */
+        fun lock30() { val h = android.os.Handler(android.os.Looper.getMainLooper()); for (d in longArrayOf(1200, 3000, 6000)) h.postDelayed({ try { Focus.tap(capturer, 0.5f, 0.5f, front, true) } catch (e: Exception) {} }, d) }
     }
     fun camera(ctx: Context, front: Boolean, w: Int, h: Int, id: String): Cam? {
         val en = Camera2Enumerator(ctx)
@@ -59,7 +62,7 @@ object Rtc {
         val src = factory.createVideoSource(false)
         cap.initialize(helper, ctx.applicationContext, src.capturerObserver)
         cap.startCapture(w, h, 30)
-        return Cam(cap, src, factory.createVideoTrack("v-$id", src), helper, front)
+        return Cam(cap, src, factory.createVideoTrack("v-$id", src), helper, front).also { it.lock30() }
     }
 
     /* microphone with no call-style processing: natural voice */
