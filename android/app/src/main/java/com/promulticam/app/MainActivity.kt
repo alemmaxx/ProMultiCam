@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
         // top row: logo · language · log in
         val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
         val logo = ImageView(c); logo.setImageResource(R.drawable.ic_logo); logo.background = Ui.raised(c, 0xFF1C1B19.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE); logo.setPadding(Ui.px(c, 4), Ui.px(c, 2), Ui.px(c, 4), Ui.px(c, 6))
-        top.addView(Ui.iconBtn(c, R.drawable.ic_back) { askExit() }, LinearLayout.LayoutParams(Ui.px(c, 50), Ui.px(c, 50)).apply { rightMargin = Ui.px(c, 6) })
         top.addView(logo, LinearLayout.LayoutParams(Ui.px(c, 50), Ui.px(c, 50)))
         top.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
         val langB = Ui.btn(c, if (Ui.ms) "Bahasa Melayu ▾" else "English ▾") { Ui.setLang(c, if (Ui.ms) "en" else "ms"); recreate() }; langB.textSize = 13f

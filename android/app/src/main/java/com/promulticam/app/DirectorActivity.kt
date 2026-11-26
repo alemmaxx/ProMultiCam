@@ -126,12 +126,10 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var turn: Turn
     override fun onResume() { super.onResume(); if (::turn.isInitialized && sp.getBoolean("follow", true)) turn.enable() }
     override fun onPause() { super.onPause(); if (::turn.isInitialized) turn.disable() }
+    /* like the web: the screen turns and the picture stays upright, but the video format you chose (9:16 or 16:9) never changes by itself */
     private fun onTurn(n: Int) {
         val side = n == 90 || n == 270
-        if (enc == null && side != land) {
-            sp.edit().putString("fmt", if (side) "l" else "p").apply(); prog.resize(W, H); sendFmt()
-            toast(if (side) t("Horizontal 16:9", "Melintang 16:9") else t("Vertical 9:16", "Menegak 9:16"))
-        }
+        if (side != land) toast(if (land) t("Video stays horizontal 16:9", "Video kekal melintang 16:9") else t("Video stays vertical 9:16", "Video kekal menegak 9:16"))
     }
     override fun onConfigurationChanged(c: android.content.res.Configuration) { super.onConfigurationChanged(c); arrange(c.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) }
     private lateinit var rootV: LinearLayout; private lateinit var topV: View; private lateinit var stageV: View; private lateinit var tilesV: View; private lateinit var rowV: View
@@ -402,7 +400,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.hint(this, t("Logo position: Standard style only.", "Kedudukan logo: gaya Standard sahaja.")))
         showRows()
         b.addView(Ui.hr(this))
-        b.addView(Ui.check(this, t("Turn with the phone (screen and format)", "Ikut putaran telefon (skrin & format)"), sp.getBoolean("follow", true)) { v -> sp.edit().putBoolean("follow", v).apply(); if (v) turn.enable() else { turn.disable(); turn.cur = 0; turn.apply() } })
+        b.addView(Ui.check(this, t("Turn the screen with the phone", "Skrin ikut putaran telefon"), sp.getBoolean("follow", true)) { v -> sp.edit().putBoolean("follow", v).apply(); if (v) turn.enable() else { turn.disable(); turn.cur = 0; turn.apply() } })
         b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
         b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
         b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
