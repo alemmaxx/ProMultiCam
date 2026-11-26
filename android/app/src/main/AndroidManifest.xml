@@ -26,7 +26,13 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/files" />
         </provider>
         <activity android:name=".PlayerActivity" android:exported="false" android:configChanges="orientation|screenSize" />
-        <activity android:name=".WebActivity" android:exported="false" android:configChanges="orientation|screenSize" />
+        <activity android:name=".EditorActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PlansActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".SupportActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".TestActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ManualActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".AboutActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ApkActivity" android:exported="false" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".VideosActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".RecordActivity" android:exported="false" android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|keyboardHidden" />

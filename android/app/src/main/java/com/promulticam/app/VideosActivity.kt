@@ -43,7 +43,7 @@ class VideosActivity : AppCompatActivity() {
         r1.addView(btn(t("Import Video", "Import Video"), true) { importer.launch("video/*") }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
         r1.addView(btn(t("Join Video", "Join Video")) { joinPicked() }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
         root.addView(r1, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
-        root.addView(btn(t("Video & Photos", "Video & Gambar")) { WebActivity.open(this, "media") }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(-1, Ui.px(this, 52)).apply { topMargin = d / 2 })
+        root.addView(btn(t("Video & Photos", "Video & Gambar")) { Nav.open(this, "media") }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(-1, Ui.px(this, 52)).apply { topMargin = d / 2 })
         root.addView(Ui.hint(this, t("Tick 2 or more, then Join Video.", "Tanda 2 atau lebih, kemudian Join Video.")))
         val sv = ScrollView(this); list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; sv.addView(list)
         root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
@@ -81,7 +81,7 @@ class VideosActivity : AppCompatActivity() {
                 btn(t("Save to Phone", "Simpan ke Telefon"), true) { saveToPhone(f) },
                 btn(t("Share", "Kongsi")) { share(f) },
                 btn(t("Continue", "Sambung")) { startActivity(Intent(this, DirectorActivity::class.java).putExtra("resume", f.absolutePath)) },
-                btn("Edit") { WebActivity.open(this, "edit", f.name) },
+                btn("Edit") { Nav.open(this, "edit", f.name) },
                 Ui.dangerBtn(this, t("Delete", "Padam")) { del(f) }.apply { textSize = 14f; maxLines = 1 })
             val g = android.widget.GridLayout(this); g.columnCount = 3
             items.forEachIndexed { i, x ->

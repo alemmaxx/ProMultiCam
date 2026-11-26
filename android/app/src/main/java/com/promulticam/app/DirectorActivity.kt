@@ -115,6 +115,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         brand = Brand(this); brand.refresh()
         look = Looks.byId(sp.getString("look", "superior"))
         resumeFile = intent.getStringExtra("resume")?.let { File(it) }
+        main.postDelayed({ loadStill() }, 800)
         prog = Program(W, H); prog.setLook(look.f); prog.layout = layout; prog.trans = trans
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
@@ -227,7 +228,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun paintChips() { srcChip.text = mainSrc?.name ?: t("Director phone", "Telefon Pengarah"); lookChip.text = lookName(look) }
 
     private fun lookName(l: Looks.Look) = if (Ui.ms) l.ms else l.en
-    private fun needPro(): Boolean { if (Auth.isPro) return false; toast(t("Pro feature", "Ciri Pro")); WebActivity.open(this, "pro"); return true }
+    private fun needPro(): Boolean { if (Auth.isPro) return false; toast(t("Pro feature", "Ciri Pro")); Nav.open(this, "pro"); return true }
 
     /* 3-2-1 before recording (Settings) */
     private fun countdown() {
@@ -440,7 +441,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val sh = Ui.sheet(this, "Studio Pro", t("Save settings", "Simpan Tetapan") to { })
         val col = sh.body
         // "how to use" next to the title
-        col.addView(Ui.btn(this, t("How to use", "Cara Guna")) { WebActivity.open(this, "manual") }.apply { setTextColor(Ui.GOLD); textSize = 14f }, LinearLayout.LayoutParams(-2, Ui.px(this, 44)))
+        col.addView(Ui.btn(this, t("How to use", "Cara Guna")) { Nav.open(this, "manual") }.apply { setTextColor(Ui.GOLD); textSize = 14f }, LinearLayout.LayoutParams(-2, Ui.px(this, 44)))
         // on now
         val now = Ui.card(this)
         now.addView(Ui.label(this, t("On now", "Aktif sekarang"), 14f, Ui.SUB, true))
@@ -648,6 +649,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val e = Encoder(W, H, pfd.fileDescriptor, audio)
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
+        if (resumeFile != null && trans != "cut") { if (stillReady) prog.fadeIn() else { stillReady = false } }
         if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, sp.getString("introSub", "") ?: "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
         recStart = System.currentTimeMillis(); pausedMs = 0; pauseAt = 0; ending = false
         recBtn.text = "■ " + t("Stop", "Tamat"); pauseBtn.isEnabled = true; pauseBtn.alpha = 1f; qBtn.isEnabled = false
@@ -663,8 +665,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     private fun togglePause() {
         val e = enc ?: return
-        if (e.paused) { e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
-        else { e.pause(); pauseAt = System.currentTimeMillis(); pauseBtn.text = "▶ " + t("Resume", "Sambung") }
+        if (e.paused) { if (trans != "cut") prog.fadeIn(); e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
+        else { if (trans != "cut") prog.holdLast(); e.pause(); pauseAt = System.currentTimeMillis(); pauseBtn.text = "▶ " + t("Resume", "Sambung") }
     }
     private fun stopRec() {
         val e = enc ?: return
@@ -687,7 +689,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val part = recFile; recFile = null
         if (!ok) part?.delete()
         val base = resumeFile
-        if (ok && base != null && part != null && base.exists()) { resumeFile = null; joinInto(base, part) }
+        if (ok && base != null && part != null) joinInto(base, part)
+        if (resumeFile != null && trans != "cut") { prog.holdLast(); stillReady = true }
         recBtn.isEnabled = true; recBtn.text = "● " + t("Start Recording", "Mula Rakam"); pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f; pauseBtn.text = "‖ " + t("Pause", "Jeda"); qBtn.isEnabled = true
         timeTx.visibility = View.GONE
         sendLive(); srcs.forEach { it.data?.send(mapOf("t" to "q", "hi" to false)) }
@@ -697,11 +700,25 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     /* Continue: the new part is added to the end of the earlier video, which keeps its name */
     private fun joinInto(base: File, part: File) {
         toast(t("Adding to the same video…", "Menambah ke video yang sama…"))
-        Thread {
+        joinQ.execute {
             val tmp = File(base.parentFile, "tmp_" + base.name)
             val ok = try { ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE).use { Joiner.join(this, listOf(Uri.fromFile(base), Uri.fromFile(part)), it.fileDescriptor) } } catch (e: Exception) { false }
             if (ok) { base.delete(); part.delete(); tmp.renameTo(base) } else tmp.delete()
             main.post { toast(if (ok) t("Added — one longer video", "Ditambah — satu video lebih panjang") else t("Could not join; the new part is kept as its own video", "Gagal gabung; bahagian baru disimpan berasingan")) }
+        }
+    }
+
+    private val joinQ = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private var stillReady = false
+    /* the last picture of the video being continued, so the new part starts with the switch effect */
+    private fun loadStill() {
+        val f = resumeFile ?: return
+        Thread {
+            val b = try { val r = android.media.MediaMetadataRetriever(); r.setDataSource(f.absolutePath)
+                val d = (r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) * 1000
+                val fr = r.getFrameAtTime(maxOf(0L, d - 50_000), android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: r.getFrameAtTime(maxOf(0L, d - 50_000)); r.release()
+                fr?.let { android.graphics.Bitmap.createScaledBitmap(it, W, H, true) } } catch (e: Exception) { null }
+            if (b != null) main.post { prog.fromStill(b); stillReady = true }
         }.start()
     }
 

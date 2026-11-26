@@ -137,6 +137,56 @@ object Auth {
     }
     fun refreshProfile(done: () -> Unit) { if (!signedIn) { done(); return }; bg({ loadProfileSync(); null }) { done() } }
 
+    /* ---- small Firestore / Functions helpers for the native pages (run off the main thread) ---- */
+    private const val FS = "https://firestore.googleapis.com/v1/projects/$PROJECT/databases/$DB/documents"
+    fun fsGet(path: String): JSONObject? {
+        val rb = Request.Builder().url("$FS/$path"); tokenSync()?.let { rb.header("Authorization", "Bearer $it") }
+        http.newCall(rb.build()).execute().use { r -> if (!r.isSuccessful) return null; return JSONObject(r.body?.string() ?: "{}") }
+    }
+    /* messages of the support chat, oldest first */
+    fun chatList(): List<Triple<String, String, Long>> {
+        val u = uid ?: return emptyList(); val tk = tokenSync() ?: return emptyList()
+        val q = JSONObject("""{"structuredQuery":{"from":[{"collectionId":"messages"}],"orderBy":[{"field":{"fieldPath":"at"},"direction":"DESCENDING"}],"limit":200}}""")
+        val rb = Request.Builder().url("$FS/supportChats/$u:runQuery").header("Authorization", "Bearer $tk").post(q.toString().toRequestBody(json))
+        val out = ArrayList<Triple<String, String, Long>>()
+        http.newCall(rb.build()).execute().use { r ->
+            val a = org.json.JSONArray(r.body?.string() ?: "[]")
+            for (i in 0 until a.length()) { val f = a.getJSONObject(i).optJSONObject("document")?.optJSONObject("fields") ?: continue
+                val at = f.optJSONObject("at")?.optString("timestampValue")?.let { try { Instant.parse(it).toEpochMilli() } catch (e: Exception) { 0L } } ?: 0L
+                out.add(Triple(f.optJSONObject("from")?.optString("stringValue") ?: "", f.optJSONObject("text")?.optString("stringValue") ?: "", at)) }
+        }
+        return out.reversed()
+    }
+    fun chatSend(text: String): Boolean {
+        val u = uid ?: return false; val tk = tokenSync() ?: return false
+        val base = "projects/$PROJECT/databases/$DB/documents"
+        val id = java.util.UUID.randomUUID().toString().replace("-", "").take(20)
+        fun sv(v: String) = JSONObject().put("stringValue", v)
+        fun bv(v: Boolean) = JSONObject().put("booleanValue", v)
+        val w1 = JSONObject().put("update", JSONObject().put("name", "$base/supportChats/$u/messages/$id").put("fields", JSONObject().put("from", sv("user")).put("text", sv(text))))
+            .put("updateTransforms", org.json.JSONArray().put(JSONObject().put("fieldPath", "at").put("setToServerValue", "REQUEST_TIME")))
+            .put("currentDocument", JSONObject().put("exists", false))
+        val w2 = JSONObject().put("update", JSONObject().put("name", "$base/supportChats/$u").put("fields", JSONObject().put("uid", sv(u)).put("email", sv(email ?: "")).put("lastMsg", sv(text.take(300)))
+            .put("lastFrom", sv("user")).put("unreadAdmin", bv(true)).put("unreadUser", bv(false))))
+            .put("updateTransforms", org.json.JSONArray().put(JSONObject().put("fieldPath", "lastAt").put("setToServerValue", "REQUEST_TIME")))
+        val body = JSONObject().put("writes", org.json.JSONArray().put(w1).put(w2))
+        val rb = Request.Builder().url("$FS:commit").header("Authorization", "Bearer $tk").post(body.toString().toRequestBody(json))
+        http.newCall(rb.build()).execute().use { r -> return r.isSuccessful }
+    }
+    /* call one of the web app's server functions (same as the web) */
+    fun callFn(name: String, data: JSONObject): JSONObject {
+        val j = post("https://$REGION-$PROJECT.cloudfunctions.net/$name", JSONObject().put("data", data), tokenSync())
+        j.optJSONObject("error")?.let { throw Exception(it.optString("message", "error")) }
+        return j.optJSONObject("result") ?: JSONObject()
+    }
+    /* plan prices from config/plans */
+    fun plans(): JSONObject {
+        val f = fsGet("config/plans")?.optJSONObject("fields") ?: return JSONObject()
+        val o = JSONObject()
+        f.keys().forEach { k -> val v = f.getJSONObject(k); o.put(k, v.optString("integerValue", v.optString("doubleValue", v.optString("stringValue", "")))) }
+        return o
+    }
+
     fun errText(code: String?): String = when {
         code == null -> ""
         code.contains("EMAIL_EXISTS") -> Ui.t("This email already has an account — log in instead", "Emel ini sudah ada akaun — log masuk")

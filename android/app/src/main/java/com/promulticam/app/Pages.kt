@@ -1,0 +1,397 @@
+package com.promulticam.app
+
+import android.Manifest
+import android.app.DownloadManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaCodecList
+import android.media.MediaRecorder
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.BatteryManager
+import android.os.Bundle
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.os.StatFs
+import android.text.Html
+import android.view.Gravity
+import android.view.View
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.promulticam.app.Ui.t
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/* Where every button of the app goes. Everything is inside the app (no web pages). */
+object Nav {
+    fun open(a: AppCompatActivity, what: String, file: String? = null) {
+        val cls = when (what) {
+            "pro" -> PlansActivity::class.java; "support" -> SupportActivity::class.java; "test" -> TestActivity::class.java
+            "manual" -> ManualActivity::class.java; "about" -> AboutActivity::class.java; "apk" -> ApkActivity::class.java
+            "edit", "media" -> EditorActivity::class.java
+            else -> return
+        }
+        if ((what == "support" || what == "pro") && !Auth.signedIn) { Toast.makeText(a, t("Please log in first", "Sila log masuk dahulu"), Toast.LENGTH_SHORT).show(); return }
+        a.startActivity(Intent(a, cls).putExtra("f", file ?: ""))
+    }
+}
+
+/* the frame of every page: back button + title, then a scrolling body */
+abstract class PageActivity : AppCompatActivity() {
+    protected lateinit var body: LinearLayout
+    protected lateinit var root: LinearLayout
+    protected val main = Handler(Looper.getMainLooper())
+    protected val d get() = Ui.px(this, 12)
+    abstract val title0: String
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Ui.init(this); Auth.init(this)
+        root = LinearLayout(this); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG); root.setPadding(d, d * 2, d, d)
+        val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
+        top.addView(Ui.iconBtn(this, R.drawable.ic_back) { finish() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 46)))
+        top.addView(Ui.label(this, title0, 21f, Ui.TEXT, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(top)
+        val sv = ScrollView(this); body = LinearLayout(this); body.orientation = LinearLayout.VERTICAL; body.setPadding(0, d / 2, 0, d * 2); sv.addView(body)
+        root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d / 2 })
+        setContentView(root)
+        build()
+    }
+    abstract fun build()
+    protected fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    protected fun bg(work: () -> Unit) = Thread { try { work() } catch (e: Exception) { main.post { toast(t("No internet connection", "Tiada sambungan internet")) } } }.start()
+}
+
+/* ---------------- Plans & subscription ---------------- */
+class PlansActivity : PageActivity() {
+    override val title0 get() = t("Plans & subscription", "Pelan & langganan")
+    private var plans = JSONObject()
+    override fun onResume() { super.onResume(); Auth.refreshProfile { if (!isFinishing) paint() } }
+    override fun build() { paint(); bg { plans = Auth.plans(); main.post { if (!isFinishing) paint() } } }
+    private fun money(v: Double) = "RM" + (if (v % 1.0 == 0.0) v.toInt().toString() else String.format(Locale.US, "%.2f", v))
+    private fun paint() {
+        body.removeAllViews()
+        val adm = Auth.isAdmin; val pro = Auth.isPro; val dl = Auth.daysLeft
+        val paid = pro && !adm && (Auth.plan == "monthly" || Auth.plan == "yearly")
+        val cur = if (adm) "admin" else if (paid) Auth.plan else if (pro) "trial" else "free"
+        val pn = { p: String -> if (p == "yearly") t("Yearly", "Tahunan") else t("Monthly", "Bulanan") }
+        val now = when (cur) { "admin" -> t("Admin account — everything is on.", "Akaun admin — semua dibuka.")
+            "free" -> t("You are on the free Basic plan.", "Anda guna pelan Asas (percuma).")
+            "trial" -> t("Free Pro: $dl day(s) left.", "Pro percuma: tinggal $dl hari.")
+            else -> t("You are on Pro ${pn(cur)}: $dl day(s) left.", "Anda guna Pro ${pn(cur)}: tinggal $dl hari.") }
+        body.addView(Ui.card(this).apply { addView(Ui.label(this@PlansActivity, now, 15f, Ui.GOLD, true)) })
+        val mo = plans.optString("monthly").toDoubleOrNull() ?: 0.0; val yr = plans.optString("yearly").toDoubleOrNull() ?: 0.0
+        val save = if (mo > 0 && yr > 0) Math.round((1 - yr / (mo * 12)) * 100).toInt() else 0
+        data class P(val id: String, val name: String, val price: Double, val per: String, val feats: List<String>, val save: Int = 0)
+        val list = listOf(
+            P("free", t("Basic (free)", "Asas (percuma)"), 0.0, "", listOf(t("Director + 1 camera phone", "Pengarah + 1 telefon kamera"), t("Standard look, 720p, Full layout", "Gaya Standard, 720p, susun atur Penuh"), t("Zoom, focus, front/back camera", "Zoom, fokus, kamera depan/belakang"), t("Record, pause, save to phone", "Rakam, jeda, simpan ke telefon"))),
+            P("monthly", t("Monthly", "Bulanan"), mo, t("per month", "sebulan"), listOf(t("Up to 6 camera phones", "Sehingga 6 telefon kamera"), t("1080p from every phone", "1080p dari setiap telefon"), t("All looks, Split Screen and Picture-In-Picture", "Semua gaya, Split Screen dan Picture-In-Picture"), t("Switch effects, auto switching and quick templates", "Kesan tukar sudut, tukar automatik dan templat pantas"), t("Title & closing cards", "Kad tajuk & penutup"), t("Editor: cut, text, video & photos", "Editor: potong, teks, video & gambar"), t("Brand card, logo, colours and fonts, teleprompter, scenes", "Kad jenama, logo, warna dan fon, teleprompter, babak"))),
+            P("yearly", t("Yearly", "Tahunan"), yr, t("per year", "setahun"), listOf(t("Everything in Monthly, at a lower price", "Semua ciri Bulanan, harga lebih jimat")), save))
+        var pick: String? = null
+        val pay = LinearLayout(this); pay.orientation = LinearLayout.VERTICAL; pay.visibility = View.GONE
+        val payFor = Ui.label(this, "", 15f, Ui.TEXT, true)
+        list.forEach { p ->
+            val c = Ui.card(this)
+            if (cur == p.id) c.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 16f), Ui.GOLD, Ui.px(this, 2))
+            val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
+            top.addView(Ui.label(this, p.name, 17f, Ui.TEXT, true))
+            fun badge(s: String, col: Int) = Ui.label(this, " $s ", 11f, col, true).apply { background = Ui.round(0xFF262117.toInt(), Ui.dp(this@PlansActivity, 8f), col, 1); setPadding(8, 2, 8, 2) }
+            if (p.id != "free") top.addView(badge("PRO", Ui.GOLD), LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
+            if (p.save > 0) top.addView(badge(t("Save ${p.save}%", "Jimat ${p.save}%"), 0xFF5FB38C.toInt()), LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
+            c.addView(top)
+            c.addView(Ui.label(this, if (p.id == "free") "RM0" else (if (p.price > 0) money(p.price) else "—") + "  " + p.per, 22f, Ui.GOLD, true), Ui.lp(this, 6))
+            p.feats.forEach { c.addView(Ui.label(this, "•  $it", 14f, Ui.TEXT), Ui.lp(this, 4)) }
+            var label: String; var on = false
+            when {
+                adm -> label = t("Admin — no payment needed", "Admin — tiada bayaran")
+                p.id == "free" -> label = if (cur == "free") t("Current plan", "Pelan semasa") else t("Used when Pro ends", "Digunakan bila Pro tamat")
+                cur == p.id -> if (dl <= 5) { label = t("Renew now", "Perbaharui sekarang"); on = true } else label = t("Active · $dl day(s) left", "Aktif · tinggal $dl hari")
+                cur == "yearly" && p.id == "monthly" -> label = t("You already have yearly", "Anda sudah ada tahunan")
+                cur == "monthly" && p.id == "yearly" -> { label = t("Upgrade to yearly", "Naik taraf ke tahunan"); on = true }
+                else -> { label = t("Choose ${p.name}", "Pilih ${p.name}"); on = true }
+            }
+            if (p.price <= 0 && p.id != "free") on = false
+            val b = Ui.btn(this, label, on) { pick = p.id; payFor.text = t("Pay for ${p.name}: ${money(p.price)}", "Bayar untuk ${p.name}: ${money(p.price)}"); pay.visibility = View.VISIBLE }
+            b.isEnabled = on; if (!on) b.alpha = 0.6f
+            c.addView(b, Ui.lp(this, 10))
+            body.addView(c, Ui.lp(this, 10))
+        }
+        // pay box
+        pay.addView(payFor)
+        val promo = Ui.input(this, t("Promo code", "Kod promo")); pay.addView(promo, Ui.lp(this, 8))
+        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE)
+        val phone = Ui.input(this, t("Phone number", "No. telefon"), sp.getString("payphone", "") ?: "", android.text.InputType.TYPE_CLASS_PHONE); pay.addView(phone, Ui.lp(this, 6))
+        pay.addView(Ui.hint(this, t("Check first: Director phone Android 10 or newer, 4 GB RAM and 5 GB free storage. Use Device check and the free Pro days before paying.",
+            "Semak dahulu: telefon Pengarah Android 10 ke atas, RAM 4 GB dan storan kosong 5 GB. Guna Semak peranti dan Pro percuma sebelum bayar.")))
+        var ok = false
+        pay.addView(Ui.check(this, t("I have checked my phones", "Saya sudah semak telefon saya"), false) { ok = it }, Ui.lp(this, 4))
+        val pb = Ui.btn(this, t("Pay now", "Bayar sekarang"), true) {}
+        pb.setOnClickListener {
+            if (!ok) { toast(t("Please confirm you have checked the device requirements first.", "Sila sahkan anda telah semak keperluan peranti dahulu.")); return@setOnClickListener }
+            val pl = pick ?: return@setOnClickListener
+            sp.edit().putString("payphone", phone.text.toString().trim()).apply()
+            pb.isEnabled = false
+            Thread {
+                val r = try { Auth.callFn("pmc_createBill", JSONObject().put("plan", pl).put("promo", promo.text.toString().trim().uppercase()).put("phone", phone.text.toString().trim())) } catch (e: Exception) { JSONObject().put("err", e.message ?: "") }
+                main.post {
+                    pb.isEnabled = true
+                    val url = r.optString("url")
+                    if (url.isNotEmpty()) { try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (e: Exception) {}; toast(t("Finish paying, then come back here.", "Siapkan bayaran, kemudian kembali ke sini.")) }
+                    else toast(r.optString("err").ifEmpty { t("Something went wrong", "Ada masalah") })
+                }
+            }.start()
+        }
+        pay.addView(pb, Ui.lp(this, 8))
+        body.addView(pay, Ui.lp(this, 14))
+    }
+}
+
+/* ---------------- Support chat (same chat as the web) ---------------- */
+class SupportActivity : PageActivity() {
+    override val title0 get() = t("Support", "Sokongan")
+    private lateinit var list: LinearLayout
+    private var alive = true
+    private var lastN = -1
+    override fun build() {
+        list = body
+        val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.gravity = Gravity.CENTER_VERTICAL
+        val inp = Ui.input(this, t("Type a message…", "Taip mesej…")); inp.maxLines = 4
+        row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(Ui.btn(this, t("Send", "Hantar"), true) {
+            val v = inp.text.toString().trim().take(2000); if (v.isEmpty()) return@btn
+            inp.setText("")
+            Thread { val ok = try { Auth.chatSend(v) } catch (e: Exception) { false }; main.post { if (!ok) { inp.setText(v); toast(t("Not sent. Try again.", "Tidak dihantar. Cuba lagi.")) } else poll(false) } }.start()
+        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
+        root.addView(row, Ui.lp(this, 6))
+        poll(true)
+    }
+    override fun onDestroy() { alive = false; super.onDestroy() }
+    private fun poll(again: Boolean) {
+        Thread {
+            val l = try { Auth.chatList() } catch (e: Exception) { null }
+            main.post {
+                if (!alive) return@post
+                if (l != null && l.size != lastN) { lastN = l.size; show(l) }
+                if (again) main.postDelayed({ if (alive) poll(true) }, 5000)
+            }
+        }.start()
+    }
+    private fun show(l: List<Triple<String, String, Long>>) {
+        list.removeAllViews()
+        val fmt = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+        if (l.isEmpty()) bubble(false, t("Hi! How can we help you with ProMultiCam?", "Hai! Apa yang boleh kami bantu tentang ProMultiCam?"), "")
+        l.forEach { (from, text, at) -> bubble(from == "user", text, (if (from == "admin") "ProMultiCam · " else "") + if (at > 0) fmt.format(Date(at)) else "") }
+        (list.parent as? ScrollView)?.post { (list.parent as ScrollView).fullScroll(View.FOCUS_DOWN) }
+    }
+    private fun bubble(me: Boolean, text: String, sub: String) {
+        val b = LinearLayout(this); b.orientation = LinearLayout.VERTICAL; b.setPadding(d, d * 3 / 4, d, d * 3 / 4)
+        b.background = Ui.round(if (me) 0xFF262117.toInt() else Ui.CARD2, Ui.dp(this, 14f), if (me) Ui.GOLD else Ui.LINE, 1)
+        b.addView(Ui.label(this, text, 15f, Ui.TEXT).apply { setTextIsSelectable(true) })
+        if (sub.isNotEmpty()) b.addView(Ui.label(this, sub, 11f, Ui.SUB))
+        val wrap = LinearLayout(this); wrap.gravity = if (me) Gravity.END else Gravity.START
+        wrap.addView(b, LinearLayout.LayoutParams(-2, -2).apply { if (me) leftMargin = d * 4 else rightMargin = d * 4 })
+        list.addView(wrap, Ui.lp(this, 8))
+    }
+}
+
+/* ---------------- Device check ---------------- */
+class TestActivity : PageActivity() {
+    override val title0 get() = t("Device check", "Semak peranti")
+    private val perm = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { run() }
+    override fun build() {
+        val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO).filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        if (need.isNotEmpty()) perm.launch(need.toTypedArray()) else run()
+    }
+    private fun row(ok: Boolean?, title: String, detail: String) {
+        val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
+        r.background = Ui.round(Ui.CARD, Ui.dp(this, 14f), Ui.LINE, 1); r.setPadding(d, d, d, d)
+        val (bgc, fg, s) = when (ok) { true -> Triple(0xFF17261F.toInt(), 0xFF5FB38C.toInt(), "✓"); false -> Triple(0xFF2E1D1B.toInt(), 0xFFD9776B.toInt(), "✕"); else -> Triple(0xFF262117.toInt(), Ui.GOLD, "!") }
+        val ic = Ui.center(Ui.label(this, s, 16f, fg, true)); ic.background = Ui.round(bgc, Ui.dp(this, 99f))
+        r.addView(ic, LinearLayout.LayoutParams(Ui.px(this, 34), Ui.px(this, 34)))
+        val tx = LinearLayout(this); tx.orientation = LinearLayout.VERTICAL; tx.setPadding(d, 0, 0, 0)
+        tx.addView(Ui.label(this, title, 15f, Ui.TEXT, true)); tx.addView(Ui.label(this, detail, 13f, Ui.SUB))
+        r.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
+        body.addView(r, Ui.lp(this, 8))
+    }
+    private fun run() {
+        body.removeAllViews()
+        val wait = Ui.label(this, t("Testing…", "Menguji…"), 15f, Ui.GOLD, true); body.addView(wait)
+        Thread {
+            val res = ArrayList<Triple<Boolean?, String, String>>()
+            // camera
+            try {
+                val cm = getSystemService(CAMERA_SERVICE) as CameraManager
+                val ids = cm.cameraIdList
+                var best = ""; ids.forEach { id -> val m = cm.getCameraCharacteristics(id).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                    val sz = m?.getOutputSizes(android.graphics.SurfaceTexture::class.java)?.maxByOrNull { it.width * it.height }; if (sz != null && best.isEmpty()) best = "${sz.width}×${sz.height}" }
+                val ok = ids.isNotEmpty() && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                res.add(Triple(ok, t("Camera", "Kamera"), if (ok) "${ids.size} " + t("camera(s)", "kamera") + " · $best" else t("Allow camera permission", "Benarkan kebenaran kamera")))
+            } catch (e: Exception) { res.add(Triple(false, t("Camera", "Kamera"), t("No camera found", "Tiada kamera"))) }
+            // mic
+            val micOk = try {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) false else {
+                    val n = AudioRecord.getMinBufferSize(48000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                    val a = AudioRecord(MediaRecorder.AudioSource.MIC, 48000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, n * 2)
+                    val ok = a.state == AudioRecord.STATE_INITIALIZED; a.release(); ok } } catch (e: Exception) { false }
+            res.add(Triple(micOk, t("Microphone", "Mikrofon"), if (micOk) t("OK", "OK") else t("Allow microphone permission", "Benarkan kebenaran mikrofon")))
+            // encoder
+            val avc = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { it.isEncoder && it.supportedTypes.any { s -> s.equals("video/avc", true) } }
+            val hw = avc.any { !it.name.startsWith("OMX.google") && !it.name.startsWith("c2.android") }
+            res.add(Triple(avc.isNotEmpty() && hw, t("Recording", "Rakaman"), if (hw) "H.264 · " + t("hardware", "perkakasan") else if (avc.isNotEmpty()) "H.264 · " + t("software only (slower)", "perisian sahaja (lebih perlahan)") else t("No video encoder", "Tiada pengekod video")))
+            // storage: free space + write speed
+            val dir = Store.dir(this)
+            val st = StatFs(dir.absolutePath); val free = st.availableBytes; val tot = st.totalBytes
+            val pct = if (tot > 0) (free * 100 / tot).toInt() else 0
+            var mbps = 0.0
+            try { val f = File(dir, "_speedtest"); val blk = ByteArray(1 shl 20); val t0 = System.nanoTime()
+                f.outputStream().use { o -> repeat(24) { o.write(blk) }; o.fd.sync() }; mbps = 24 / ((System.nanoTime() - t0) / 1e9); f.delete() } catch (e: Exception) {}
+            val gb = free / 1_073_741_824.0
+            res.add(Triple(if (pct >= 20 && mbps >= 40) true else if (pct >= 10 && mbps >= 15) null else false, t("Storage", "Storan"),
+                String.format(Locale.US, "%.1f GB ", gb) + t("free", "kosong") + " ($pct%) · " + t("write", "tulis") + " ${mbps.toInt()} MB/s · " + t("keep 20% free for smooth recording", "simpan 20% kosong supaya rakaman lancar")))
+            // network
+            val cmg = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val nc = cmg.getNetworkCapabilities(cmg.activeNetwork)
+            val wifi = nc?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true; val cell = nc?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
+            val down = (nc?.linkDownstreamBandwidthKbps ?: 0) / 1000
+            res.add(Triple(if (nc == null) false else true, t("Network", "Rangkaian"), if (nc == null) t("No internet", "Tiada internet") else (if (wifi) "Wi-Fi" else if (cell) t("Mobile data", "Data mudah alih") else t("Connected", "Bersambung")) + (if (down > 0) " · ~$down Mbps" else "")))
+            // signalling server
+            val sig = try { val r = OkHttpClient().newCall(Request.Builder().url("https://0.peerjs.com/peerjs/id").build()).execute(); val ok = r.isSuccessful; r.close(); ok } catch (e: Exception) { false }
+            res.add(Triple(sig, t("Connection server", "Pelayan sambungan"), if (sig) "OK" else t("Cannot reach. Check the internet.", "Tidak dapat dihubungi. Semak internet.")))
+            // battery
+            val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+            val lv = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY); val chg = bm.isCharging
+            res.add(Triple(if (chg || lv > 40) true else null, t("Battery", "Bateri"), "$lv%" + (if (chg) " ⚡" else "") + if (chg || lv > 40) "" else " · " + t("charge for long sessions", "cas untuk sesi panjang")))
+            // memory
+            val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager; val mi = android.app.ActivityManager.MemoryInfo(); am.getMemoryInfo(mi)
+            val ram = Math.round(mi.totalMem / 1_073_741_824.0)
+            res.add(Triple(if (ram >= 4) true else null, "RAM", "$ram GB" + if (ram < 4) " · " + t("4 GB or more recommended for the Director", "4 GB ke atas disyorkan untuk Pengarah") else ""))
+            main.post {
+                if (isFinishing) return@post
+                body.removeView(wait); res.forEach { (a, b, c) -> row(a, b, c) }
+                body.addView(Ui.hint(this, t("Tip: same Wi-Fi, phones charging, 720p for long sessions.", "Tip: Wi-Fi sama, telefon dicas, 720p untuk sesi panjang.")))
+                body.addView(Ui.btn(this, t("Test again", "Uji semula")) { run() }, Ui.lp(this, 12))
+            }
+        }.start()
+    }
+}
+
+/* ---------------- Manual (the same booklet as the web, kept inside the app) ---------------- */
+class ManualActivity : PageActivity() {
+    override val title0 get() = "Manual"
+    private var pg = 0
+    private lateinit var pages: JSONArray
+    private var pics = JSONObject()
+    override fun build() {
+        val j = try { JSONObject(assets.open("manual/manual.json").bufferedReader().readText()) } catch (e: Exception) { JSONObject() }
+        pages = j.optJSONArray(if (Ui.ms) "ms" else "en") ?: JSONArray(); pics = j.optJSONObject("pics") ?: JSONObject()
+        val nav = LinearLayout(this); nav.orientation = LinearLayout.HORIZONTAL
+        nav.addView(Ui.btn(this, "‹ " + t("Back", "Kembali")) { if (pg > 0) { pg--; paint() } else finish() }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
+        nav.addView(Ui.btn(this, t("Next", "Seterusnya") + " ›", true) { if (pg < pages.length() - 1) { pg++; paint() } else finish() }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
+        root.addView(nav, Ui.lp(this, 6))
+        paint()
+    }
+    private fun paint() {
+        body.removeAllViews()
+        if (pages.length() == 0) { body.addView(Ui.label(this, t("Manual not found", "Manual tiada"), 15f)); return }
+        val p = pages.getJSONObject(pg)
+        body.addView(Ui.label(this, "${pg + 1} / ${pages.length()}", 12f, Ui.SUB))
+        body.addView(Ui.label(this, p.optString("ic") + "  " + p.optString("t"), 20f, Ui.TEXT, true), Ui.lp(this, 4))
+        pics.optJSONArray(pg.toString())?.let { arr ->
+            for (i in 0 until arr.length()) { val a = arr.getJSONArray(i); val name = a.getString(0); val caps = a.getJSONArray(if (Ui.ms) 1 else 2)
+                try { val bm = assets.open("manual/${name}_${if (Ui.ms) "ms" else "en"}.jpg").use { BitmapFactory.decodeStream(it) }
+                    val iv = ImageView(this); iv.setImageBitmap(bm); iv.adjustViewBounds = true; iv.background = Ui.round(Ui.CARD, Ui.dp(this, 12f)); iv.clipToOutline = true
+                    body.addView(iv, Ui.lp(this, 10)) } catch (e: Exception) {}
+                val cp = StringBuilder(); for (k in 0 until caps.length()) cp.append("${k + 1}  ${caps.getString(k)}    ")
+                body.addView(Ui.label(this, cp.toString().trim(), 13f, Ui.GOLD, true), Ui.lp(this, 4)) }
+        }
+        if (p.optBoolean("toc")) {
+            for (i in 1 until pages.length()) { val q = pages.getJSONObject(i)
+                body.addView(Ui.btn(this, q.optString("ic") + "  " + q.optString("t")) { pg = i; paint() }.apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL }, Ui.lp(this, 6)) }
+        } else p.optJSONArray("b")?.let { b ->
+            for (i in 0 until b.length()) { val tv = TextView(this); tv.text = Html.fromHtml("•  " + b.getString(i), Html.FROM_HTML_MODE_LEGACY); tv.textSize = 15f; tv.setTextColor(Ui.TEXT); tv.setLineSpacing(0f, 1.25f)
+                body.addView(tv, Ui.lp(this, 10)) }
+        }
+        (body.parent as? ScrollView)?.scrollTo(0, 0)
+    }
+}
+
+/* ---------------- About ---------------- */
+class AboutActivity : PageActivity() {
+    override val title0 get() = t("About", "Tentang")
+    override fun build() {
+        val iv = ImageView(this); iv.setImageResource(R.drawable.ic_logo); body.addView(iv, LinearLayout.LayoutParams(Ui.px(this, 72), Ui.px(this, 72)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = d })
+        body.addView(Ui.center(Ui.label(this, "ProMultiCam", 24f, Ui.TEXT, true)), Ui.lp(this, 8))
+        body.addView(Ui.center(Ui.label(this, t("Many phones. One video.", "Banyak telefon. Satu video."), 15f, Ui.GOLD, true)), Ui.lp(this, 2))
+        val v = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { "" }
+        body.addView(Ui.center(Ui.label(this, "App $v", 12f, Ui.SUB)), Ui.lp(this, 2))
+        listOf(
+            "🎬" to t("Turn spare phones into camera angles and switch between them live, like a TV studio.", "Jadikan telefon lain sudut kamera dan tukar sudut secara langsung, macam studio TV."),
+            "🔗" to t("Connect with a 6-digit Studio ID or QR code, over Wi-Fi or mobile data.", "Sambung dengan ID Studio 6 nombor atau kod QR, guna Wi-Fi atau data."),
+            "🎨" to t("Looks, layouts, switch effects, logo, price and contact on the video.", "Gaya warna, susun atur, kesan tukar, logo, harga dan hubungan pada video."),
+            "📝" to t("Teleprompter, title & closing cards, story scenes.", "Teleprompter, kad tajuk & penutup, babak cerita."),
+            "✂️" to t("Edit: cut, text, add videos and photos.", "Edit: potong, teks, tambah video dan gambar."),
+            "🔒" to t("Videos stay on your phone. Nothing is uploaded.", "Video kekal dalam telefon anda. Tiada yang dimuat naik.")
+        ).forEach { (ic, s) ->
+            val c = Ui.card(this); val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
+            r.addView(Ui.label(this, ic, 22f)); r.addView(Ui.label(this, s, 15f, Ui.TEXT).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+            c.addView(r); body.addView(c, Ui.lp(this, 8))
+        }
+        body.addView(Ui.btn(this, "Manual") { Nav.open(this, "manual") }, Ui.lp(this, 14))
+        body.addView(Ui.btn(this, t("Support", "Sokongan")) { Nav.open(this, "support") }, Ui.lp(this, 8))
+    }
+}
+
+/* ---------------- App APK: this version, check for a newer one, update ---------------- */
+class ApkActivity : PageActivity() {
+    override val title0 get() = "App APK"
+    private val VJ = "https://promulticam.web.app/apk/version.json"
+    private val APK = "https://promulticam.web.app/apk/ProMultiCam.apk"
+    override fun build() {
+        val pi = try { packageManager.getPackageInfo(packageName, 0) } catch (e: Exception) { null }
+        val mine = pi?.versionName ?: ""; val code = pi?.longVersionCode ?: 0
+        val c = Ui.card(this)
+        c.addView(Ui.label(this, t("This app", "App ini"), 13f, Ui.SUB, true))
+        c.addView(Ui.label(this, "ProMultiCam $mine", 20f, Ui.TEXT, true), Ui.lp(this, 4))
+        val st = Ui.label(this, t("Checking for updates…", "Menyemak versi baru…"), 14f, Ui.GOLD, true); c.addView(st, Ui.lp(this, 8))
+        body.addView(c)
+        val up = Ui.btn(this, t("Download update", "Muat turun versi baru"), true) { download() }; up.visibility = View.GONE
+        body.addView(up, Ui.lp(this, 12))
+        body.addView(Ui.hint(this, t("After downloading, open the file and tap Update. Your videos stay.", "Selepas muat turun, buka fail dan tekan Kemas kini. Video anda kekal.")))
+        bg {
+            val j = OkHttpClient().newCall(Request.Builder().url("$VJ?t=" + System.currentTimeMillis()).build()).execute().use { JSONObject(it.body?.string() ?: "{}") }
+            main.post {
+                if (isFinishing) return@post
+                val n = j.optLong("code"); val v = j.optString("v"); val mb = j.optString("mb"); val dt = j.optString("date")
+                if (n > code) { st.text = t("New version $v ($mb MB, $dt)", "Versi baru $v ($mb MB, $dt)"); up.visibility = View.VISIBLE }
+                else st.text = t("You have the latest version.", "Anda guna versi terkini.")
+            }
+        }
+    }
+    private fun download() {
+        try {
+            val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+            dm.enqueue(DownloadManager.Request(Uri.parse(APK)).setTitle("ProMultiCam.apk").setMimeType("application/vnd.android.package-archive")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "ProMultiCam.apk"))
+            toast(t("Downloading… open it from the notification when done.", "Sedang muat turun… buka dari notifikasi bila siap."))
+        } catch (e: Exception) { toast(t("Could not download", "Gagal muat turun")) }
+    }
+}

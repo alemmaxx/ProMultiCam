@@ -75,13 +75,13 @@ class MainActivity : AppCompatActivity() {
         // tools
         val g = GridLayout(c); g.columnCount = 4
         val tools = listOf(
-            Triple(R.drawable.ic_crown, t("Plans", "Pelan")) { WebActivity.open(this, "pro") },
+            Triple(R.drawable.ic_crown, t("Plans", "Pelan")) { Nav.open(this, "pro") },
             Triple(R.drawable.ic_video, t("Videos", "Video")) { startActivity(Intent(c, VideosActivity::class.java)) },
-            Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { WebActivity.open(this, "test") },
-            Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { WebActivity.open(this, "support") },
-            Triple(R.drawable.ic_book, "Manual") { WebActivity.open(this, "manual") },
-            Triple(R.drawable.ic_apk, "App APK") { WebActivity.open(this, "apk") },
-            Triple(R.drawable.ic_info, t("About", "Tentang")) { WebActivity.open(this, "about") })
+            Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { Nav.open(this, "test") },
+            Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { Nav.open(this, "support") },
+            Triple(R.drawable.ic_book, "Manual") { Nav.open(this, "manual") },
+            Triple(R.drawable.ic_apk, "App APK") { Nav.open(this, "apk") },
+            Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") })
         tools.forEachIndexed { i, (ic, l, f) ->
             val tl = LinearLayout(c); tl.orientation = LinearLayout.VERTICAL; tl.gravity = Gravity.CENTER
             tl.background = if (i == 0) Ui.raised(c, 0xFF262117.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.GOLD) else Ui.raised(c, 0xB812100D.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE)
@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
                 Auth.isPro && Auth.plan == "trial" -> t("Free Pro: ${Auth.daysLeft} day(s) left", "Pro percuma: ${Auth.daysLeft} hari lagi")
                 Auth.isPro -> t("Pro: ${Auth.daysLeft} day(s) left", "Pro: ${Auth.daysLeft} hari lagi"); else -> t("Basic (free)", "Asas (percuma)") }
             s.body.addView(Ui.label(this, plan, 14f, Ui.GOLD), Ui.lp(this, 4))
-            if (!Auth.isAdmin) s.body.addView(Ui.btn(this, if (Auth.isPro && Auth.plan != "trial") t("Renew", "Sambung langganan") else t("Upgrade to Pro", "Naik taraf ke Pro"), true) { s.dialog.dismiss(); WebActivity.open(this, "pro") }, Ui.lp(this, 14))
+            if (!Auth.isAdmin) s.body.addView(Ui.btn(this, if (Auth.isPro && Auth.plan != "trial") t("Renew", "Sambung langganan") else t("Upgrade to Pro", "Naik taraf ke Pro"), true) { s.dialog.dismiss(); Nav.open(this, "pro") }, Ui.lp(this, 14))
             s.body.addView(Ui.btn(this, t("Log out", "Log keluar")) { Auth.logout(); s.dialog.dismiss(); paintLogin() }, Ui.lp(this, 10))
             s.dialog.show(); return
         }

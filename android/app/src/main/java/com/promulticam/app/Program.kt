@@ -62,6 +62,27 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     /* a switch happened: keep the last picture to fade from */
     fun switched() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = true; transAt = SystemClock.uptimeMillis() } } }
 
+    /* continue / resume: keep the last recorded picture, then play the switch effect from it into the new part */
+    fun holdLast() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = false } } }
+    fun fadeIn() { h.post { if (fbW > 0) { hasFrozen = true; transAt = SystemClock.uptimeMillis() } } }
+    fun fromStill(b: Bitmap) {
+        h.post {
+            val e = egl0 ?: return@post; e.makeCurrent(); if (fbW != W || fbH != H) makeFbos()
+            val a = IntArray(1); GLES20.glGenTextures(1, a, 0)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, a[0])
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, b, 0); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+            cur = 1 - cur
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[1 - cur]); GLES20.glViewport(0, 0, W, H)
+            plain.drawRgb(a[0], FLIP, W, H, 0, 0, W, H)
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0); GLES20.glDeleteTextures(1, a, 0)
+            hasFrozen = false
+        }
+    }
+
     fun setPreview(s: Surface?, w: Int, hh: Int) {
         val l = CountDownLatch(1)
         h.post {
