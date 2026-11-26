@@ -207,6 +207,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         sv.setOnTouchListener { _, e ->
             pinch.onTouchEvent(e)
             if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) pinching = false
+            if (e.actionMasked == android.view.MotionEvent.ACTION_POINTER_DOWN) { val cx = android.view.MotionEvent.obtain(e); cx.action = android.view.MotionEvent.ACTION_CANCEL; tapper.onTouchEvent(cx); cx.recycle() }
             if (e.pointerCount > 1 || pinching) { if (e.actionMasked == android.view.MotionEvent.ACTION_UP) pinching = false; true } else tapper.onTouchEvent(e)
         }
         val chips = LinearLayout(c); chips.orientation = LinearLayout.HORIZONTAL
