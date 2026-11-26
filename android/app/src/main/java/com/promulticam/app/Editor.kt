@@ -302,7 +302,15 @@ class EditorActivity : AppCompatActivity() {
     private lateinit var tools: LinearLayout
     private val art by lazy { TextArt(this) }
     private var ovKey = "?"; private var scrubbing = false; private var busy = false; private var dirty = false
-    private val work by lazy { File(cacheDir, "edit").apply { mkdirs() } }
+    private val work by lazy { File(filesDir, "edit").apply { mkdirs() } }   // kept: drafts use these files
+    private var draftId = ""
+    /* save the unfinished edit (a moment after each change, and when leaving) */
+    private fun saveDraft() { if (!dirty || clips.isEmpty() || draftId.isEmpty()) return
+        try { Drafts.save(this, draftId, orig?.name?.substringBeforeLast('.') ?: t("New video", "Video baru"), orig?.absolutePath ?: "", W, H, origVol, clips, layers, sounds) } catch (e: Exception) {} }
+    private val draftRun = Runnable { saveDraft() }
+    private fun openDraft(id: String): Boolean { val d = Drafts.load(this, id) ?: return false
+        draftId = id; d.orig.takeIf { it.isNotEmpty() }?.let { File(it) }?.takeIf { it.exists() }?.let { orig = it }
+        clips = d.clips; layers = d.layers; sounds = d.sounds; origVol = d.ov; setFormat(d.W, d.H); dirty = true; rebuild(0); return true }
     private val thumbCache = HashMap<String, Bitmap?>(); private val thumbQ = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val audioCache = HashMap<String, FloatArray?>()
     private var mixFile: File? = null; private var mixGen = 0
@@ -364,19 +372,23 @@ class EditorActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (busy) { toast(t("Please wait, saving…", "Sila tunggu, sedang simpan…")); return }
-                if (!dirty) { finish(); return }
-                AlertDialog.Builder(this@EditorActivity).setMessage(t("Leave without saving?", "Keluar tanpa simpan?"))
-                    .setPositiveButton(t("Leave", "Keluar")) { _, _ -> finish() }.setNegativeButton(t("Stay", "Kekal"), null).show()
+                if (dirty) { saveDraft(); toast(t("Draft saved. Open it again from Videos ▸ Drafts.", "Draf disimpan. Buka semula dari Video ▸ Draf.")) }
+                finish()
             }
         })
         val fn = intent.getStringExtra("f") ?: ""
         val f = if (fn.isNotEmpty()) File(Store.dir(this), File(fn).name) else null
-        if (f != null && f.exists()) { orig = f; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0) }
-        else { main.postDelayed({ askAdd(true) }, 300) }
+        val dId = intent.getStringExtra("draft") ?: ""
+        if (dId.isNotEmpty()) { if (!openDraft(dId)) { toast(t("This draft cannot be opened", "Draf ini tidak boleh dibuka")); finish() } }
+        else if (f != null && f.exists()) { orig = f; draftId = "f_" + f.nameWithoutExtension; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0)
+            if (Drafts.exists(this, draftId)) AlertDialog.Builder(this).setMessage(t("You have an unfinished edit of this video. Continue it?", "Ada suntingan belum siap untuk video ini. Sambung?"))
+                .setPositiveButton(t("Continue", "Sambung")) { _, _ -> openDraft(draftId) }.setNegativeButton(t("Start again", "Mula semula")) { _, _ -> Drafts.delete(this, draftId) }.show() }
+        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ askAdd(true) }, 300) }
         mainTools()
     }
-    override fun onDestroy() { player.release(); mplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; if (!busy) work.listFiles()?.forEach { it.delete() }; super.onDestroy() }
-    override fun onPause() { super.onPause(); if (player.isPlaying) player.pause() }
+    override fun onDestroy() { player.release(); mplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
+        if (!busy) { val keep = Drafts.used(this); work.listFiles()?.forEach { if (it.absolutePath !in keep) it.delete() } }; super.onDestroy() }
+    override fun onPause() { super.onPause(); if (player.isPlaying) player.pause(); saveDraft() }
 
     private fun sbtn(l: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, l, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 12), Ui.px(this, 2), Ui.px(this, 12), Ui.px(this, 6)); b.minHeight = 0; b.minimumHeight = 0; b.minWidth = 0; b.minimumWidth = 0; return b }
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
@@ -488,6 +500,7 @@ class EditorActivity : AppCompatActivity() {
         if (items.isEmpty()) player.clearMediaItems() else { val (i, l) = locate(u); player.setMediaItems(items, i, (l * clips[i].speed / 1000).toLong()); player.prepare() }
         when (val s = tl.sel) { is Sel.C -> if (s.i >= clips.size) tl.sel = Sel.None; is Sel.L -> if (s.i >= layers.size) tl.sel = Sel.None; is Sel.S -> if (s.i >= sounds.size) tl.sel = Sel.None; else -> {} }
         tl.time = u; tl.invalidate(); ovKey = "?"; paintOverlay(u); showTime(u); clipLook(); refreshTools(); mixLater()
+        main.removeCallbacks(draftRun); main.postDelayed(draftRun, 800)
     }
     fun snap() { undo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); if (undo.size > 50) undo.removeAt(0); redo.clear(); dirty = true }
     private fun restore(s: Snap) { clips = ArrayList(s.c); layers = ArrayList(s.l); sounds = ArrayList(s.s); origVol = s.ov; setFormat(s.w, s.h); tl.sel = Sel.None; rebuild(tl.time) }
@@ -995,7 +1008,7 @@ class EditorActivity : AppCompatActivity() {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     busy = false; dlg.dismiss()
                     val out: File = if (replace != null) { replace.delete(); tmp.renameTo(replace); replace } else { val nf = Store.newFile(this@EditorActivity, (orig?.name?.substringBefore("_") ?: "Video") + "_edit"); tmp.renameTo(nf); nf }
-                    dirty = false
+                    dirty = false; Drafts.delete(this@EditorActivity, draftId)
                     if (replace != null) { orig = replace; thumbCache.clear(); thumbWant.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
                     AlertDialog.Builder(this@EditorActivity).setMessage(t("✅ Saved in the app's Videos.", "✅ Disimpan dalam Video app."))
                         .setPositiveButton(t("Save to Phone", "Simpan ke Telefon")) { _, _ -> Thread { val ok = Store.saveToPhone(this@EditorActivity, out); main.post { toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Could not save", "Gagal simpan")) } }.start() }

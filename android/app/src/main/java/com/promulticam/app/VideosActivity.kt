@@ -43,13 +43,30 @@ class VideosActivity : AppCompatActivity() {
         r1.addView(btn(t("Import Video", "Import Video"), true) { importer.launch("video/*") }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
         r1.addView(btn(t("Join Video", "Join Video")) { joinPicked() }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
         root.addView(r1, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
-        root.addView(btn(t("Video & Photos", "Video & Gambar")) { Nav.open(this, "media") }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(-1, Ui.px(this, 52)).apply { topMargin = d / 2 })
+        val r2 = LinearLayout(this); r2.orientation = LinearLayout.HORIZONTAL
+        r2.addView(btn(t("Video & Photos", "Video & Gambar")) { Nav.open(this, "media") }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
+        draftBtn = btn(t("Drafts", "Draf")) { drafts() }; draftBtn.setTextColor(Ui.GOLD)
+        r2.addView(draftBtn, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
+        root.addView(r2, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
         root.addView(Ui.hint(this, t("Tick 2 or more, then Join Video.", "Tanda 2 atau lebih, kemudian Join Video.")))
         val sv = ScrollView(this); list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; sv.addView(list)
         root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
         setContentView(root)
     }
-    override fun onResume() { super.onResume(); load() }
+    override fun onResume() { super.onResume(); load(); val n = Drafts.list(this).size; draftBtn.text = t("Drafts", "Draf") + if (n > 0) " ($n)" else "" }
+    private lateinit var draftBtn: Button
+    /* unfinished edits: open or throw away */
+    private fun drafts() {
+        val l = Drafts.list(this)
+        if (l.isEmpty()) { Toast.makeText(this, t("No drafts", "Tiada draf"), Toast.LENGTH_SHORT).show(); return }
+        val fm = java.text.SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+        AlertDialog.Builder(this).setTitle(t("Drafts", "Draf")).setItems(l.map { (_, j) -> j.optString("name") + "  ·  " + fm.format(java.util.Date(j.optLong("at"))) }.toTypedArray()) { _, w ->
+            val id = l[w].first
+            AlertDialog.Builder(this).setTitle(l[w].second.optString("name"))
+                .setPositiveButton(t("Open", "Buka")) { _, _ -> startActivity(Intent(this, EditorActivity::class.java).putExtra("draft", id)) }
+                .setNegativeButton(t("Delete", "Padam")) { _, _ -> Drafts.delete(this, id); onResume() }.setNeutralButton(t("Cancel", "Batal"), null).show()
+        }.show()
+    }
 
     /* all buttons the same height, one line */
     private fun btn(label: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, label, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 6), Ui.px(this, 6), Ui.px(this, 6), Ui.px(this, 10)); return b }
