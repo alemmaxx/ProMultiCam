@@ -209,9 +209,10 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             "tp" -> tp(msg)
             "cc" -> cam?.let { c -> when (msg["op"]) {
                 "at" -> { val v = msg["v"] as? Map<*, *>; val x = (v?.get("x") as? Number)?.toFloat() ?: 0.5f; val y = (v?.get("y") as? Number)?.toFloat() ?: 0.5f
-                    Focus.tap(c.capturer, x, y, c.front); val r = view.parent as? FrameLayout; if (r != null) Focus.ring(r, x * r.width, y * r.height) }
+                    Focus.tap(c.capturer, x, y, c.front); val r = view.parent as? FrameLayout; if (r != null) Focus.ring(r, x * r.width, y * r.height); Unit }
                 "auto" -> Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true)
-                "lock" -> if (msg["v"] == false) Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true) } }
+                "lock" -> { if (msg["v"] == false) Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true) }
+                else -> {} }; Unit }
             "full" -> { kicked = true; toast(t("Studio full", "Studio penuh")); main.postDelayed({ finish() }, 3000) }
             "kick" -> { kicked = true; toast(t("Removed by the Director", "Dikeluarkan oleh Pengarah")); main.postDelayed({ finish() }, 1500) }
         }
