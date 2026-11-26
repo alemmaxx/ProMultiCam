@@ -39,6 +39,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     @Volatile var zoomMain = 1f; @Volatile var zoomSec = 1f   // digital zoom per view (works for any camera)
     private var transAt = 0L
     private var second: VideoFrame? = null
+    private var lastTs = -1L; private var outNs = 0L
     private val inFlight = AtomicInteger(0)
     @Volatile var fps = 0; private var fpsN = 0; private var fpsT = 0L
 
@@ -70,7 +71,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         l.await(1500, TimeUnit.MILLISECONDS)
     }
 
-    fun attachEncoder(e: Encoder) { h.post { try { encEgl = EglBase.create(egl0!!.eglBaseContext, EglBase.CONFIG_RECORDABLE).also { it.createSurface(e.surface) }; enc = e } catch (x: Exception) { enc = null } } }
+    fun attachEncoder(e: Encoder) { h.post { lastTs = -1; outNs = 0; try { encEgl = EglBase.create(egl0!!.eglBaseContext, EglBase.CONFIG_RECORDABLE).also { it.createSurface(e.surface) }; enc = e } catch (x: Exception) { enc = null } } }
     fun detachEncoder(done: () -> Unit) { h.post { encEgl?.release(); encEgl = null; enc = null; done() } }
 
     fun release() {
@@ -168,8 +169,13 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         }
         val en = enc; val ee = encEgl
         if (en != null && ee != null && !en.paused) {
-            try { ee.makeCurrent(); GLES20.glViewport(0, 0, W, H); show(0, 0, W, H); ee.swapBuffers(en.nowUs() * 1000) } catch (x: Exception) {}
-        }
+            // timing from the camera's own clock (steady), kept in line with the sound clock
+            val target = en.nowUs() * 1000; val ts = f.timestampNs; val d = ts - lastTs
+            outNs = if (lastTs < 0 || d < 5_000_000 || d > 250_000_000) target else outNs + d
+            if (Math.abs(outNs - target) > 120_000_000) outNs = target
+            lastTs = ts
+            try { ee.makeCurrent(); GLES20.glViewport(0, 0, W, H); show(0, 0, W, H); ee.swapBuffers(outNs) } catch (x: Exception) {}
+        } else lastTs = -1
         fpsN++; val now = SystemClock.uptimeMillis(); if (now - fpsT >= 1000) { fps = fpsN; fpsN = 0; fpsT = now }
     }
 

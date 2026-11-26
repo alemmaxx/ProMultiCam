@@ -69,7 +69,7 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
     private fun audioLoop() {
         val sr = 48000
         val min = AudioRecord.getMinBufferSize(sr, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        val rec = try { AudioRecord(MediaRecorder.AudioSource.CAMCORDER, sr, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, 8192) * 2) } catch (e: Exception) { null }
+        val rec = try { AudioRecord(MediaRecorder.AudioSource.MIC, sr, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, 8192) * 2) } catch (e: Exception) { null }
         if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) { synchronized(lock) { aTrack = -2; startMuxerIfReady() }; return }
         val af = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sr, 1)
         af.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
@@ -89,6 +89,7 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
                     if (ii >= 0) { aenc.queueInputBuffer(ii, 0, 0, maxOf(0L, baseUs) + samples * 1_000_000L / sr, MediaCodec.BUFFER_FLAG_END_OF_STREAM); eos = true }
                 } else if (n > 0 && !paused) {
                     if (baseUs < 0) baseUs = nowUs()
+                    gain = agc(pcm, n, gain)
                     val ii = aenc.dequeueInputBuffer(10_000)
                     if (ii >= 0) {
                         val ib = aenc.getInputBuffer(ii)!!; ib.clear(); val len = minOf(n, ib.remaining()); ib.put(pcm, 0, len)
@@ -108,6 +109,23 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
         }
         try { rec.stop() } catch (e: Exception) {}; rec.release()
         try { aenc.stop() } catch (e: Exception) {}; aenc.release()
+    }
+
+    private var gain = 2f
+    /* automatic level: lifts a quiet voice (up to 8x), never clips, leaves silence alone */
+    private fun agc(b: ByteArray, n: Int, g0: Float): Float {
+        val cnt = n / 2; var sum = 0.0; var peak = 1
+        for (i in 0 until cnt) { val v = (b[2 * i].toInt() and 0xff) or (b[2 * i + 1].toInt() shl 8); val a = Math.abs(v.toShort().toInt()); sum += a.toDouble() * a; if (a > peak) peak = a }
+        val rms = Math.sqrt(sum / maxOf(1, cnt)).toFloat()
+        var want = if (rms > 60f) (3300f / rms).coerceIn(1f, 8f) else g0
+        want = minOf(want, 30000f / peak)
+        val g = (g0 + (want - g0) * (if (want < g0) 0.5f else 0.08f)).coerceIn(1f, 8f).let { minOf(it, 32000f / peak) }
+        for (i in 0 until cnt) {
+            val v = ((b[2 * i].toInt() and 0xff) or (b[2 * i + 1].toInt() shl 8)).toShort().toInt()
+            val o = (v * g).toInt().coerceIn(-32767, 32767)
+            b[2 * i] = (o and 0xff).toByte(); b[2 * i + 1] = ((o shr 8) and 0xff).toByte()
+        }
+        return g
     }
 
     /* finish the file in the background; done(ok) is called from that thread */

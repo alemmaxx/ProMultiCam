@@ -20,6 +20,39 @@ class Brand(private val ctx: Context) {
     var phone: String get() = sp.getString("phone", "") ?: ""; set(v) { sp.edit().putString("phone", v).apply() }
 
     val logoFile: File get() = File(ctx.filesDir, "logo.png")
+    private val origFile: File get() = File(ctx.filesDir, "logo_orig.png")
+    var removeBg: Boolean get() = sp.getBoolean("logoBg", true); set(v) { sp.edit().putBoolean("logoBg", v).apply(); process() }
+
+    /* a new logo: keep the original, then (if chosen) make its plain background see-through */
+    fun setLogo(src: Bitmap) {
+        val k = minOf(1f, 600f / maxOf(src.width, src.height))
+        val b = if (k < 1f) Bitmap.createScaledBitmap(src, (src.width * k).toInt(), (src.height * k).toInt(), true) else src
+        origFile.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        process()
+    }
+    fun clearLogo() { logoFile.delete(); origFile.delete(); refresh() }
+    private fun process() {
+        val o = (if (origFile.exists()) BitmapFactory.decodeFile(origFile.absolutePath) else null) ?: run { refresh(); return }
+        val b = if (removeBg) cutBg(o) else o
+        logoFile.outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        refresh()
+    }
+    /* flood-fill from the edges: pixels close to the corner colour become transparent */
+    private fun cutBg(src: Bitmap): Bitmap {
+        val w = src.width; val h = src.height; val px = IntArray(w * h); src.copy(Bitmap.Config.ARGB_8888, false).getPixels(px, 0, w, 0, 0, w, h)
+        val corners = intArrayOf(px[0], px[w - 1], px[(h - 1) * w], px[h * w - 1])
+        if (corners.all { Color.alpha(it) < 20 }) return src            // already transparent
+        val bg = corners[0]
+        fun near(c: Int) = Color.alpha(c) < 20 || (Math.abs(Color.red(c) - Color.red(bg)) + Math.abs(Color.green(c) - Color.green(bg)) + Math.abs(Color.blue(c) - Color.blue(bg))) < 90
+        val seen = BooleanArray(w * h); val q = IntArray(w * h); var head = 0; var tail = 0
+        fun push(i: Int) { if (!seen[i] && near(px[i])) { seen[i] = true; q[tail++] = i } }
+        for (x in 0 until w) { push(x); push((h - 1) * w + x) }
+        for (y in 0 until h) { push(y * w); push(y * w + w - 1) }
+        while (head < tail) { val i = q[head++]; val x = i % w; val y = i / w
+            if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (y > 0) push(i - w); if (y < h - 1) push(i + w) }
+        for (i in 0 until w * h) if (seen[i]) px[i] = 0
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+    }
     @Volatile var logo: Bitmap? = null
     fun loadLogo() { logo = if (logoFile.exists()) BitmapFactory.decodeFile(logoFile.absolutePath) else null }
 

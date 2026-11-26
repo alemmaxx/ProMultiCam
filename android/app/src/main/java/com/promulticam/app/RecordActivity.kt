@@ -77,8 +77,8 @@ class RecordActivity : AppCompatActivity() {
     private val pickLogo = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             try {
-                contentResolver.openInputStream(uri)?.use { inp -> brand.logoFile.outputStream().use { inp.copyTo(it) } }
-                brand.refresh(); toast(t("Logo added", "Logo ditambah"))
+                val bmp = contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: throw Exception("logo")
+                brand.setLogo(bmp); toast(t("Logo added", "Logo ditambah"))
             } catch (e: Exception) { toast(t("Could not load the logo", "Gagal muat logo")) }
         }
     }
@@ -184,13 +184,7 @@ class RecordActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun startRec() {
         val cap = vc ?: return
-        val name = "ProMultiCam_" + SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date())
-        val cv = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProMultiCam")
-        }
-        val out = MediaStoreOutputOptions.Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI).setContentValues(cv).build()
+        val out = androidx.camera.video.FileOutputOptions.Builder(Store.newFile(this, brand.title.ifEmpty { "Video" })).build()
         var pr = cap.output.prepareRecording(this, out)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) pr = pr.withAudioEnabled()
         paused = false
@@ -201,7 +195,7 @@ class RecordActivity : AppCompatActivity() {
                 is VideoRecordEvent.Finalize -> {
                     recording = null; recBtn.text = t("● Record", "● Rakam"); pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f; pauseBtn.text = t("Pause", "Jeda"); timeTx.text = ""
                     if (ev.hasError() && ev.error != VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE) toast(t("Recording failed", "Rakaman gagal"))
-                    else { lastUri = ev.outputResults.outputUri; toast(t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam")) }
+                    else { lastUri = ev.outputResults.outputUri; toast(t("✅ Saved in Videos. Tap Save to Phone for your gallery.", "✅ Disimpan dalam Video. Tekan Simpan ke Telefon untuk galeri.")) }
                 }
             }
         }
@@ -228,7 +222,7 @@ class RecordActivity : AppCompatActivity() {
         val ph = field(t("Phone / contact", "Telefon / hubungi"), brand.phone)
         val lb = Ui.btn(this, t("Choose logo", "Pilih logo")) { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
         col.addView(lb, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d14 })
-        val rm = Ui.btn(this, t("Remove logo", "Buang logo")) { brand.logoFile.delete(); brand.refresh(); toast(t("Logo removed", "Logo dibuang")) }
+        val rm = Ui.btn(this, t("Remove logo", "Buang logo")) { brand.clearLogo(); toast(t("Logo removed", "Logo dibuang")) }
         col.addView(rm, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d14 / 2 })
         AlertDialog.Builder(this).setTitle(t("Brand", "Jenama")).setView(col)
             .setPositiveButton(t("Save", "Simpan")) { _, _ ->

@@ -70,7 +70,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var layBtn: Button
     private lateinit var trBtn: Button
     private lateinit var zoomBar: SeekBar
-    private var resumeUri: Uri? = null
+    private var resumeFile: File? = null
+    private var logoView: android.widget.ImageView? = null
     private val srcs = ArrayList<Src>()
     private val links = HashMap<String, PeerLink>()
     private var mainSrc: Src? = null
@@ -95,8 +96,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     private val pickLogo = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) try {
-            contentResolver.openInputStream(uri)?.use { i -> brand.logoFile.outputStream().use { i.copyTo(it) } }
-            brand.refresh(); refreshOverlay()
+            val bmp = contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) } ?: throw Exception("logo")
+            brand.setLogo(bmp); refreshOverlay(); logoView?.setImageBitmap(brand.logo)
         } catch (e: Exception) { toast(t("Could not load the logo", "Gagal muat logo")) }
     }
 
@@ -112,7 +113,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         Ui.init(this); Auth.init(this); Rtc.init(this)
         brand = Brand(this); brand.refresh()
         look = Looks.byId(sp.getString("look", "superior"))
-        resumeUri = intent.getStringExtra("resume")?.let { Uri.parse(it) }
+        resumeFile = intent.getStringExtra("resume")?.let { File(it) }
         prog = Program(W, H); prog.setLook(look.f); prog.layout = layout; prog.trans = trans
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
@@ -292,11 +293,12 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.hr(this))
         b.addView(Ui.section(this, t("Brand", "Jenama")))
         val lr = LinearLayout(this); lr.orientation = LinearLayout.HORIZONTAL; lr.gravity = Gravity.CENTER_VERTICAL
-        val lv = android.widget.ImageView(this); lv.background = Ui.round(0xFF121110.toInt(), Ui.dp(this, 12f), Ui.LINE, 2); lv.setImageBitmap(brand.logo); lv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        val lv = android.widget.ImageView(this); logoView = lv; lv.background = Ui.round(0xFF121110.toInt(), Ui.dp(this, 12f), Ui.LINE, 2); lv.setImageBitmap(brand.logo); lv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         lr.addView(lv, LinearLayout.LayoutParams(Ui.px(this, 54), Ui.px(this, 54)))
         lr.addView(Ui.btn(this, t("Upload logo", "Muat naik logo")) { if (!needPro()) pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 12 })
-        lr.addView(Ui.dangerBtn(this, t("Remove", "Buang")) { brand.logoFile.delete(); brand.refresh(); lv.setImageBitmap(null); refreshOverlay() }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
+        lr.addView(Ui.dangerBtn(this, t("Remove", "Buang")) { brand.clearLogo(); lv.setImageBitmap(null); refreshOverlay() }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
         b.addView(lr, Ui.lp(this, 6))
+        b.addView(Ui.check(this, t("Remove logo background (see-through)", "Buang latar logo (lutsinar)"), brand.removeBg) { v -> brand.removeBg = v; lv.setImageBitmap(brand.logo); refreshOverlay() })
         b.addView(Ui.label(this, t("Price / tagline (optional)", "Harga / slogan (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val pr = Ui.input(this, t("e.g. RM12.90 or Buy 2 Free 1", "cth: RM12.90 atau Beli 2 Percuma 1"), brand.price); b.addView(pr, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Phone / contact (optional)", "Telefon / hubungi (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
@@ -313,7 +315,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(ar, Ui.lp(this, 6))
         ti.addTextChangedListener(watch { brand.title = it; brand.refresh() }); pr.addTextChangedListener(watch { brand.price = it; brand.refresh() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refresh() })
-        s.dialog.setOnDismissListener { refreshOverlay(); paintChips() }
+        s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
         s.dialog.show()
     }
     private fun watch(f: (String) -> Unit) = object : android.text.TextWatcher {
@@ -513,22 +515,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     /* ---------- recording ---------- */
     private fun startRec() {
         if (mainSrc?.track == null) { toast(t("No camera yet", "Belum ada kamera")); return }
-        val name = "ProMultiCam_" + SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date()) + ".mp4"
-        val pfd: ParcelFileDescriptor
-        try {
-            if (Build.VERSION.SDK_INT >= 29) {
-                val cv = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-                    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProMultiCam"); put(MediaStore.Video.Media.IS_PENDING, 1)
-                }
-                val u = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv) ?: throw Exception("insert")
-                recUri = u; pfd = contentResolver.openFileDescriptor(u, "rw") ?: throw Exception("open")
-            } else {
-                val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ProMultiCam"); dir.mkdirs()
-                val f = File(dir, name); recFile = f
-                pfd = ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE)
-            }
-        } catch (e: Exception) { toast(t("Cannot save here", "Tidak boleh simpan")); return }
+        val f = Store.newFile(this, brand.title.ifEmpty { "Video" }); recFile = f
+        val pfd = try { ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE) } catch (e: Exception) { toast(t("Cannot save here", "Tidak boleh simpan")); return }
         recPfd = pfd
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val e = Encoder(W, H, pfd.fileDescriptor, audio)
@@ -570,36 +558,23 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         enc = null; ending = false; refreshOverlay()
         try { recPfd?.close() } catch (e: Exception) {}
         recPfd = null
-        recUri?.let { u ->
-            if (ok) { val cv = ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }; contentResolver.update(u, cv, null, null); lastUri = u }
-            else contentResolver.delete(u, null, null)
-        }
-        recFile?.let { f -> if (ok) { MediaScannerConnection.scanFile(this, arrayOf(f.absolutePath), arrayOf("video/mp4"), null); lastUri = Uri.fromFile(f) } else f.delete() }
-        val part = recUri; recUri = null; recFile = null
-        val base = resumeUri
-        if (ok && base != null && part != null && Build.VERSION.SDK_INT >= 29) { resumeUri = null; joinInto(base, part) }
+        val part = recFile; recFile = null
+        if (!ok) part?.delete()
+        val base = resumeFile
+        if (ok && base != null && part != null && base.exists()) { resumeFile = null; joinInto(base, part) }
         recBtn.isEnabled = true; recBtn.text = "● " + t("Start Recording", "Mula Rakam"); pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f; pauseBtn.text = "‖ " + t("Pause", "Jeda"); qBtn.isEnabled = true
         timeTx.visibility = View.GONE
         sendLive(); srcs.forEach { it.data?.send(mapOf("t" to "q", "hi" to false)) }
-        toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Recording failed", "Rakaman gagal"))
+        toast(if (ok) t("✅ Saved in Videos. Tap Save to Phone for your gallery.", "✅ Disimpan dalam Video. Tekan Simpan ke Telefon untuk galeri.") else t("Recording failed", "Rakaman gagal"))
     }
 
     /* Continue: the new part is added to the end of the earlier video, which keeps its name */
-    private fun joinInto(base: Uri, part: Uri) {
+    private fun joinInto(base: File, part: File) {
         toast(t("Adding to the same video…", "Menambah ke video yang sama…"))
         Thread {
-            var ok = false
-            try {
-                var name = "ProMultiCam.mp4"
-                contentResolver.query(base, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) name = c.getString(0) ?: name }
-                val cv = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, "tmp_" + name); put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4"); put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ProMultiCam"); put(MediaStore.Video.Media.IS_PENDING, 1) }
-                val u = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cv)!!
-                contentResolver.openFileDescriptor(u, "rw")!!.use { ok = Joiner.join(this, listOf(base, part), it.fileDescriptor) }
-                if (ok) {
-                    contentResolver.delete(base, null, null); contentResolver.delete(part, null, null)
-                    contentResolver.update(u, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0); put(MediaStore.MediaColumns.DISPLAY_NAME, name) }, null, null)
-                } else contentResolver.delete(u, null, null)
-            } catch (e: Exception) { ok = false }
+            val tmp = File(base.parentFile, "tmp_" + base.name)
+            val ok = try { ParcelFileDescriptor.open(tmp, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE).use { Joiner.join(this, listOf(Uri.fromFile(base), Uri.fromFile(part)), it.fileDescriptor) } } catch (e: Exception) { false }
+            if (ok) { base.delete(); part.delete(); tmp.renameTo(base) } else tmp.delete()
             main.post { toast(if (ok) t("Added — one longer video", "Ditambah — satu video lebih panjang") else t("Could not join; the new part is kept as its own video", "Gagal gabung; bahagian baru disimpan berasingan")) }
         }.start()
     }

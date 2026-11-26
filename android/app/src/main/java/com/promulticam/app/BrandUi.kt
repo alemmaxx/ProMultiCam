@@ -19,7 +19,7 @@ object BrandUi {
         val pr = field(t("Price / tagline", "Harga / slogan"), brand.price)
         val ph = field(t("Phone / contact", "Telefon / hubungi"), brand.phone)
         col.addView(Ui.btn(a, t("Choose logo", "Pilih logo")) { pickLogo() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d14 })
-        col.addView(Ui.btn(a, t("Remove logo", "Buang logo")) { brand.logoFile.delete(); brand.refresh(); saved() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d14 / 2 })
+        col.addView(Ui.btn(a, t("Remove logo", "Buang logo")) { brand.clearLogo(); saved() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d14 / 2 })
         AlertDialog.Builder(a).setTitle(t("Brand", "Jenama")).setView(col)
             .setPositiveButton(t("Save", "Simpan")) { _, _ ->
                 brand.on = on.isChecked; brand.title = ti.text.toString(); brand.price = pr.text.toString(); brand.phone = ph.text.toString(); brand.refresh(); saved()
