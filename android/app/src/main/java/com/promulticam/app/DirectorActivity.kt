@@ -404,7 +404,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val b = s.body
         b.addView(Ui.label(this, t("Studio ID", "ID Studio"), 13f, Ui.SUB, true))
         b.addView(Ui.label(this, code.chunked(3).joinToString(" "), 40f, Ui.GOLD, true), Ui.lp(this, 4))
-        val url = "https://promulticam.web.app/?join=$code"
+        val url = "https://promulticam.web.app/join/$code"
         try {
             val m = com.google.zxing.qrcode.QRCodeWriter().encode(url, com.google.zxing.BarcodeFormat.QR_CODE, 600, 600)
             val bmp = android.graphics.Bitmap.createBitmap(600, 600, android.graphics.Bitmap.Config.RGB_565)
@@ -412,9 +412,10 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             val iv = android.widget.ImageView(this); iv.setImageBitmap(bmp); iv.background = Ui.round(Color.WHITE, Ui.dp(this, 14f)); iv.setPadding(16, 16, 16, 16)
             b.addView(iv, LinearLayout.LayoutParams(Ui.px(this, 220), Ui.px(this, 220)).apply { topMargin = Ui.px(this@DirectorActivity, 10); gravity = Gravity.CENTER_HORIZONTAL })
         } catch (e: Exception) {}
-        b.addView(Ui.hint(this, t("Camera phones type this ID or scan the QR.", "Telefon Kamera taip ID ini atau imbas QR.")))
+        b.addView(Ui.hint(this, t("Camera phones type this ID or scan the QR. With the app installed, the link opens the app.", "Telefon Kamera taip ID ini atau imbas QR. Jika app sudah dipasang, pautan terus buka app.")))
         b.addView(Ui.btn(this, t("Share link", "Kongsi pautan")) {
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t("Join my ProMultiCam studio as a camera (code $code): ", "Sertai studio ProMultiCam saya sebagai kamera (kod $code): ") + url), t("Share", "Kongsi")))
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t("Join my ProMultiCam studio as a camera (code $code): ", "Sertai studio ProMultiCam saya sebagai kamera (kod $code): ") + url +
+                "\n\n" + t("Smoother video with the Android app:", "Video lebih lancar dengan app Android:") + " https://promulticam.web.app/apk.html"), t("Share", "Kongsi")))
         }, Ui.lp(this, 12))
         b.addView(Ui.section(this, t("Connected", "Bersambung")))
         srcs.forEach { x -> b.addView(Ui.label(this, "• " + x.name + if (x === mainSrc) "  ★" else "", 15f, Ui.TEXT), Ui.lp(this, 4)) }

@@ -502,6 +502,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 .rec-item{content-visibility:auto;contain-intrinsic-size:auto 160px}
 #filesSheet .sheet{overscroll-behavior:contain}
 #edScreen .ed-tabs button,#edScreen .btn,.bg-opt{background-image:var(--b3-sh)}
+.app-hint{display:flex;flex-direction:column;gap:2px;margin:0 0 12px;padding:12px 14px;border-radius:14px;background:#262117;border:1px solid var(--gold,#d9b44a);color:inherit;text-decoration:none}.app-hint b{color:var(--gold,#d9b44a);font-size:15px}.app-hint span{font-size:13px;opacity:.85}
 </style>
 </head>
 <body>
@@ -2343,16 +2344,18 @@ async function pollStats(){
 
 /* ---------- Director extras: QR, auto-switch, logo, recipe card, music ---------- */
 let lastSwitch=Date.now(),logoImg=null,previewing=false;
-function joinURL(){return location.origin+location.pathname+'?join='+roomCode;}
+/* on Android in the browser: offer the app (smoother video) */
+function appHint(){if(!/Android/i.test(navigator.userAgent)||window.PMCNative)return;const j=$('joinCode');if(!j||document.getElementById('appHint'))return;const d=document.createElement('a');d.id='appHint';d.href='apk.html';d.className='app-hint';d.innerHTML='<b></b><span></span>';d.querySelector('b').textContent=t('appHintT');d.querySelector('span').textContent=t('appHintB');const box=j.closest('.card')||j.parentElement;box.parentElement.insertBefore(d,box);}
+function joinURL(){return location.origin+'/join/'+roomCode;}
 function renderQR(){
   const box=$('qrBox');if(!box||!roomCode)return;
   if(!window.qrcode){box.textContent=roomCode;return;}
   try{const q=qrcode(0,'M');q.addData(joinURL());q.make();box.innerHTML=q.createSvgTag({cellSize:5,margin:2,scalable:true});}catch(e){}
 }
 async function shareJoin(){
-  const url=joinURL(),text=t('inviteText',{code:roomCode});
-  try{if(navigator.share){await navigator.share({title:'ProMultiCam',text,url});return;}}catch(e){return;}
-  try{await navigator.clipboard.writeText(text+' '+url);toast(t('copied'));}catch(e){prompt('',url);}
+  const url=joinURL(),text=t('inviteText',{code:roomCode})+' '+url+'\n\n'+t('inviteApp')+' '+location.origin+'/apk.html';
+  try{if(navigator.share){await navigator.share({title:'ProMultiCam',text});return;}}catch(e){return;}
+  try{await navigator.clipboard.writeText(text);toast(t('copied'));}catch(e){prompt('',url);}
 }
 function addTileBtn(box){const a=document.createElement('button');a.className='tile-add';a.textContent='+';a.setAttribute('aria-label',t('addCam'));a.onclick=()=>openSheet('connSheet');box.appendChild(a);}
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:v;}catch(e){return d;}}
@@ -3270,7 +3273,7 @@ function sLost(){
 initLang();applyI18n();initInstall();
 (function(){
   const jc=(new URLSearchParams(location.search).get('join')||'').replace(/\D/g,'');
-  if(jc.length===6){history.replaceState(null,'',location.pathname);goSlave();selTab('data');$('joinCode').value=jc;toast(t('qrReady'),4000);track('join_link');return;}
+  if(jc.length===6){history.replaceState(null,'',location.pathname);goSlave();selTab('data');$('joinCode').value=jc;toast(t('qrReady'),4000);track('join_link');appHint();return;}
   /* opened from the Android app: go straight to one panel */
   const op=new URLSearchParams(location.search).get('open');
   if(op){const go=()=>{const f={pro:()=>openPro(),support:()=>openSupport(),manual:()=>openManual(),about:()=>openAbout(),test:()=>runTest(),account:()=>openAccount(),videos:()=>openVideos(),media:()=>openMediaEd(),edit:()=>nativeEdit(new URLSearchParams(location.search).get('f')||'')}[op];if(f)try{f();}catch(e){}};

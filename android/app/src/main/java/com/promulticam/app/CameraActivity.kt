@@ -68,7 +68,15 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
         if (need.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) startCam() else perms.launch(need)
+        linkCode(intent)
     }
+    /* opened from a shared link: https://promulticam.web.app/join/123456 → join that studio */
+    override fun onNewIntent(i: android.content.Intent) { super.onNewIntent(i); linkCode(i) }
+    private fun linkCode(i: android.content.Intent?) {
+        val c = i?.data?.let { Regex("(\\d{6})").find(it.toString())?.value } ?: return
+        codeIn.setText(c); tryJoin(0)
+    }
+    private fun tryJoin(n: Int) { if (target.isNotEmpty() || isFinishing) return; if (cam != null || n > 10) join() else main.postDelayed({ tryJoin(n + 1) }, 400) }
 
     override fun onDestroy() {
         super.onDestroy(); stopped = true; main.removeCallbacksAndMessages(null)
@@ -268,7 +276,7 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 val lum = com.google.zxing.PlanarYUVLuminanceSource(y, w, h, 0, 0, w, h, false)
                 val res = com.google.zxing.MultiFormatReader().apply { setHints(mapOf(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(com.google.zxing.BarcodeFormat.QR_CODE), com.google.zxing.DecodeHintType.TRY_HARDER to true)) }
                     .decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(lum)))
-                val m = Regex("join=(\\d{6})").find(res.text) ?: Regex("^(\\d{6})$").find(res.text.trim())
+                val m = Regex("join[=/](\\d{6})").find(res.text) ?: Regex("^(\\d{6})$").find(res.text.trim())
                 if (m != null) main.post { if (scanning) { stopScan(); codeIn.setText(m.groupValues[1]); toast(t("Studio found. Tap Join.", "Studio dijumpai. Tekan Sertai.")); join() } }
             } catch (e: Exception) {} finally { f.release() }
         }.start()
