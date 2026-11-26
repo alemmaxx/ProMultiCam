@@ -1030,7 +1030,7 @@ class EditorActivity : AppCompatActivity() {
         val seqs = ArrayList<EditedMediaItemSequence>(); seqs.add(EditedMediaItemSequence(items))
         // video over video: one more picture track; black gaps where nothing shows (made see-through by the compositor)
         val pips = if (noPip) emptyList() else layers.filter { it.kind == "pip" }.sortedBy { it.s }.fold(ArrayList<Layer>()) { a, l -> if (a.isEmpty() || l.s >= a.last().e) a.add(l.copy()); a }
-        var compSet: androidx.media3.common.VideoCompositorSettings? = null
+        var compSet: androidx.media3.effect.VideoCompositorSettings? = null
         if (pips.isNotEmpty()) {
             val pi = ArrayList<EditedMediaItem>(); var at = 0L; val m = minOf(W, H)
             fun gap(us: Long) { if (us < 50_000) return; val g = File(work, "gap_" + us + ".mp4"); if (!g.exists()) StillClip.make(Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }, 320, 180, us, g)
@@ -1041,13 +1041,13 @@ class EditorActivity : AppCompatActivity() {
                 pi.add(EditedMediaItem.Builder(mi).setRemoveAudio(true).setEffects(Effects(listOf(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)))).build()); at = l.e }
             seqs.add(EditedMediaItemSequence(pi))
             val pl = pips; val ww = W; val hh = H
-            compSet = object : androidx.media3.common.VideoCompositorSettings {
+            compSet = object : androidx.media3.effect.VideoCompositorSettings {
                 override fun getOutputSize(inputSizes: MutableList<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(ww, hh)
-                override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.common.OverlaySettings {
-                    if (inputId == 0) return androidx.media3.common.OverlaySettings.Builder().build()
+                override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
+                    if (inputId == 0) return androidx.media3.effect.OverlaySettings.Builder().build()
                     val l = pl.firstOrNull { presentationTimeUs >= it.s && presentationTimeUs < it.e }
-                    return if (l == null) androidx.media3.common.OverlaySettings.Builder().setAlphaScale(0f).build()
-                    else androidx.media3.common.OverlaySettings.Builder().setBackgroundFrameAnchor(l.x * 2 - 1, 1 - l.y * 2).build()
+                    return if (l == null) androidx.media3.effect.OverlaySettings.Builder().setAlphaScale(0f).build()
+                    else androidx.media3.effect.OverlaySettings.Builder().setBackgroundFrameAnchor(l.x * 2 - 1, 1 - l.y * 2).build()
                 }
             }
         }
