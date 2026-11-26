@@ -80,6 +80,14 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val root = FrameLayout(this); root.setBackgroundColor(Color.BLACK)
         view = SurfaceViewRenderer(this)
         root.addView(view, FrameLayout.LayoutParams(-1, -1))
+        // tap = focus there; hold = auto focus again
+        val tapper = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: android.view.MotionEvent) = true
+            override fun onSingleTapUp(e: android.view.MotionEvent): Boolean { val c = cam ?: return true
+                if (Focus.tap(c.capturer, e.x / root.width, e.y / root.height, false)) Focus.ring(root, e.x, e.y); return true }
+            override fun onLongPress(e: android.view.MotionEvent) { val c = cam ?: return; Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true); toast(t("Auto focus", "Fokus automatik")) }
+        })
+        view.setOnTouchListener { _, e -> tapper.onTouchEvent(e) }
         live = FrameLayout(this)
         val d = Ui.dp(this, 14f).toInt()
         onAir = Ui.label(this, "● LIVE", 14f, Color.WHITE, true); onAir.setPadding(d, d / 2, d, d / 2); onAir.background = Ui.round(0xFFD23C3C.toInt(), Ui.dp(this, 99f)); onAir.visibility = View.GONE
@@ -199,6 +207,11 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             "welcome" -> status.text = t("Connected to ", "Bersambung ke ") + (msg["name"] ?: t("Director", "Pengarah"))
             "live" -> onAir.visibility = if (msg["on"] == true) View.VISIBLE else View.GONE
             "tp" -> tp(msg)
+            "cc" -> cam?.let { c -> when (msg["op"]) {
+                "at" -> { val v = msg["v"] as? Map<*, *>; val x = (v?.get("x") as? Number)?.toFloat() ?: 0.5f; val y = (v?.get("y") as? Number)?.toFloat() ?: 0.5f
+                    Focus.tap(c.capturer, x, y, c.front); val r = view.parent as? FrameLayout; if (r != null) Focus.ring(r, x * r.width, y * r.height) }
+                "auto" -> Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true)
+                "lock" -> if (msg["v"] == false) Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true) } }
             "full" -> { kicked = true; toast(t("Studio full", "Studio penuh")); main.postDelayed({ finish() }, 3000) }
             "kick" -> { kicked = true; toast(t("Removed by the Director", "Dikeluarkan oleh Pengarah")); main.postDelayed({ finish() }, 1500) }
         }

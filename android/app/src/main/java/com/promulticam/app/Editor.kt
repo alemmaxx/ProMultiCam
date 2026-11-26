@@ -1,46 +1,60 @@
 @file:Suppress("UnsafeOptInUsageError")
 package com.promulticam.app
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
-import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.text.Layout
-import android.text.StaticLayout
+import android.provider.MediaStore
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.text.TextPaint
-import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.SurfaceView
+import android.view.ScaleGestureDetector
+import android.view.TextureView
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
-import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.ChannelMixingAudioProcessor
+import androidx.media3.common.audio.ChannelMixingMatrix
+import androidx.media3.common.audio.SpeedChangingAudioProcessor
+import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.RgbMatrix
+import androidx.media3.effect.ScaleAndRotateTransformation
+import androidx.media3.effect.SpeedChangeEffect
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
@@ -55,261 +69,280 @@ import com.google.common.collect.ImmutableList
 import com.promulticam.app.Ui.t
 import java.io.File
 import java.util.Locale
+import kotlin.math.abs
 
-/* ---------- the project: clips one after another + text on top ---------- */
-class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) { val dur get() = outUs - inUs; fun copy() = Clip(file, inUs, outUs, still) }
-class Txt(var text: String, var s: Long, var e: Long, var font: String = "bricolage", var col: Int = Color.WHITE, var box: Boolean = true, var pos: String = "b", var size: Int = 1) {
-    fun copy() = Txt(text, s, e, font, col, box, pos, size)
-}
+/* What is selected on the timeline */
+sealed class Sel { object None : Sel(); data class C(val i: Int) : Sel(); data class L(val i: Int) : Sel(); data class S(val i: Int) : Sel() }
 
-/* draws the text of one moment on a clear picture the size of the video (the same for preview and saving) */
-class TextArt(private val c: Context) {
-    fun key(list: List<Txt>, t: Long) = list.filter { t >= it.s && t < it.e }.joinToString("|") { "${it.text}/${it.font}/${it.col}/${it.box}/${it.pos}/${it.size}" }
-    fun render(list: List<Txt>, t: Long, W: Int, H: Int): Bitmap {
-        val on = list.filter { t >= it.s && t < it.e }
-        val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
-        if (on.isEmpty()) return b
-        val cv = Canvas(b); val m = minOf(W, H).toFloat()
-        on.forEach { x ->
-            val tp = TextPaint(Paint.ANTI_ALIAS_FLAG); tp.typeface = Overlay.face(c, x.font); tp.textSize = m * floatArrayOf(0.06f, 0.085f, 0.115f)[x.size.coerceIn(0, 2)]
-            tp.color = x.col
-            val txt = if (Overlay.FONTS[x.font]?.caps == true) x.text.uppercase() else x.text
-            val w = (W * 0.86f).toInt()
-            val sl = StaticLayout.Builder.obtain(txt, 0, txt.length, tp, w).setAlignment(Layout.Alignment.ALIGN_CENTER).setLineSpacing(0f, 1.05f).build()
-            val cy = H * when (x.pos) { "t" -> 0.16f; "m" -> 0.5f; else -> 0.8f }
-            val top = cy - sl.height / 2f; val left = (W - w) / 2f
-            if (x.box) {
-                var lw = 0f; for (i in 0 until sl.lineCount) lw = maxOf(lw, sl.getLineWidth(i))
-                val pad = tp.textSize * 0.35f
-                val bp = Paint(Paint.ANTI_ALIAS_FLAG); bp.color = if (x.col == Color.BLACK || x.col == 0xFF111111.toInt()) 0xE6FFFFFF.toInt() else 0xB3000000.toInt()
-                cv.drawRoundRect(RectF(W / 2f - lw / 2 - pad, top - pad * 0.6f, W / 2f + lw / 2 + pad, top + sl.height + pad * 0.6f), pad, pad, bp)
-            } else tp.setShadowLayer(tp.textSize * 0.12f, 0f, tp.textSize * 0.05f, 0xCC000000.toInt())
-            cv.save(); cv.translate(left, top); sl.draw(cv); cv.restore()
-        }
-        return b
-    }
-}
-
-/* a photo becomes a short video clip (with silent sound), so it sits on the timeline like any video */
-object StillClip {
-    fun make(src: Bitmap, W0: Int, H0: Int, durUs: Long, out: File) {
-        var W = W0; var H = H0; val big = maxOf(W, H); if (big > 1920) { W = W * 1920 / big; H = H * 1920 / big }
-        W = W / 2 * 2; H = H / 2 * 2
-        val fps = 30; val n = maxOf(1, (durUs * fps / 1_000_000).toInt())
-        val vf = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface); setInteger(MediaFormat.KEY_BIT_RATE, 3_000_000)
-            setInteger(MediaFormat.KEY_FRAME_RATE, fps); setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) }
-        val vc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC); vc.configure(vf, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        val surf = vc.createInputSurface(); vc.start()
-        val vs = ArrayList<Pair<ByteArray, MediaCodec.BufferInfo>>(); var vFmt: MediaFormat? = null; var k = 0
-        val info = MediaCodec.BufferInfo()
-        fun drainV(end: Boolean) {
-            val until = System.currentTimeMillis() + 5000
-            while (true) {
-                val i = vc.dequeueOutputBuffer(info, if (end) 10_000 else 0)
-                if (i == MediaCodec.INFO_TRY_AGAIN_LATER) { if (!end || System.currentTimeMillis() > until) return else continue }
-                if (i == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) { vFmt = vc.outputFormat; continue }
-                if (i < 0) continue
-                val bb = vc.getOutputBuffer(i)!!
-                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && info.size > 0) {
-                    val a = ByteArray(info.size); bb.position(info.offset); bb.get(a)
-                    val bi = MediaCodec.BufferInfo(); bi.set(0, info.size, k * 1_000_000L / fps, info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME); k++; vs.add(a to bi)
-                }
-                vc.releaseOutputBuffer(i, false)
-                if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return
-            }
-        }
-        val sc = minOf(W.toFloat() / src.width, H.toFloat() / src.height); val dw = src.width * sc; val dh = src.height * sc
-        val dst = RectF((W - dw) / 2, (H - dh) / 2, (W + dw) / 2, (H + dh) / 2); val p = Paint(Paint.FILTER_BITMAP_FLAG)
-        for (f in 0 until n) { val c = surf.lockHardwareCanvas(); c.drawColor(Color.BLACK); c.drawBitmap(src, null, dst, p); surf.unlockCanvasAndPost(c); drainV(false) }
-        vc.signalEndOfInputStream(); drainV(true); vc.stop(); vc.release(); surf.release()
-
-        // silent sound of the same length
-        val af = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 48000, 1).apply { setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC); setInteger(MediaFormat.KEY_BIT_RATE, 64000); setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 8192) }
-        val ac = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC); ac.configure(af, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE); ac.start()
-        val asamp = ArrayList<Pair<ByteArray, MediaCodec.BufferInfo>>(); var aFmt: MediaFormat? = null
-        val total = durUs * 48000 / 1_000_000; var fed = 0L; var inEnd = false; var outEnd = false
-        val until = System.currentTimeMillis() + 8000
-        while (!outEnd && System.currentTimeMillis() < until) {
-            if (!inEnd) { val i = ac.dequeueInputBuffer(5000); if (i >= 0) { val bb = ac.getInputBuffer(i)!!; bb.clear()
-                if (fed >= total) { ac.queueInputBuffer(i, 0, 0, fed * 1_000_000 / 48000, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inEnd = true }
-                else { val ns = minOf(1024L, total - fed).toInt(); bb.put(ByteArray(ns * 2)); ac.queueInputBuffer(i, 0, ns * 2, fed * 1_000_000 / 48000, 0); fed += ns } } }
-            val o = ac.dequeueOutputBuffer(info, 5000)
-            if (o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) aFmt = ac.outputFormat
-            else if (o >= 0) { val bb = ac.getOutputBuffer(o)!!
-                if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && info.size > 0) { val a = ByteArray(info.size); bb.position(info.offset); bb.get(a); val bi = MediaCodec.BufferInfo(); bi.set(0, info.size, info.presentationTimeUs, 0); asamp.add(a to bi) }
-                ac.releaseOutputBuffer(o, false); if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outEnd = true }
-        }
-        ac.stop(); ac.release()
-        val mx = MediaMuxer(out.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        val vt = mx.addTrack(vFmt ?: throw Exception("no video")); val at = aFmt?.let { mx.addTrack(it) } ?: -1
-        mx.start()
-        vs.forEach { (a, bi) -> mx.writeSampleData(vt, java.nio.ByteBuffer.wrap(a), bi) }
-        if (at >= 0) asamp.forEach { (a, bi) -> mx.writeSampleData(at, java.nio.ByteBuffer.wrap(a), bi) }
-        mx.stop(); mx.release()
-    }
-}
-
-/* ---------- the timeline: clips (with pictures) and text, scroll it to move the play line ---------- */
-class Timeline(c: Context) : View(c) {
-    var clips: List<Clip> = emptyList(); var texts: List<Txt> = emptyList()
-    var time = 0L; var selClip = -1; var selTxt = -1
-    var onSeek: (Long) -> Unit = {}; var onPick: (Int, Int) -> Unit = { _, _ -> }
-    var thumbs: (Clip, Long) -> Bitmap? = { _, _ -> null }
+/* ---------------- timeline, CapCut style: the white line stays in the middle, the tracks move ---------------- */
+class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
+    var time = 0L; var sel: Sel = Sel.None
     private val dp = resources.displayMetrics.density
-    var pps = 56 * dp   // pixels per second
-    private val p = Paint(Paint.ANTI_ALIAS_FLAG); private val tp = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11 * dp; color = Ui.SUB }
-    val total get() = clips.sumOf { it.dur }
-    private val ruleH get() = 18 * dp; private val clipTop get() = ruleH + 4 * dp; private val clipH get() = 54 * dp
-    private val txtTop get() = clipTop + clipH + 8 * dp; private val txtH get() = 30 * dp
+    var pps = 60 * dp
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG); private val tp = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10 * dp; color = Ui.SUB }
+    private val ruleH get() = 16 * dp; private val mainTop get() = ruleH + 6 * dp; private val mainH get() = 50 * dp
+    private val laneTop get() = mainTop + mainH + 8 * dp; private val laneH get() = 22 * dp; private val laneGap get() = 4 * dp
+    private var layLane = IntArray(0); private var sndLane = IntArray(0); private var nLay = 0
     private fun x(us: Long) = width / 2f + (us - time) / 1e6f * pps
     private fun us(x: Float) = time + ((x - width / 2f) / pps * 1e6f).toLong()
-    private val gd = GestureDetector(c, object : GestureDetector.SimpleOnGestureListener() {
-        override fun onDown(e: MotionEvent) = true
-        override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
-            time = (time + (dx / pps * 1e6f).toLong()).coerceIn(0, maxOf(0, total - 1)); onSeek(time); invalidate(); return true }
-        override fun onSingleTapUp(e: MotionEvent): Boolean {
-            val u = us(e.x)
-            if (e.y >= txtTop && e.y <= txtTop + txtH) { val i = texts.indexOfFirst { u >= it.s && u < it.e }; onPick(-1, i); return true }
-            if (e.y >= clipTop && e.y <= clipTop + clipH) { var o = 0L; for ((i, cl) in clips.withIndex()) { if (u >= o && u < o + cl.dur) { onPick(i, -1); return true }; o += cl.dur } }
-            onPick(-1, -1); return true
+    private fun laneY(l: Int) = laneTop + l * (laneH + laneGap)
+    private fun lanes() {
+        fun pack(r: List<Pair<Long, Long>>): IntArray { val ends = ArrayList<Long>(); val out = IntArray(r.size)
+            r.indices.sortedBy { r[it].first }.forEach { i -> var k = ends.indexOfFirst { it <= r[i].first }; if (k < 0) { ends.add(0); k = ends.size - 1 }; ends[k] = r[i].second; out[i] = k }; return out }
+        layLane = pack(ed.layers.map { it.s to it.e }); nLay = (layLane.maxOrNull() ?: -1) + 1
+        sndLane = pack(ed.sounds.map { it.s to it.e }).map { it + nLay }.toIntArray()
+    }
+    private val scaleDet = ScaleGestureDetector(c, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(d: ScaleGestureDetector): Boolean { pps = (pps * d.scaleFactor).coerceIn(6 * dp, 400 * dp); invalidate(); return true } })
+    private val slop = ViewConfiguration.get(c).scaledTouchSlop
+    private var mode = 0; private var downX = 0f; private var lastX = 0f; private var moved = false; private var multi = false
+    // modes: 0 scrub, 1 clip left, 2 clip right, 3 item move, 4 item left, 5 item right
+    private fun clipStart(i: Int): Long { var o = 0L; for (k in 0 until i) o += ed.clips[k].dur; return o }
+    private fun itemRange(): Triple<Long, Long, Int>? = when (val s = sel) {
+        is Sel.L -> ed.layers.getOrNull(s.i)?.let { Triple(it.s, it.e, layLane.getOrElse(s.i) { 0 }) }
+        is Sel.S -> ed.sounds.getOrNull(s.i)?.let { Triple(it.s, it.e, sndLane.getOrElse(s.i) { 0 }) }
+        else -> null }
+    private fun hitMode(ex: Float, ey: Float): Int {
+        val h = 18 * dp
+        when (val s = sel) {
+            is Sel.C -> { if (s.i < ed.clips.size && ey > mainTop - h / 2 && ey < mainTop + mainH + h / 2) { val l = x(clipStart(s.i)); val r = x(clipStart(s.i) + ed.clips[s.i].dur)
+                if (abs(ex - l) < h) return 1; if (abs(ex - r) < h) return 2 } }
+            is Sel.L, is Sel.S -> { val (a, b, ln) = itemRange() ?: return 0; val y = laneY(ln)
+                if (ey > y - 8 * dp && ey < y + laneH + 8 * dp) { val l = x(a); val r = x(b)
+                    if (abs(ex - l) < h) return 4; if (abs(ex - r) < h) return 5; if (ex > l && ex < r) return 3 } }
+            else -> {}
         }
-    })
-    override fun onTouchEvent(e: MotionEvent): Boolean { parent?.requestDisallowInterceptTouchEvent(true); return gd.onTouchEvent(e) }
+        return 0
+    }
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        parent?.requestDisallowInterceptTouchEvent(true)
+        scaleDet.onTouchEvent(e)
+        if (e.pointerCount > 1) { multi = true; return true }
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { multi = false; downX = e.x; lastX = e.x; moved = false; mode = hitMode(e.x, e.y); if (mode != 0) ed.snap() }
+            MotionEvent.ACTION_MOVE -> {
+                if (multi) return true
+                val dx = e.x - lastX; lastX = e.x
+                if (!moved && abs(e.x - downX) < slop) return true
+                moved = true
+                val dUs = (dx / pps * 1e6f).toLong()
+                when (mode) {
+                    0 -> { time = (time - dUs).coerceIn(0, maxOf(0, ed.total() - 1)); ed.onScrub(time) }
+                    1, 2 -> { val c = ed.clips[(sel as Sel.C).i]; val d = (dUs * c.speed).toLong()
+                        if (mode == 1) c.inUs = (c.inUs + d).coerceIn(0, c.outUs - 200_000) else c.outUs = (c.outUs + d).coerceIn(c.inUs + 200_000, c.fileDur) }
+                    else -> { val tot = ed.total(); val sl = sel
+                        var a: Long; var b: Long
+                        if (sl is Sel.L) { a = ed.layers[sl.i].s; b = ed.layers[sl.i].e } else if (sl is Sel.S) { a = ed.sounds[sl.i].s; b = ed.sounds[sl.i].e } else return true
+                        when (mode) {
+                            3 -> { val dd = dUs.coerceIn(-a, maxOf(0, tot - b)); a += dd; b += dd }
+                            4 -> a = (a + dUs).coerceIn(0, b - 300_000)
+                            5 -> b = (b + dUs).coerceIn(a + 300_000, maxOf(a + 300_000, tot))
+                        }
+                        if (sl is Sel.L) { ed.layers[sl.i].s = a; ed.layers[sl.i].e = b } else if (sl is Sel.S) { ed.sounds[sl.i].s = a; ed.sounds[sl.i].e = b }
+                    }
+                }
+                if (mode != 0) ed.onLive()
+                invalidate()
+            }
+            MotionEvent.ACTION_UP -> { if (!moved && !multi) tap(e.x, e.y) else if (mode != 0) ed.onEdited(); mode = 0 }
+        }
+        return true
+    }
+    private fun tap(ex: Float, ey: Float) {
+        val u = us(ex)
+        if (ey >= mainTop - 4 * dp && ey <= mainTop + mainH + 4 * dp) {
+            val tot = ed.total()
+            if (ex > x(tot) + 6 * dp && ex < x(tot) + 46 * dp) { ed.onAddEnd(); return }
+            var o = 0L
+            for (i in ed.clips.indices) { if (i > 0 && abs(ex - x(o)) < 13 * dp && ey > mainTop + mainH / 2 - 14 * dp && ey < mainTop + mainH / 2 + 14 * dp) { ed.onTrans(i); return }; o += ed.clips[i].dur }
+            o = 0L; for ((i, c) in ed.clips.withIndex()) { if (u >= o && u < o + c.dur) { ed.onSelect(Sel.C(i)); return }; o += c.dur }
+        } else if (ey >= laneTop) {
+            val ln = ((ey - laneTop) / (laneH + laneGap)).toInt()
+            ed.layers.forEachIndexed { i, l -> if (layLane.getOrElse(i) { -1 } == ln && u >= l.s && u < l.e) { ed.onSelect(Sel.L(i)); return } }
+            ed.sounds.forEachIndexed { i, l -> if (sndLane.getOrElse(i) { -1 } == ln && u >= l.s && u < l.e) { ed.onSelect(Sel.S(i)); return } }
+        }
+        ed.onSelect(Sel.None)
+    }
+    private fun handles(cv: Canvas, r: RectF) {
+        p.style = Paint.Style.STROKE; p.strokeWidth = 2.5f * dp; p.color = Color.WHITE; cv.drawRoundRect(r, 6 * dp, 6 * dp, p); p.style = Paint.Style.FILL
+        val hw = 9 * dp
+        for (hx in floatArrayOf(r.left - hw + 2 * dp, r.right - 2 * dp)) { p.color = Color.WHITE; cv.drawRoundRect(RectF(hx, r.top, hx + hw, r.bottom), 3 * dp, 3 * dp, p)
+            p.color = 0xFF555555.toInt(); cv.drawRect(hx + hw / 2 - dp, r.centerY() - 6 * dp, hx + hw / 2 + dp, r.centerY() + 6 * dp, p) }
+    }
     override fun onDraw(cv: Canvas) {
+        lanes()
         cv.drawColor(0xFF0F0E0C.toInt())
         // ruler
-        val step = if (pps < 30 * dp) 5 else if (pps < 60 * dp) 2 else 1
-        val firstS = maxOf(0, (us(0f) / 1_000_000).toInt() - 1); val lastS = (us(width.toFloat()) / 1_000_000).toInt() + 1
-        p.color = Ui.LINE
-        for (s in firstS..lastS) { if (s % step != 0) continue; val xx = x(s * 1_000_000L); cv.drawRect(xx, ruleH - 6 * dp, xx + dp, ruleH, p)
-            cv.drawText(String.format(Locale.US, "%d:%02d", s / 60, s % 60), xx + 3 * dp, ruleH - 7 * dp, tp) }
-        // clips
-        var o = 0L
-        clips.forEachIndexed { i, cl ->
+        val sec = pps / dp; val step = when { sec < 10 -> 10; sec < 22 -> 5; sec < 45 -> 2; else -> 1 }
+        val a0 = maxOf(0, (us(0f) / 1_000_000).toInt() - 1); val a1 = (us(width.toFloat()) / 1_000_000).toInt() + 1
+        p.color = 0xFF3A3830.toInt()
+        for (s in a0..a1) { val xx = x(s * 1_000_000L); if (s % step == 0) { cv.drawRect(xx, ruleH - 5 * dp, xx + dp, ruleH, p); cv.drawText(String.format(Locale.US, "%d:%02d", s / 60, s % 60), xx + 3 * dp, ruleH - 6 * dp, tp) }
+            else if (step <= 2) cv.drawCircle(xx, ruleH - 3 * dp, dp, p) }
+        // main track
+        var o = 0L; var selR: RectF? = null
+        ed.clips.forEachIndexed { i, cl ->
             val l = x(o); val r = x(o + cl.dur)
-            if (r > 0 && l < width) {
-                val rect = RectF(l + dp, clipTop, r - dp, clipTop + clipH)
-                p.color = if (cl.still) 0xFF2A2A3A.toInt() else 0xFF24221D.toInt(); cv.drawRoundRect(rect, 8 * dp, 8 * dp, p)
+            if (r > -50 && l < width + 50) {
+                val rect = RectF(l + dp, mainTop, r - dp, mainTop + mainH)
+                p.color = if (cl.still) 0xFF26283A.toInt() else 0xFF24221D.toInt(); cv.drawRoundRect(rect, 6 * dp, 6 * dp, p)
                 cv.save(); cv.clipRect(rect)
-                val tw = clipH * 0.62f; var xx = l
-                while (xx < r) { if (xx + tw > 0 && xx < width) { val at = cl.inUs + ((xx - l) / pps * 1e6f).toLong()
-                    thumbs(cl, (at / 1_000_000) * 1_000_000)?.let { cv.drawBitmap(it, null, RectF(xx, clipTop, xx + tw, clipTop + clipH), null) } }
+                val tw = mainH * 0.6f; var xx = l
+                while (xx < r) { if (xx + tw > 0 && xx < width) { val at = cl.inUs + ((xx - l) / pps * 1e6f * cl.speed).toLong()
+                    ed.thumb(cl, (at / 1_000_000) * 1_000_000)?.let { cv.drawBitmap(it, null, RectF(xx, mainTop, xx + tw, mainTop + mainH), null) } }
                     xx += tw }
+                if (cl.speed != 1f || cl.vol != 1f || cl.look != "std") { val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = 10 * dp; q.setShadowLayer(3f, 0f, 1f, Color.BLACK)
+                    cv.drawText(listOfNotNull(if (cl.speed != 1f) "${cl.speed}×" else null, if (cl.vol == 0f) "🔇" else null, if (cl.look != "std") "🎨" else null).joinToString(" "), rect.left + 4 * dp, rect.bottom - 4 * dp, q) }
                 cv.restore()
-                if (i == selClip) { p.style = Paint.Style.STROKE; p.strokeWidth = 3 * dp; p.color = Ui.GOLD; cv.drawRoundRect(rect, 8 * dp, 8 * dp, p); p.style = Paint.Style.FILL }
+                if ((sel as? Sel.C)?.i == i) selR = rect
             }
             o += cl.dur
         }
-        // text lane
-        texts.forEachIndexed { i, tx ->
-            val rect = RectF(x(tx.s) + dp, txtTop, x(tx.e) - dp, txtTop + txtH)
-            p.color = 0xFF3A2F17.toInt(); cv.drawRoundRect(rect, 7 * dp, 7 * dp, p)
-            if (i == selTxt) { p.style = Paint.Style.STROKE; p.strokeWidth = 3 * dp; p.color = Ui.GOLD; cv.drawRoundRect(rect, 7 * dp, 7 * dp, p); p.style = Paint.Style.FILL }
-            cv.save(); cv.clipRect(rect); val q = TextPaint(tp); q.color = Ui.TEXT; q.textSize = 12 * dp; cv.drawText("T  " + tx.text.replace('\n', ' '), rect.left + 6 * dp, rect.centerY() + 4 * dp, q); cv.restore()
+        // switch effects between clips
+        o = 0L
+        ed.clips.forEachIndexed { i, cl -> if (i > 0) { val xx = x(o); val r = RectF(xx - 10 * dp, mainTop + mainH / 2 - 10 * dp, xx + 10 * dp, mainTop + mainH / 2 + 10 * dp)
+            p.color = if (cl.trans != "none") Ui.GOLD else 0xFFEEEEEE.toInt(); cv.drawRoundRect(r, 4 * dp, 4 * dp, p)
+            p.color = 0xFF111111.toInt(); p.strokeWidth = 1.6f * dp; cv.drawLine(r.left + 6 * dp, r.centerY(), r.right - 6 * dp, r.centerY(), p); if (cl.trans == "none") cv.drawLine(r.centerX(), r.top + 6 * dp, r.centerX(), r.bottom - 6 * dp, p) }
+            o += cl.dur }
+        // add at the end
+        val ex = x(o) + 26 * dp; p.color = Color.WHITE; cv.drawRoundRect(RectF(ex - 16 * dp, mainTop + mainH / 2 - 16 * dp, ex + 16 * dp, mainTop + mainH / 2 + 16 * dp), 6 * dp, 6 * dp, p)
+        p.color = 0xFF111111.toInt(); p.strokeWidth = 2.4f * dp; cv.drawLine(ex - 7 * dp, mainTop + mainH / 2, ex + 7 * dp, mainTop + mainH / 2, p); cv.drawLine(ex, mainTop + mainH / 2 - 7 * dp, ex, mainTop + mainH / 2 + 7 * dp, p)
+        selR?.let { handles(cv, it) }
+        // other tracks
+        fun item(a: Long, b: Long, lane: Int, col: Int, label: String, chosen: Boolean) {
+            val y = laneY(lane); val r = RectF(x(a) + dp, y, x(b) - dp, y + laneH); if (r.right < 0 || r.left > width) return
+            p.color = col; cv.drawRoundRect(r, 5 * dp, 5 * dp, p)
+            cv.save(); cv.clipRect(r); val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = 11 * dp; cv.drawText(label, r.left + 6 * dp, r.centerY() + 4 * dp, q); cv.restore()
+            if (chosen) handles(cv, r)
         }
+        ed.layers.forEachIndexed { i, l -> item(l.s, l.e, layLane.getOrElse(i) { 0 }, when (l.kind) { "text" -> 0xFF6B4E12.toInt(); "sticker" -> 0xFF6A2A5A.toInt(); "photo" -> 0xFF1F4A66.toInt(); else -> 0xFF3F5A22.toInt() },
+            when (l.kind) { "text" -> "T  " + l.text.replace('\n', ' '); "sticker" -> l.text; "photo" -> "🖼  " + t("Photo", "Gambar"); else -> "🏷  " + t("Brand", "Jenama") }, (sel as? Sel.L)?.i == i) }
+        ed.sounds.forEachIndexed { i, s -> item(s.s, s.e, sndLane.getOrElse(i) { 0 }, when (s.kind) { "music" -> 0xFF1E5A3A.toInt(); "sfx" -> 0xFF7A4A12.toInt(); else -> 0xFF23407A.toInt() },
+            when (s.kind) { "music" -> "♪  " + File(s.file).name.substringAfter('_'); "sfx" -> "🔊 " + s.sfx; else -> "🗣  " + s.text }, (sel as? Sel.S)?.i == i) }
         // play line
-        p.color = Color.WHITE; cv.drawRect(width / 2f - 1.5f * dp, 0f, width / 2f + 1.5f * dp, height.toFloat(), p)
+        p.color = Color.WHITE; cv.drawRect(width / 2f - 1.2f * dp, 0f, width / 2f + 1.2f * dp, height.toFloat(), p)
+        cv.drawCircle(width / 2f, 3 * dp, 4 * dp, p)
     }
 }
 
-/* ---------- the editor page ---------- */
+/* ---------------- the picture area: what sits on top can be moved with a finger and sized with two ---------------- */
+class Stage(c: Context, private val ed: EditorActivity) : View(c) {
+    var bmp: Bitmap? = null; var rects: Map<Int, RectF> = emptyMap(); var sel = -1
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2 * resources.displayMetrics.density; color = Color.WHITE; pathEffect = DashPathEffect(floatArrayOf(12f, 8f), 0f) }
+    private var drag = -1; private var lx = 0f; private var ly = 0f; private var moved = false; private var dx0 = 0f; private var dy0 = 0f
+    private val scaleDet = ScaleGestureDetector(c, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(d: ScaleGestureDetector): Boolean { if (sel >= 0) { ed.scaleLayer(sel, d.scaleFactor); moved = true }; return true } })
+    override fun onDraw(cv: Canvas) {
+        bmp?.let { cv.drawBitmap(it, null, RectF(0f, 0f, width.toFloat(), height.toFloat()), p) }
+        if (sel >= 0) rects[sel]?.let { r -> val k = width.toFloat() / ed.W; cv.drawRect(r.left * k - 6, r.top * k - 6, r.right * k + 6, r.bottom * k + 6, dash) }
+    }
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        scaleDet.onTouchEvent(e)
+        val k = width.toFloat() / ed.W
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> { lx = e.x; ly = e.y; dx0 = e.x; dy0 = e.y; moved = false
+                drag = rects.entries.lastOrNull { (i, r) -> ed.layers.getOrNull(i)?.kind != "brand" && RectF(r.left * k - 20, r.top * k - 20, r.right * k + 20, r.bottom * k + 20).contains(e.x, e.y) }?.key ?: -1
+                if (drag >= 0) ed.snap() }
+            MotionEvent.ACTION_MOVE -> { if (e.pointerCount > 1) return true
+                if (drag >= 0 && (moved || abs(e.x - dx0) + abs(e.y - dy0) > 12)) { moved = true; ed.moveLayer(drag, (e.x - lx) / width, (e.y - ly) / height) }
+                lx = e.x; ly = e.y }
+            MotionEvent.ACTION_UP -> { if (!moved) ed.onStageTap(drag) else ed.onEdited(); drag = -1 }
+        }
+        return true
+    }
+}
+
 class EditorActivity : AppCompatActivity() {
     private val main = Handler(Looper.getMainLooper())
-    private var clips = ArrayList<Clip>(); private var texts = ArrayList<Txt>()
-    private val undo = ArrayList<Pair<List<Clip>, List<Txt>>>()
+    var clips = ArrayList<Clip>(); var layers = ArrayList<Layer>(); var sounds = ArrayList<Sound>()
+    var W = 1080; var H = 1920; private var origVol = 1f
+    private class Snap(val c: List<Clip>, val l: List<Layer>, val s: List<Sound>, val w: Int, val h: Int, val ov: Float)
+    private val undo = ArrayList<Snap>(); private val redo = ArrayList<Snap>()
     private var orig: File? = null
-    private var W = 1080; private var H = 1920
-    private lateinit var player: ExoPlayer
-    private lateinit var tl: Timeline
-    private lateinit var frame: AspectRatioFrameLayout
-    private lateinit var ovView: ImageView
-    private lateinit var timeTx: TextView
-    private lateinit var playBtn: Button
+    private lateinit var player: ExoPlayer; private lateinit var mplayer: ExoPlayer
+    private lateinit var tl: Timeline; private lateinit var stage: Stage
+    private lateinit var frame: AspectRatioFrameLayout; private lateinit var box: FrameLayout; private lateinit var tv: TextureView; private lateinit var veil: View
+    private lateinit var timeTx: TextView; private lateinit var playBtn: Button; private lateinit var fmtBtn: Button
     private lateinit var tools: LinearLayout
-    private lateinit var tabs: List<Button>
-    private var tab = 0
     private val art by lazy { TextArt(this) }
-    private var ovKey = "?"
-    private var dragging = false
-    private var busy = false
+    private var ovKey = "?"; private var scrubbing = false; private var busy = false; private var dirty = false
     private val work by lazy { File(cacheDir, "edit").apply { mkdirs() } }
-    private val thumbCache = HashMap<String, Bitmap?>()
-    private val thumbQ = java.util.concurrent.Executors.newSingleThreadExecutor()
-    private var stillSec = 3
+    private val thumbCache = HashMap<String, Bitmap?>(); private val thumbQ = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val audioCache = HashMap<String, FloatArray?>()
+    private var mixFile: File? = null; private var mixGen = 0
+    private var vidW = 0; private var vidH = 0
+    private var tts: TextToSpeech? = null; private var ttsOk = false
 
-    private val pickVideo = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addVideo(u) }
-    private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addPhoto(u) }
+    private val pickVideo = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addVideo(u) else if (clips.isEmpty()) finish() }
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addPhoto(u) else if (clips.isEmpty()) finish() }
+    private val pickOverlay = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addOverlayPhoto(u) }
+    private val pickMusic = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addMusic(u) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.init(this); Auth.init(this)
         val d = Ui.px(this, 10)
-        val root = LinearLayout(this); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG); root.setPadding(d, d * 2, d, d)
+        val root = LinearLayout(this); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(0xFF0B0A09.toInt()); root.setPadding(d, d * 2, d, d / 2)
         val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
-        top.addView(Ui.iconBtn(this, R.drawable.ic_back) { onBackPressedDispatcher.onBackPressed() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 46)))
-        top.addView(Ui.label(this, "Edit", 20f, Ui.TEXT, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
-        top.addView(sbtn("↶ " + t("Undo", "Undo")) { doUndo() }, LinearLayout.LayoutParams(-2, Ui.px(this, 46)).apply { rightMargin = d / 2 })
-        top.addView(sbtn(t("Save", "Simpan"), true) { save() }, LinearLayout.LayoutParams(-2, Ui.px(this, 46)))
+        top.addView(sbtn("✕") { onBackPressedDispatcher.onBackPressed() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 42)))
+        fmtBtn = sbtn("9:16") { formatSheet() }; top.addView(fmtBtn, LinearLayout.LayoutParams(-2, Ui.px(this, 42)).apply { leftMargin = d / 2 })
+        top.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        top.addView(sbtn("↶") { doUndo() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 42)).apply { rightMargin = d / 2 })
+        top.addView(sbtn("↷") { doRedo() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 42)).apply { rightMargin = d / 2 })
+        top.addView(sbtn(t("Export", "Eksport"), true) { save() }, LinearLayout.LayoutParams(-2, Ui.px(this, 42)))
         root.addView(top)
 
-        // preview
-        val stage = FrameLayout(this); stage.setBackgroundColor(Color.BLACK)
+        // picture
+        val area = FrameLayout(this)
         frame = AspectRatioFrameLayout(this); frame.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-        val sv = SurfaceView(this); frame.addView(sv, FrameLayout.LayoutParams(-1, -1))
-        ovView = ImageView(this); ovView.scaleType = ImageView.ScaleType.FIT_XY; frame.addView(ovView, FrameLayout.LayoutParams(-1, -1))
-        stage.addView(frame, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
-        stage.setOnClickListener { togglePlay() }; frame.setOnClickListener { togglePlay() }
-        root.addView(stage, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
+        box = FrameLayout(this); box.setBackgroundColor(Color.BLACK); box.clipChildren = true
+        tv = TextureView(this); box.addView(tv, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+        veil = View(this); veil.alpha = 0f; veil.setBackgroundColor(Color.BLACK); box.addView(veil, FrameLayout.LayoutParams(-1, -1))
+        stage = Stage(this, this); box.addView(stage, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(box, FrameLayout.LayoutParams(-1, -1))
+        area.addView(frame, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER))
+        box.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitVideo() }
+        root.addView(area, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d / 2 })
 
-        val pr = LinearLayout(this); pr.orientation = LinearLayout.HORIZONTAL; pr.gravity = Gravity.CENTER_VERTICAL
-        playBtn = sbtn("▶") { togglePlay() }; pr.addView(playBtn, LinearLayout.LayoutParams(Ui.px(this, 60), Ui.px(this, 44)))
-        timeTx = Ui.label(this, "0:00 / 0:00", 14f, Ui.TEXT, true); timeTx.setPadding(d, 0, 0, 0); pr.addView(timeTx, LinearLayout.LayoutParams(0, -2, 1f))
-        pr.addView(sbtn("−") { tl.pps = maxOf(tl.pps / 1.5f, 8f * resources.displayMetrics.density); tl.invalidate() }, LinearLayout.LayoutParams(Ui.px(this, 48), Ui.px(this, 44)).apply { rightMargin = d / 2 })
-        pr.addView(sbtn("+") { tl.pps = minOf(tl.pps * 1.5f, 300f * resources.displayMetrics.density); tl.invalidate() }, LinearLayout.LayoutParams(Ui.px(this, 48), Ui.px(this, 44)))
-        root.addView(pr, Ui.lp(this, 6))
+        val pr = FrameLayout(this)
+        timeTx = Ui.label(this, "00:00 / 00:00", 13f, Ui.TEXT, true); pr.addView(timeTx, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_VERTICAL or Gravity.START))
+        playBtn = sbtn("▶") { togglePlay() }; pr.addView(playBtn, FrameLayout.LayoutParams(Ui.px(this, 64), Ui.px(this, 42), Gravity.CENTER))
+        root.addView(pr, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
 
-        tl = Timeline(this)
-        tl.thumbs = { c, at -> thumb(c, at) }
-        tl.onSeek = { u -> dragging = true; if (player.isPlaying) player.pause(); seekTo(u); showTime(u); main.removeCallbacks(endDrag); main.postDelayed(endDrag, 250) }
-        tl.onPick = { ci, ti -> tl.selClip = ci; tl.selTxt = ti; if (ti >= 0) setTab(2) else if (ci >= 0 && tab == 2) setTab(1); tl.invalidate(); paintTools() }
-        root.addView(tl, LinearLayout.LayoutParams(-1, Ui.px(this, 130)).apply { topMargin = d / 2 })
-
-        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL
-        tabs = listOf(t("Media", "Media"), t("Cut", "Potong"), t("Text", "Teks")).mapIndexed { i, s -> Ui.pill(this, s, i == 0) { setTab(i) }.also { tr.addView(it, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) } }
-        root.addView(tr, Ui.lp(this, 8))
+        tl = Timeline(this, this)
+        root.addView(tl, LinearLayout.LayoutParams(-1, Ui.px(this, 196)).apply { topMargin = d / 2 })
         val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false
-        tools = LinearLayout(this); tools.orientation = LinearLayout.HORIZONTAL; hs.addView(tools)
-        root.addView(hs, LinearLayout.LayoutParams(-1, Ui.px(this, 58)).apply { topMargin = d / 2 })
+        tools = LinearLayout(this); tools.orientation = LinearLayout.HORIZONTAL; tools.gravity = Gravity.CENTER_VERTICAL; hs.addView(tools)
+        root.addView(hs, LinearLayout.LayoutParams(-1, Ui.px(this, 68)).apply { topMargin = d / 2 })
         setContentView(root)
 
-        player = ExoPlayer.Builder(this).build()
-        player.setVideoSurfaceView(sv)
+        player = ExoPlayer.Builder(this).build(); player.setVideoTextureView(tv)
+        mplayer = ExoPlayer.Builder(this).build()
         player.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(p: Boolean) { playBtn.text = if (p) "‖" else "▶"; if (p) loop() }
-            override fun onPlaybackStateChanged(s: Int) { if (s == Player.STATE_ENDED) { player.pause(); player.seekTo(0, 0) } }
+            override fun onIsPlayingChanged(p: Boolean) { playBtn.text = if (p) "‖" else "▶"; if (p) loop() else mplayer.pause() }
+            override fun onPlaybackStateChanged(s: Int) { if (s == Player.STATE_ENDED) { player.pause(); seekTo(0); tl.time = 0; tl.invalidate() } }
+            override fun onMediaItemTransition(m: MediaItem?, r: Int) { clipLook() }
+            override fun onVideoSizeChanged(v: VideoSize) { if (v.width > 0) { vidW = (v.width * v.pixelWidthHeightRatio).toInt(); vidH = v.height; fitVideo() } }
         })
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (busy) { toast(t("Please wait, saving…", "Sila tunggu, sedang simpan…")); return }
-                if (undo.isEmpty()) { finish(); return }
+                if (!dirty) { finish(); return }
                 AlertDialog.Builder(this@EditorActivity).setMessage(t("Leave without saving?", "Keluar tanpa simpan?"))
                     .setPositiveButton(t("Leave", "Keluar")) { _, _ -> finish() }.setNegativeButton(t("Stay", "Kekal"), null).show()
             }
         })
-
         val fn = intent.getStringExtra("f") ?: ""
         val f = if (fn.isNotEmpty()) File(Store.dir(this), File(fn).name) else null
-        if (f != null && f.exists()) { orig = f; val (w, h, du) = probe(f); setSize(w, h); clips.add(Clip(f, 0, du, false)); rebuild(0) }
-        else { paintTools(); main.postDelayed({ askAdd() }, 300) }
-        setTab(0)
+        if (f != null && f.exists()) { orig = f; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0) }
+        else { main.postDelayed({ askAdd(true) }, 300) }
+        mainTools()
     }
-    override fun onDestroy() { player.release(); thumbQ.shutdownNow(); if (!busy) work.listFiles()?.forEach { it.delete() }; super.onDestroy() }
+    override fun onDestroy() { player.release(); mplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); if (!busy) work.listFiles()?.forEach { it.delete() }; super.onDestroy() }
     override fun onPause() { super.onPause(); if (player.isPlaying) player.pause() }
 
-    private fun sbtn(l: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, l, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 12), Ui.px(this, 4), Ui.px(this, 12), Ui.px(this, 8)); b.minHeight = 0; b.minimumHeight = 0; return b }
+    private fun sbtn(l: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, l, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 12), Ui.px(this, 2), Ui.px(this, 12), Ui.px(this, 6)); b.minHeight = 0; b.minimumHeight = 0; b.minWidth = 0; b.minimumWidth = 0; return b }
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
-    private val endDrag = Runnable { dragging = false }
 
     private fun probe(f: File): Triple<Int, Int, Long> = try {
         val r = MediaMetadataRetriever(); r.setDataSource(f.absolutePath)
@@ -317,217 +350,534 @@ class EditorActivity : AppCompatActivity() {
         val rot = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0; if (rot == 90 || rot == 270) { val x = w; w = h; h = x }
         val du = (r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0) * 1000; r.release(); Triple(w, h, du)
     } catch (e: Exception) { Triple(1080, 1920, 0L) }
-    private fun setSize(w: Int, h: Int) {
-        var a = w; var b = h; val big = maxOf(a, b); if (big > 1920) { a = a * 1920 / big; b = b * 1920 / big }
-        W = a / 2 * 2; H = b / 2 * 2; frame.setAspectRatio(W.toFloat() / H)
+    /* the video size from a picture size, like 9:16 → 1080×1920 */
+    private fun setFormat(w: Int, h: Int) {
+        val ar = w.toFloat() / h
+        val (a, b) = when { abs(ar - 9f / 16) < 0.06f -> 1080 to 1920; abs(ar - 16f / 9) < 0.1f -> 1920 to 1080; abs(ar - 1f) < 0.05f -> 1080 to 1080; abs(ar - 0.8f) < 0.04f -> 1080 to 1350
+            else -> { var x = w; var y = h; val big = maxOf(x, y); if (big > 1920) { x = x * 1920 / big; y = y * 1920 / big }; x / 2 * 2 to y / 2 * 2 } }
+        W = a; H = b; frame.setAspectRatio(W.toFloat() / H)
+        fmtBtn.text = when { W * 16 == H * 9 -> "9:16"; W * 9 == H * 16 -> "16:9"; W == H -> "1:1"; W * 5 == H * 4 -> "4:5"; else -> "${W}×$H" } + " ▾"
+        ovKey = "?"
     }
-    private fun thumb(c: Clip, at: Long): Bitmap? {
+    fun thumb(c: Clip, at: Long): Bitmap? {
         val k = c.file.name + "@" + at
         if (thumbCache.containsKey(k)) return thumbCache[k]
         thumbCache[k] = null
-        thumbQ.execute {
-            val b = try { MediaMetadataRetriever().run { setDataSource(c.file.absolutePath); val x = getScaledFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 120, 200); release(); x } } catch (e: Exception) { null }
-            main.post { thumbCache[k] = b; tl.invalidate() }
-        }
+        thumbQ.execute { val b = try { MediaMetadataRetriever().run { setDataSource(c.file.absolutePath); val x = getScaledFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 96, 160); release(); x } } catch (e: Exception) { null }
+            main.post { thumbCache[k] = b; tl.invalidate() } }
         return null
     }
 
-    /* ---- time: whole video ⇄ which clip ---- */
-    private fun total() = clips.sumOf { it.dur }
-    private fun now(): Long { var o = 0L; val i = player.currentMediaItemIndex; for (k in 0 until minOf(i, clips.size)) o += clips[k].dur; return o + player.currentPosition * 1000 }
+    /* ---------------- time ---------------- */
+    fun total() = clips.sumOf { it.dur }
+    private fun start(i: Int): Long { var o = 0L; for (k in 0 until minOf(i, clips.size)) o += clips[k].dur; return o }
+    private fun now(): Long { val i = player.currentMediaItemIndex; val c = clips.getOrNull(i) ?: return 0; return start(i) + (player.currentPosition * 1000 / c.speed).toLong() }
     private fun locate(u: Long): Pair<Int, Long> { var o = 0L; clips.forEachIndexed { i, c -> if (u < o + c.dur) return i to (u - o); o += c.dur }; return maxOf(0, clips.size - 1) to (clips.lastOrNull()?.dur ?: 0) }
-    private fun seekTo(u: Long) { if (clips.isEmpty()) return; val (i, l) = locate(u); player.seekTo(i, l / 1000); paintOverlay(u) }
-    private fun fmt(u: Long) = String.format(Locale.US, "%d:%02d", u / 60_000_000, (u / 1_000_000) % 60)
+    private fun seekTo(u: Long) { if (clips.isEmpty()) return; val (i, l) = locate(u); player.seekTo(i, (l * clips[i].speed / 1000).toLong()); syncMusic(u, true); paintOverlay(u); veilAt(u) }
+    private fun fmt(u: Long) = String.format(Locale.US, "%02d:%02d", u / 60_000_000, (u / 1_000_000) % 60)
     private fun showTime(u: Long) { timeTx.text = fmt(u) + " / " + fmt(total()) }
     private fun loop() {
         if (!player.isPlaying) return
-        if (!dragging) { val u = now(); tl.time = u; tl.invalidate(); showTime(u); paintOverlay(u) }
-        main.postDelayed({ loop() }, 40)
+        if (!scrubbing) { val u = now(); tl.time = u; tl.invalidate(); showTime(u); paintOverlay(u); veilAt(u); syncMusic(u, false) }
+        main.postDelayed({ loop() }, 33)
     }
-    private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (now() >= total() - 50_000) seekTo(0); player.play() } }
-    private fun paintOverlay(u: Long) {
-        val k = art.key(texts, u); if (k == ovKey) return; ovKey = k
-        val s = 540f / maxOf(W, H)   // preview: lighter picture, same layout
-        ovView.setImageBitmap(if (k.isEmpty()) null else art.render(texts, u, (W * s).toInt().coerceAtLeast(2), (H * s).toInt().coerceAtLeast(2)))
+    private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (tl.time >= total() - 60_000) seekTo(0); player.play() } }
+    fun onScrub(u: Long) { scrubbing = true; if (player.isPlaying) player.pause(); seekTo(u); showTime(u); main.removeCallbacks(endScrub); main.postDelayed(endScrub, 250) }
+    private val endScrub = Runnable { scrubbing = false }
+    private fun syncMusic(u: Long, hard: Boolean) {
+        if (sounds.isEmpty() || mixFile == null) { if (mplayer.isPlaying) mplayer.pause(); return }
+        if (hard || abs(mplayer.currentPosition * 1000 - u) > 150_000) mplayer.seekTo(u / 1000)
+        if (player.isPlaying && !mplayer.isPlaying) mplayer.play()
+    }
+    /* the switch effect in the preview: a quick dip to black or white at the joins */
+    private fun veilAt(u: Long) {
+        var a = 0f; var white = false; var o = 0L
+        clips.forEachIndexed { i, c -> if (i > 0 && c.trans != "none") { val d = abs(u - o); val w = if (c.trans == "flash") 150_000L else 350_000L
+            if (d < w) { val v = 1f - d.toFloat() / w; if (v > a) { a = v; white = c.trans != "black" } } }; o += c.dur }
+        veil.setBackgroundColor(if (white) Color.WHITE else Color.BLACK); veil.alpha = a
+    }
+    private fun paintOverlay(u: Long, force: Boolean = false) {
+        val k = art.key(layers, u) + "#" + W + "x" + H; if (k == ovKey && !force) return; ovKey = k
+        val s = minOf(1f, 720f / maxOf(W, H)); val rr = HashMap<Int, RectF>()
+        val b = art.render(layers, u, (W * s).toInt().coerceAtLeast(2), (H * s).toInt().coerceAtLeast(2), rr)
+        stage.bmp = b; stage.rects = rr.mapValues { RectF(it.value.left / s, it.value.top / s, it.value.right / s, it.value.bottom / s) }; stage.invalidate()
+    }
+    /* the clip now playing: speed, sound level, colours, turn */
+    private fun clipLook() {
+        val c = clips.getOrNull(player.currentMediaItemIndex) ?: return
+        player.playbackParameters = PlaybackParameters(c.speed); player.volume = (c.vol * origVol).coerceIn(0f, 1f)
+        val (m, o) = Looks.matrix(c.filter())
+        val cm = ColorMatrix(floatArrayOf(m[0], m[4], m[8], 0f, o[0] * 255, m[1], m[5], m[9], 0f, o[1] * 255, m[2], m[6], m[10], 0f, o[2] * 255, 0f, 0f, 0f, 1f, 0f))
+        tv.setLayerType(View.LAYER_TYPE_HARDWARE, Paint().apply { colorFilter = ColorMatrixColorFilter(cm) })
+        fitVideo()
+    }
+    private fun fitVideo() {
+        if (vidW <= 0 || box.width <= 0) return
+        val c = clips.getOrNull(player.currentMediaItemIndex)
+        val rot = c?.rot ?: 0; val side = rot % 180 != 0
+        val ew = if (side) vidH else vidW; val eh = if (side) vidW else vidH
+        val k = minOf(box.width.toFloat() / ew, box.height.toFloat() / eh)
+        val lp = tv.layoutParams as FrameLayout.LayoutParams
+        val nw = (vidW * k).toInt(); val nh = (vidH * k).toInt()
+        if (lp.width != nw || lp.height != nh) { lp.width = nw; lp.height = nh; lp.gravity = Gravity.CENTER; tv.layoutParams = lp }
+        tv.rotation = rot.toFloat(); tv.scaleX = if (c?.mirror == true) -1f else 1f
     }
 
-    /* rebuild the player's list after a change, staying at the same time */
+    /* rebuild the player after a change, staying at the same time */
     private fun rebuild(at: Long) {
         val items = clips.map { c -> MediaItem.Builder().setUri(Uri.fromFile(c.file)).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.inUs / 1000).setEndPositionMs(c.outUs / 1000).build()).build() }
-        val u = at.coerceIn(0, maxOf(0, total() - 1))
-        if (items.isEmpty()) { player.clearMediaItems() } else { val (i, l) = locate(u); player.setMediaItems(items, i, l / 1000); player.prepare() }
-        tl.clips = clips; tl.texts = texts; tl.time = u; if (tl.selClip >= clips.size) tl.selClip = -1; if (tl.selTxt >= texts.size) tl.selTxt = -1
-        tl.invalidate(); ovKey = "?"; paintOverlay(u); showTime(u); paintTools()
+        val tot = total(); val u = at.coerceIn(0, maxOf(0, tot - 1))
+        layers.forEach { if (it.e > tot) it.e = tot; if (it.kind == "brand") it.e = tot }; layers.removeAll { it.s >= tot - 100_000 && tot > 0 }
+        sounds.forEach { if (it.e > tot) it.e = tot }; sounds.removeAll { it.s >= tot - 100_000 && tot > 0 }
+        if (items.isEmpty()) player.clearMediaItems() else { val (i, l) = locate(u); player.setMediaItems(items, i, (l * clips[i].speed / 1000).toLong()); player.prepare() }
+        when (val s = tl.sel) { is Sel.C -> if (s.i >= clips.size) tl.sel = Sel.None; is Sel.L -> if (s.i >= layers.size) tl.sel = Sel.None; is Sel.S -> if (s.i >= sounds.size) tl.sel = Sel.None; else -> {} }
+        tl.time = u; tl.invalidate(); ovKey = "?"; paintOverlay(u); showTime(u); clipLook(); refreshTools(); mixLater()
     }
-    private fun snap() { undo.add(clips.map { it.copy() } to texts.map { it.copy() }); if (undo.size > 40) undo.removeAt(0) }
-    private fun doUndo() { val s = undo.removeLastOrNull() ?: run { toast(t("Nothing to undo", "Tiada untuk undo")); return }; clips = ArrayList(s.first); texts = ArrayList(s.second); rebuild(tl.time) }
+    fun snap() { undo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); if (undo.size > 50) undo.removeAt(0); redo.clear(); dirty = true }
+    private fun restore(s: Snap) { clips = ArrayList(s.c); layers = ArrayList(s.l); sounds = ArrayList(s.s); origVol = s.ov; setFormat(s.w, s.h); tl.sel = Sel.None; rebuild(tl.time) }
+    private fun doUndo() { val s = undo.removeLastOrNull() ?: run { toast(t("Nothing to undo", "Tiada untuk undo")); return }; redo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); restore(s) }
+    private fun doRedo() { val s = redo.removeLastOrNull() ?: return; undo.add(Snap(clips.map { it.copy() }, layers.map { it.copy() }, sounds.map { it.copy() }, W, H, origVol)); restore(s) }
+    fun onLive() { ovKey = "?"; paintOverlay(tl.time); showTime(tl.time) }
+    fun onEdited() { rebuild(tl.time) }
+    fun onSelect(s: Sel) { tl.sel = s; stage.sel = (s as? Sel.L)?.i ?: -1; tl.invalidate(); stage.invalidate(); refreshTools() }
+    fun onStageTap(i: Int) { if (i >= 0) { onSelect(Sel.L(i)); if (layers[i].kind == "text") textSheet(layers[i]) } else if (tl.sel is Sel.L) onSelect(Sel.None) else togglePlay() }
+    fun moveLayer(i: Int, dx: Float, dy: Float) { val l = layers.getOrNull(i) ?: return; l.x = (l.x + dx).coerceIn(0.05f, 0.95f); l.y = (l.y + dy).coerceIn(0.05f, 0.95f); onSelect(Sel.L(i)); paintOverlay(tl.time, true) }
+    fun scaleLayer(i: Int, f: Float) { val l = layers.getOrNull(i) ?: return; l.scale = (l.scale * f).coerceIn(0.3f, 4f); paintOverlay(tl.time, true) }
+    fun onAddEnd() { tl.time = maxOf(0, total() - 1); askAdd(false) }
+    fun onTrans(i: Int) {
+        val c = clips[i]; val opts = listOf("none" to t("None", "Tiada"), "black" to t("Dip to black", "Gelap"), "white" to t("Dip to white", "Putih"), "flash" to t("Flash", "Kilat"))
+        AlertDialog.Builder(this).setTitle(t("Switch effect", "Kesan tukar"))
+            .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == c.trans }) { dl, w -> snap(); c.trans = opts[w].first; dl.dismiss(); rebuild(start(i) - 400_000) }
+            .setNeutralButton(t("Use for all", "Guna untuk semua")) { _, _ -> snap(); val v = c.trans.takeIf { it != "none" } ?: "black"; clips.forEachIndexed { k, q -> if (k > 0) q.trans = v }; rebuild(tl.time) }
+            .show()
+    }
 
-    /* ---- tools ---- */
-    private fun setTab(i: Int) { tab = i; tabs.forEachIndexed { j, b -> Ui.setPill(this, b, j == i) }; paintTools() }
-    private fun tool(l: String, gold: Boolean = false, f: () -> Unit) { tools.addView(sbtn(l, gold, f), LinearLayout.LayoutParams(-2, Ui.px(this, 50)).apply { rightMargin = Ui.px(this@EditorActivity, 6) }) }
-    private fun paintTools() {
-        if (!::tools.isInitialized) return
-        tools.removeAllViews()
-        when (tab) {
-            0 -> { tool("+ " + t("Video", "Video"), true) { pickVideo.launch("video/*") }; tool("+ " + t("Photo", "Gambar"), true) { askPhoto() }
-                tool(t("Photo time: ", "Masa gambar: ") + "${stillSec}s") { stillSec = when (stillSec) { 2 -> 3; 3 -> 5; 5 -> 8; else -> 2 }; paintTools() } }
-            1 -> { tool("✂ " + t("Split", "Belah")) { split() }
-                tool("⇤ " + t("Trim start here", "Potong awal")) { trim(true) }; tool(t("Trim end here", "Potong akhir") + " ⇥") { trim(false) }
-                tool("🗑 " + t("Delete clip", "Padam klip")) { delClip() }; tool("⧉ " + t("Duplicate", "Salin")) { dupClip() } }
-            2 -> { tool("+ " + t("Text", "Teks"), true) { textDialog(null) }
-                if (tl.selTxt >= 0) { tool("✎ " + t("Edit", "Ubah")) { textDialog(texts[tl.selTxt]) }
-                    tool("⇤ " + t("Start here", "Mula sini")) { val x = texts[tl.selTxt]; if (tl.time < x.e - 200_000) { snap(); x.s = tl.time; rebuild(tl.time) } }
-                    tool(t("End here", "Tamat sini") + " ⇥") { val x = texts[tl.selTxt]; if (tl.time > x.s + 200_000) { snap(); x.e = tl.time; rebuild(tl.time) } }
-                    tool("🗑 " + t("Delete", "Padam")) { snap(); texts.removeAt(tl.selTxt); tl.selTxt = -1; rebuild(tl.time) } }
-                else tools.addView(Ui.label(this, t("Tap a text on the timeline to change it", "Tekan teks di garis masa untuk ubah"), 13f, Ui.SUB).apply { gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(-2, -1)) }
-        }
+    /* ---------------- tool bars ---------------- */
+    private fun tool(icon: String, label: String, on: Boolean = false, f: () -> Unit) {
+        val v = LinearLayout(this); v.orientation = LinearLayout.VERTICAL; v.gravity = Gravity.CENTER
+        v.addView(Ui.center(Ui.label(this, icon, 19f, if (on) Ui.GOLD else Ui.TEXT)))
+        v.addView(Ui.center(Ui.label(this, label, 11f, if (on) Ui.GOLD else Ui.SUB, true)).apply { maxLines = 1 })
+        v.setPadding(Ui.px(this, 8), 0, Ui.px(this, 8), 0); v.setOnClickListener { f() }
+        v.background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x33D9B44A), null, null)
+        tools.addView(v, LinearLayout.LayoutParams(Ui.px(this, 66), -1))
     }
-    private fun selOrHere(): Int = if (tl.selClip in clips.indices) tl.selClip else locate(tl.time).first
+    private fun back() = tool("‹", t("Back", "Kembali")) { onSelect(Sel.None) }
+    private var page = "main"
+    private fun refreshTools() { when (val s = tl.sel) { is Sel.C -> clipTools(s.i); is Sel.L -> layerTools(s.i); is Sel.S -> soundTools(s.i); else -> if (page == "audio") audioTools() else mainTools() } }
+    private fun mainTools() {
+        page = "main"; tools.removeAllViews()
+        tool("✂", t("Edit", "Edit")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
+        tool("♪", t("Audio", "Audio")) { audioTools() }
+        tool("T", t("Text", "Teks")) { newText() }
+        tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
+        tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch("image/*") }
+        tool("🎨", t("Filters", "Filter")) { if (clips.isNotEmpty()) filterSheet(locate(tl.time).first) }
+        tool("☀", t("Adjust", "Laras")) { if (clips.isNotEmpty()) adjustSheet(locate(tl.time).first) }
+        tool("🏷", t("Brand", "Jenama")) { brand() }
+        tool("⬚", t("Format", "Format")) { formatSheet() }
+        tool("🖼", t("Cover", "Kulit")) { cover() }
+        tool("＋", t("Add clip", "Tambah klip")) { askAdd(false) }
+    }
+    private fun audioTools() {
+        page = "audio"; tools.removeAllViews()
+        tool("‹", t("Back", "Kembali")) { mainTools() }
+        tool("♪", t("Music", "Muzik")) { pickMusic.launch("audio/*") }
+        tool("🔊", t("Sound FX", "Kesan bunyi")) { sfxSheet() }
+        tool("🗣", t("AI voice", "Suara AI")) { voiceSheet(null) }
+        tool(if (origVol == 0f) "🔇" else "🔈", t("Original", "Bunyi asal"), origVol != 1f) { volSheet(t("Original sound (all clips)", "Bunyi asal (semua klip)"), origVol) { v -> origVol = v; clipLook() } }
+    }
+    private fun clipTools(i: Int) {
+        page = "clip"; tools.removeAllViews(); val c = clips.getOrNull(i) ?: return; back()
+        tool("✂", t("Split", "Belah")) { split() }
+        tool("⏩", t("Speed", "Laju"), c.speed != 1f) { speedSheet(i) }
+        tool("🔈", t("Volume", "Volum"), c.vol != 1f) { volSheet(t("Clip volume", "Volum klip"), c.vol) { v -> c.vol = v; clipLook() } }
+        tool("🎨", t("Filters", "Filter"), c.look != "std") { filterSheet(i) }
+        tool("☀", t("Adjust", "Laras"), c.bri != 0f || c.con != 0f || c.sat != 0f) { adjustSheet(i) }
+        tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
+        tool("⇋", t("Mirror", "Cermin"), c.mirror) { snap(); c.mirror = !c.mirror; rebuild(tl.time) }
+        tool("❄", t("Freeze", "Beku")) { freeze() }
+        if (c.still) tool("⏱", t("Duration", "Tempoh")) { stillDur(i) }
+        tool("⧉", t("Duplicate", "Salin")) { snap(); clips.add(i + 1, c.copy()); rebuild(tl.time) }
+        tool("🗑", t("Delete", "Padam")) { delClip(i) }
+    }
+    private fun layerTools(i: Int) {
+        page = "layer"; tools.removeAllViews(); val l = layers.getOrNull(i) ?: return; back()
+        if (l.kind == "text") { tool("✎", t("Edit", "Ubah")) { textSheet(l) }; tool("Aa", t("Style", "Gaya")) { textSheet(l) } }
+        if (l.kind != "brand") { tool("＋", t("Bigger", "Besar")) { snap(); l.scale = minOf(4f, l.scale * 1.15f); paintOverlay(tl.time, true) }
+            tool("－", t("Smaller", "Kecil")) { snap(); l.scale = maxOf(0.3f, l.scale / 1.15f); paintOverlay(tl.time, true) }
+            tool("✨", t("Animation", "Animasi"), l.anim != "none") { animSheet(l) } }
+        tool("⇤", t("Start here", "Mula sini")) { if (tl.time < l.e - 300_000) { snap(); l.s = tl.time; rebuild(tl.time) } }
+        tool("⇥", t("End here", "Tamat sini")) { if (tl.time > l.s + 300_000) { snap(); l.e = tl.time; rebuild(tl.time) } }
+        if (l.kind != "brand") tool("⧉", t("Duplicate", "Salin")) { snap(); layers.add(l.copy().also { it.y = minOf(0.95f, it.y + 0.06f) }); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time) }
+        tool("🗑", t("Delete", "Padam")) { snap(); layers.removeAt(i); onSelect(Sel.None); rebuild(tl.time) }
+    }
+    private fun soundTools(i: Int) {
+        page = "sound"; tools.removeAllViews(); val s = sounds.getOrNull(i) ?: return; back()
+        tool("🔈", t("Volume", "Volum"), s.vol != 1f) { volSheet(t("Volume", "Volum"), s.vol) { v -> s.vol = v; mixLater() } }
+        if (s.kind == "music") tool("〰", t("Fade", "Pudar"), s.fade) { snap(); s.fade = !s.fade; refreshTools(); mixLater() }
+        if (s.kind == "voice") tool("✎", t("Edit", "Ubah")) { voiceSheet(s) }
+        tool("⇤", t("Start here", "Mula sini")) { if (tl.time < s.e - 300_000) { snap(); val d = tl.time - s.s; s.s = tl.time; if (s.kind != "music") s.e = minOf(total(), s.e + d); rebuild(tl.time) } }
+        tool("⇥", t("End here", "Tamat sini")) { if (tl.time > s.s + 300_000) { snap(); s.e = tl.time; rebuild(tl.time) } }
+        tool("⧉", t("Duplicate", "Salin")) { snap(); val d = s.e - s.s; sounds.add(s.copy().also { it.s = minOf(total() - 300_000, tl.time); it.e = minOf(total(), it.s + d) }); rebuild(tl.time) }
+        tool("🗑", t("Delete", "Padam")) { snap(); sounds.removeAt(i); onSelect(Sel.None); rebuild(tl.time) }
+    }
+
+    /* ---------------- clip actions ---------------- */
     private fun split() {
         if (clips.isEmpty()) return
-        val (i, l) = locate(tl.time); val c = clips[i]
+        val (i, l) = locate(tl.time); val c = clips[i]; val lm = (l * c.speed).toLong()
         if (l < 150_000 || c.dur - l < 150_000) { toast(t("Move the line inside a clip", "Gerakkan garis ke dalam klip")); return }
-        snap(); val a = Clip(c.file, c.inUs, c.inUs + l, c.still); val b = Clip(c.file, c.inUs + l, c.outUs, c.still)
-        clips[i] = a; clips.add(i + 1, b); tl.selClip = i + 1; rebuild(tl.time)
+        snap(); val a = c.copy().also { it.outUs = c.inUs + lm }; val b = c.copy().also { it.inUs = c.inUs + lm; it.trans = "none" }
+        clips[i] = a; clips.add(i + 1, b); tl.sel = Sel.C(i + 1); rebuild(tl.time)
     }
-    private fun trim(start: Boolean) {
-        if (clips.isEmpty()) return
-        val (i, l) = locate(tl.time); val c = clips[i]
-        if (l < 150_000 || c.dur - l < 150_000) { toast(t("Move the line inside a clip", "Gerakkan garis ke dalam klip")); return }
-        snap(); var o = 0L; for (k in 0 until i) o += clips[k].dur
-        if (start) { c.inUs += l; shiftTexts(o, -l); rebuild(o) } else { val cut = c.dur - l; c.outUs = c.inUs + l; shiftTexts(o + l, -cut); rebuild(o + l - 1) }
-        tl.selClip = i
-    }
-    private fun shiftTexts(from: Long, by: Long) {
-        texts.forEach { x -> if (x.s >= from) x.s = maxOf(from, x.s + by); if (x.e > from) x.e = maxOf(x.s + 300_000, x.e + by) }
-        texts.removeAll { it.s >= total() }
-    }
-    private fun delClip() {
+    private fun delClip(i: Int) {
         if (clips.size <= 1) { toast(t("Keep at least one clip", "Perlu sekurang-kurangnya satu klip")); return }
-        val i = selOrHere(); snap(); var o = 0L; for (k in 0 until i) o += clips[k].dur
-        val d = clips[i].dur; clips.removeAt(i)
-        texts.removeAll { it.s >= o && it.e <= o + d }; shiftTexts(o + d, -d)
-        tl.selClip = -1; rebuild(o)
+        snap(); val o = start(i); val d = clips[i].dur; clips.removeAt(i)
+        layers.removeAll { it.kind != "brand" && it.s >= o && it.e <= o + d }; sounds.removeAll { it.s >= o && it.e <= o + d }
+        layers.forEach { if (it.s >= o + d) { it.s -= d; it.e -= d } }; sounds.forEach { if (it.s >= o + d) { it.s -= d; it.e -= d } }
+        onSelect(Sel.None); rebuild(o)
     }
-    private fun dupClip() { if (clips.isEmpty()) return; val i = selOrHere(); snap(); clips.add(i + 1, clips[i].copy()); tl.selClip = i + 1; rebuild(tl.time) }
-
-    /* insert a new clip at the play line (splitting a clip if the line is inside it) */
-    private fun insertAt(c: Clip) {
+    private fun insertAt(c: Clip, atEnd: Boolean) {
         snap()
         if (clips.isEmpty()) { clips.add(c); rebuild(0); return }
-        val u = tl.time; var (i, l) = locate(u)
-        val cur = clips[i]
-        val at: Long
-        if (l < 150_000) { at = u - l }
-        else if (cur.dur - l < 150_000 || u >= total() - 150_000) { i += 1; var o = 0L; for (k in 0 until i) o += clips[k].dur; at = o }
-        else { clips[i] = Clip(cur.file, cur.inUs, cur.inUs + l, cur.still); clips.add(i + 1, Clip(cur.file, cur.inUs + l, cur.outUs, cur.still)); i += 1; at = u }
-        clips.add(i, c); shiftTexts(at, c.dur)
-        tl.selClip = i; rebuild(at)
+        var (i, l) = locate(tl.time); val cur = clips[i]; val at: Long
+        if (atEnd || tl.time >= total() - 150_000 || cur.dur - l < 150_000) { i = if (atEnd) clips.size else i + 1; at = start(i) }
+        else if (l < 150_000) at = start(i)
+        else { val lm = (l * cur.speed).toLong(); clips[i] = cur.copy().also { it.outUs = cur.inUs + lm }; clips.add(i + 1, cur.copy().also { it.inUs = cur.inUs + lm; it.trans = "none" }); i += 1; at = start(i) }
+        clips.add(i, c)
+        layers.forEach { if (it.kind != "brand" && it.s >= at) { it.s += c.dur; it.e += c.dur } }; sounds.forEach { if (it.s >= at) { it.s += c.dur; it.e += c.dur } }
+        tl.sel = Sel.C(i); rebuild(at)
     }
-    private fun askAdd() {
+    private var addEnd = false
+    private fun askAdd(first: Boolean) {
+        addEnd = !first && tl.time >= total() - 1_000
         AlertDialog.Builder(this).setTitle(t("Add video or photo", "Tambah video atau gambar"))
             .setItems(arrayOf(t("Video", "Video"), t("Photo", "Gambar"))) { _, w -> if (w == 0) pickVideo.launch("video/*") else pickPhoto.launch("image/*") }
-            .setNegativeButton(t("Cancel", "Batal")) { _, _ -> if (clips.isEmpty()) finish() }.show()
+            .setNegativeButton(t("Cancel", "Batal")) { _, _ -> if (clips.isEmpty()) finish() }.setOnCancelListener { if (clips.isEmpty()) finish() }.show()
     }
-    private fun askPhoto() { pickPhoto.launch("image/*") }
     private fun wait(s: String): AlertDialog = AlertDialog.Builder(this).setMessage(s).setCancelable(false).show()
+    private fun copyIn(u: Uri, prefix: String, ext: String): File? { val f = File(work, prefix + System.currentTimeMillis() + ext)
+        return try { contentResolver.openInputStream(u)!!.use { i -> f.outputStream().use { i.copyTo(it) } }; f } catch (e: Exception) { null } }
     private fun addVideo(u: Uri) {
         val w = wait(t("Loading video…", "Memuatkan video…"))
-        Thread {
-            val f = File(work, "v_" + System.currentTimeMillis() + ".mp4")
-            val ok = try { contentResolver.openInputStream(u)!!.use { i -> f.outputStream().use { i.copyTo(it) } }; true } catch (e: Exception) { false }
-            val pr = if (ok) probe(f) else null
+        Thread { val f = copyIn(u, "v_", ".mp4"); val pr = f?.let { probe(it) }
             main.post { w.dismiss()
-                if (pr == null || pr.third <= 0) { toast(t("This video cannot be opened", "Video ini tidak boleh dibuka")); if (clips.isEmpty()) finish(); return@post }
-                if (clips.isEmpty()) setSize(pr.first, pr.second)
-                insertAt(Clip(f, 0, pr.third, false)) }
+                if (f == null || pr == null || pr.third <= 0) { toast(t("This video cannot be opened", "Video ini tidak boleh dibuka")); if (clips.isEmpty()) finish(); return@post }
+                if (clips.isEmpty()) setFormat(pr.first, pr.second)
+                insertAt(Clip(f, 0, pr.third, false).also { it.fileDur = pr.third }, addEnd) } }.start()
+    }
+    private fun loadBitmap(path: String): Bitmap? = try {
+        val o = BitmapFactory.Options(); o.inJustDecodeBounds = true; BitmapFactory.decodeFile(path, o)
+        var s = 1; while (maxOf(o.outWidth, o.outHeight) / s > 2400) s *= 2
+        val bm = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = s })!!
+        val rot = try { androidx.exifinterface.media.ExifInterface(path).rotationDegrees } catch (e: Exception) { 0 }
+        if (rot != 0) Bitmap.createBitmap(bm, 0, 0, bm.width, bm.height, android.graphics.Matrix().apply { postRotate(rot.toFloat()) }, true) else bm
+    } catch (e: Exception) { null }
+    private fun makeStill(img: String, sec: Float, cb: (Clip?) -> Unit) {
+        Thread {
+            val bm = loadBitmap(img); val f = File(work, "p_" + System.currentTimeMillis() + ".mp4")
+            val (pw, ph) = if (clips.isEmpty() && bm != null) (if (bm.height >= bm.width) 1080 to 1920 else 1920 to 1080) else W to H
+            val ok = bm != null && try { StillClip.make(bm, pw, ph, (sec * 1_000_000).toLong(), f); true } catch (e: Exception) { false }
+            main.post { if (!ok) cb(null) else { if (clips.isEmpty()) setFormat(pw, ph); val du = probe(f).third.takeIf { it > 0 } ?: (sec * 1_000_000).toLong()
+                cb(Clip(f, 0, du, true).also { it.fileDur = du; it.img = img }) } }
         }.start()
     }
     private fun addPhoto(u: Uri) {
         val w = wait(t("Adding photo…", "Menambah gambar…"))
-        val sec = stillSec
+        Thread { val img = copyIn(u, "img_", ".jpg"); main.post {
+            if (img == null) { w.dismiss(); toast(t("This photo cannot be added", "Gambar ini tidak boleh ditambah")); if (clips.isEmpty()) finish(); return@post }
+            makeStill(img.absolutePath, 3f) { c -> w.dismiss(); if (c == null) { toast(t("This photo cannot be added", "Gambar ini tidak boleh ditambah")); if (clips.isEmpty()) finish() } else insertAt(c, addEnd) } } }.start()
+    }
+    private fun stillDur(i: Int) {
+        val c = clips[i]; val opts = listOf(1f, 2f, 3f, 5f, 8f, 10f)
+        AlertDialog.Builder(this).setTitle(t("Photo duration", "Tempoh gambar")).setItems(opts.map { "${it.toInt()}s" }.toTypedArray()) { _, w ->
+            val dl = wait(t("Please wait…", "Sila tunggu…"))
+            makeStill(c.img, opts[w]) { n -> dl.dismiss(); if (n != null) { snap(); n.trans = c.trans; n.look = c.look; n.bri = c.bri; n.con = c.con; n.sat = c.sat; n.rot = c.rot; n.mirror = c.mirror; clips[i] = n; rebuild(tl.time) } } }.show()
+    }
+    private fun freeze() {
+        if (clips.isEmpty()) return
+        val (i, l) = locate(tl.time); val c = clips[i]; val at = c.inUs + (l * c.speed).toLong()
+        val dl = wait(t("Please wait…", "Sila tunggu…"))
         Thread {
-            val f = File(work, "p_" + System.currentTimeMillis() + ".mp4")
-            val res = try {
-                val o = BitmapFactory.Options(); o.inJustDecodeBounds = true; contentResolver.openInputStream(u)!!.use { BitmapFactory.decodeStream(it, null, o) }
-                var s = 1; while (maxOf(o.outWidth, o.outHeight) / s > 2400) s *= 2
-                val bm = contentResolver.openInputStream(u)!!.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = s }) }!!
-                val rot = try { contentResolver.openInputStream(u)!!.use { androidx.exifinterface.media.ExifInterface(it).rotationDegrees } } catch (e: Exception) { 0 }
-                val b2 = if (rot != 0) Bitmap.createBitmap(bm, 0, 0, bm.width, bm.height, android.graphics.Matrix().apply { postRotate(rot.toFloat()) }, true) else bm
-                val first = clips.isEmpty()
-                val (pw, ph) = if (first) (if (b2.height >= b2.width) 1080 to 1920 else 1920 to 1080) else W to H
-                StillClip.make(b2, pw, ph, sec * 1_000_000L, f); Triple(first, pw, ph)
-            } catch (e: Exception) { null }
-            main.post { w.dismiss()
-                if (res == null || !f.exists()) { toast(t("This photo cannot be added", "Gambar ini tidak boleh ditambah")); if (clips.isEmpty()) finish(); return@post }
-                if (res.first) setSize(res.second, res.third)
-                val du = probe(f).third.takeIf { it > 0 } ?: (sec * 1_000_000L)
-                insertAt(Clip(f, 0, du, true)) }
+            val bm = try { MediaMetadataRetriever().run { setDataSource(c.file.absolutePath); val b = getFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST); release(); b } } catch (e: Exception) { null }
+            val img = File(work, "fr_" + System.currentTimeMillis() + ".jpg"); bm?.let { b -> img.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 92, it) } }
+            main.post { if (bm == null) { dl.dismiss(); toast(t("Could not take the picture", "Gagal ambil gambar")); return@post }
+                makeStill(img.absolutePath, 2f) { n -> dl.dismiss(); if (n != null) { n.look = c.look; n.bri = c.bri; n.con = c.con; n.sat = c.sat; insertAt(n, false) } } }
         }.start()
     }
 
-    /* ---- text ---- */
-    private fun textDialog(edit: Txt?) {
-        val x = edit?.copy() ?: Txt("", tl.time, minOf(total(), tl.time + 3_000_000))
-        if (edit == null && x.e - x.s < 300_000) { toast(t("Move the line earlier", "Gerakkan garis lebih awal")); return }
-        val s = Ui.sheet(this, if (edit == null) t("Add text", "Tambah teks") else t("Change text", "Ubah teks"))
+    /* ---------------- sheets ---------------- */
+    private fun pills(body: LinearLayout, title: String, opts: List<Pair<String, String>>, cur: () -> String, set: (String) -> Unit) {
+        if (title.isNotEmpty()) body.addView(Ui.label(this, title, 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val r = LinearLayout(this); hs.addView(r); val bs = ArrayList<Button>()
+        opts.forEach { (id, l) -> val b = Ui.pill(this, l, cur() == id) { set(id); bs.forEachIndexed { j, q -> Ui.setPill(this, q, opts[j].first == cur()) } }; bs.add(b); r.addView(b, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
+        body.addView(hs, Ui.lp(this, 4))
+    }
+    private fun slider(body: LinearLayout, label: String, v: Float, min: Float, max: Float, set: (Float) -> Unit) {
+        val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
+        val lb = Ui.label(this, label, 13f, Ui.SUB, true); r.addView(lb, LinearLayout.LayoutParams(Ui.px(this, 96), -2))
+        val vt = Ui.label(this, "", 13f, Ui.TEXT, true)
+        val sb = SeekBar(this); sb.max = 100; sb.progress = ((v - min) / (max - min) * 100).toInt(); sb.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); sb.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
+        fun show(x: Float) { vt.text = String.format(Locale.US, "%d", Math.round(x * 100)) }
+        show(v)
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) { if (!u) return; val x = min + (max - min) * p / 100f; show(x); set(x) }
+            override fun onStartTrackingTouch(s: SeekBar?) {}; override fun onStopTrackingTouch(s: SeekBar?) {} })
+        r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 40), -2)); body.addView(r, Ui.lp(this, 8))
+    }
+    private fun speedSheet(i: Int) {
+        val c = clips[i]; val s = Ui.sheet(this, t("Speed", "Laju"))
+        pills(s.body, "", listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f).map { it.toString() to "${it}×" }, { c.speed.toString() }) { v -> snap(); c.speed = v.toFloat(); rebuild(tl.time) }
+        s.body.addView(Ui.hint(this, t("The sound changes speed too.", "Bunyi juga ikut laju.")))
+        s.dialog.window?.setLayout(-1, Ui.px(this, 260)); s.dialog.show()
+    }
+    private fun volSheet(title: String, v: Float, set: (Float) -> Unit) {
+        val s = Ui.sheet(this, title); snap()
+        slider(s.body, t("Volume", "Volum"), v, 0f, 2f) { x -> set(if (x < 0.03f) 0f else x) }
+        s.body.addView(Ui.btn(this, "🔇 " + t("Mute", "Senyap")) { set(0f); s.dialog.dismiss() }, Ui.lp(this, 10))
+        s.dialog.setOnDismissListener { refreshTools(); tl.invalidate(); mixLater() }
+        s.dialog.window?.setLayout(-1, Ui.px(this, 300)); s.dialog.show()
+    }
+    private fun filterSheet(i: Int) {
+        val c = clips[i]; val s = Ui.sheet(this, t("Filters", "Filter")); snap()
+        pills(s.body, t("Clip ", "Klip ") + (i + 1), Looks.ALL.map { it.id to (if (Ui.ms) it.ms else it.en) }, { c.look }) { v -> c.look = v; clipLook(); tl.invalidate() }
+        s.body.addView(Ui.btn(this, t("Use for all clips", "Guna untuk semua klip")) { clips.forEach { it.look = c.look }; clipLook(); tl.invalidate(); toast("✓") }, Ui.lp(this, 12))
+        s.dialog.window?.setLayout(-1, Ui.px(this, 300)); s.dialog.show()
+    }
+    private fun adjustSheet(i: Int) {
+        val c = clips[i]; val s = Ui.sheet(this, t("Adjust", "Laras")); snap()
+        slider(s.body, t("Brightness", "Cerah"), c.bri, -0.5f, 0.5f) { c.bri = it; clipLook() }
+        slider(s.body, t("Contrast", "Kontras"), c.con, -0.5f, 0.5f) { c.con = it; clipLook() }
+        slider(s.body, t("Colour", "Warna"), c.sat, -1f, 1f) { c.sat = it; clipLook() }
+        s.body.addView(Ui.btn(this, t("Use for all clips", "Guna untuk semua klip")) { clips.forEach { it.bri = c.bri; it.con = c.con; it.sat = c.sat }; toast("✓") }, Ui.lp(this, 12))
+        s.body.addView(Ui.btn(this, t("Reset", "Set semula")) { c.bri = 0f; c.con = 0f; c.sat = 0f; clipLook(); s.dialog.dismiss() }, Ui.lp(this, 8))
+        s.dialog.setOnDismissListener { tl.invalidate(); refreshTools() }
+        s.dialog.window?.setLayout(-1, Ui.px(this, 400)); s.dialog.show()
+    }
+    private fun formatSheet() {
+        val s = Ui.sheet(this, "Format")
+        pills(s.body, "", listOf("9:16" to "9:16", "16:9" to "16:9", "1:1" to "1:1", "4:5" to "4:5"), { fmtBtn.text.toString().substringBefore(" ") }) { v ->
+            snap(); val (a, b) = when (v) { "16:9" -> 1920 to 1080; "1:1" -> 1080 to 1080; "4:5" -> 1080 to 1350; else -> 1080 to 1920 }; setFormat(a, b); rebuild(tl.time) }
+        s.body.addView(Ui.hint(this, t("Clips fit inside with black bars where needed.", "Klip dimuatkan dengan jalur hitam jika perlu.")))
+        s.dialog.window?.setLayout(-1, Ui.px(this, 260)); s.dialog.show()
+    }
+    private fun newText() {
+        if (clips.isEmpty()) return
+        val l = Layer("text", tl.time, minOf(total(), tl.time + 3_000_000)); if (l.e - l.s < 400_000) { l.s = maxOf(0, total() - 3_000_000); l.e = total() }
+        textSheet(l, true)
+    }
+    private fun textSheet(l: Layer, isNew: Boolean = false) {
+        val x = l.copy()
+        val s = Ui.sheet(this, if (isNew) t("Add text", "Tambah teks") else t("Text", "Teks"))
         val inp = Ui.input(this, t("Type here…", "Taip di sini…"), x.text); inp.minLines = 2; inp.gravity = Gravity.TOP; s.body.addView(inp)
-        fun pills(title: String, opts: List<Pair<String, String>>, cur: () -> String, set: (String) -> Unit) {
-            s.body.addView(Ui.label(this, title, 13f, Ui.SUB, true), Ui.lp(this, 12))
-            val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val r = LinearLayout(this); hs.addView(r); val bs = ArrayList<Button>()
-            opts.forEach { (id, l) -> val b = Ui.pill(this, l, cur() == id) { set(id); bs.forEachIndexed { j, q -> Ui.setPill(this, q, opts[j].first == cur()) } }
-                if (id.startsWith("#")) { b.text = "●"; b.setTextColor(Color.parseColor(id)) }
-                bs.add(b); r.addView(b, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) }
-            s.body.addView(hs, Ui.lp(this, 4))
-        }
-        pills(t("Font", "Fon"), Overlay.FONTS.map { (k, f) -> k to (if (Ui.ms) f.ms else f.en).substringBefore(" —") }, { x.font }) { x.font = it }
-        val cols = listOf("#FFFFFF", "#111111", "#D9B44A", "#D6453A", "#2F9E5B", "#4A90E2", "#F48FB1")
-        pills(t("Colour", "Warna"), cols.map { it to it }, { String.format("#%06X", x.col and 0xFFFFFF) }) { x.col = Color.parseColor(it) }
-        pills(t("Style", "Gaya"), listOf("1" to t("With box", "Berkotak"), "0" to t("Shadow", "Bayang")), { if (x.box) "1" else "0" }) { x.box = it == "1" }
-        pills(t("Place", "Kedudukan"), listOf("t" to t("Top", "Atas"), "m" to t("Middle", "Tengah"), "b" to t("Bottom", "Bawah")), { x.pos }) { x.pos = it }
-        pills(t("Size", "Saiz"), listOf("0" to t("Small", "Kecil"), "1" to t("Medium", "Sederhana"), "2" to t("Big", "Besar")), { x.size.toString() }) { x.size = it.toInt() }
-        if (edit == null) pills(t("How long", "Berapa lama"), listOf("2" to "2s", "3" to "3s", "5" to "5s", "all" to t("To the end", "Hingga akhir")), { "3" }) { x.e = if (it == "all") total() else minOf(total(), x.s + it.toLong() * 1_000_000) }
+        val prev = android.widget.ImageView(this); prev.setBackgroundColor(0xFF2A2A2A.toInt()); s.body.addView(prev, LinearLayout.LayoutParams(-1, Ui.px(this, 110)).apply { topMargin = Ui.px(this@EditorActivity, 8) })
+        fun redraw() { x.text = inp.text.toString().ifEmpty { t("Your text", "Teks anda") }; val y = x.copy().also { it.y = 0.5f; it.x = 0.5f; it.anim = "none"; it.s = 0; it.e = 1_000_000; it.scale = 1.4f }
+            prev.setImageBitmap(art.render(listOf(y), 500_000, 720, 220)); prev.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER }
+        inp.addTextChangedListener(object : android.text.TextWatcher { override fun afterTextChanged(e: android.text.Editable?) { redraw() }
+            override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}; override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {} })
+        val sn = mapOf("boxword" to t("Box", "Kotak"), "outline" to t("Outline", "Garis"), "plain" to t("Plain", "Biasa"), "shadow" to t("Shadow", "Bayang"), "glow" to t("Glow", "Bercahaya"), "neon" to "Neon",
+            "gradient" to "Gradient", "d3" to "3D", "bubble" to t("Bubble", "Gelembung"), "darkbox" to t("Dark box", "Kotak gelap"), "highlight" to t("Highlight", "Sorot"), "retro" to "Retro")
+        pills(s.body, t("Style", "Gaya"), TextArt.STYLES.map { it to (sn[it] ?: it) }, { x.style }) { x.style = it; redraw() }
+        pills(s.body, t("Font", "Fon"), Overlay.FONTS.map { (k, f) -> k to (if (Ui.ms) f.ms else f.en).substringBefore(" —") }, { x.font }) { x.font = it; redraw() }
+        // colours as round swatches
+        s.body.addView(Ui.label(this, t("Colour", "Warna"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val cr = LinearLayout(this); hs.addView(cr); val sw = ArrayList<View>()
+        TextArt.COLS.forEach { (k, v) -> val b = View(this); fun paint() { b.background = Ui.round(v, Ui.dp(this, 99f), if (x.col == k) Ui.GOLD else 0xFF444444.toInt(), Ui.px(this, if (x.col == k) 3 else 1)) }
+            paint()
+            sw.add(b); cr.addView(b, LinearLayout.LayoutParams(Ui.px(this, 36), Ui.px(this, 36)).apply { rightMargin = Ui.px(this@EditorActivity, 8) }) }
+        // clicking a swatch must not call the others: replace listeners after building
+        sw.forEachIndexed { j, b -> val k = TextArt.COLS.keys.elementAt(j); b.setOnClickListener { x.col = k; redraw()
+            sw.forEachIndexed { jj, q -> val kk = TextArt.COLS.keys.elementAt(jj); q.background = Ui.round(TextArt.COLS[kk]!!, Ui.dp(this, 99f), if (x.col == kk) Ui.GOLD else 0xFF444444.toInt(), Ui.px(this, if (x.col == kk) 3 else 1)) } } }
+        s.body.addView(hs, Ui.lp(this, 4))
+        pills(s.body, t("Animation", "Animasi"), animNames(), { x.anim }) { x.anim = it }
+        if (isNew) pills(s.body, t("How long", "Berapa lama"), listOf("2" to "2s", "3" to "3s", "5" to "5s", "all" to t("To the end", "Hingga akhir")), { "3" }) { x.e = if (it == "all") total() else minOf(total(), x.s + it.toLong() * 1_000_000) }
         s.body.addView(Ui.btn(this, t("Done", "Siap"), true) {
             val v = inp.text.toString().trim(); if (v.isEmpty()) { toast(t("Type some text", "Taip teks dahulu")); return@btn }
             x.text = v; snap()
-            if (edit == null) { texts.add(x); tl.selTxt = texts.size - 1 } else { val i = texts.indexOf(edit); if (i >= 0) texts[i] = x }
+            if (isNew) { layers.add(x); onSelect(Sel.L(layers.size - 1)) } else { val i = layers.indexOf(l); if (i >= 0) layers[i] = x }
             s.dialog.dismiss(); rebuild(tl.time)
         }, Ui.lp(this, 16))
+        redraw(); s.dialog.show()
+    }
+    private fun animNames() = listOf("none" to t("None", "Tiada"), "fade" to t("Fade", "Pudar"), "pop" to "Pop", "slide" to t("Slide up", "Naik"), "type" to t("Typing", "Taip"), "shake" to t("Shake", "Gegar"))
+    private fun animSheet(l: Layer) {
+        val s = Ui.sheet(this, t("Animation", "Animasi")); snap()
+        pills(s.body, "", animNames(), { l.anim }) { l.anim = it; rebuild(l.s) }
+        s.dialog.window?.setLayout(-1, Ui.px(this, 240)); s.dialog.show()
+    }
+    private fun stickerSheet() {
+        if (clips.isEmpty()) return
+        val s = Ui.sheet(this, t("Stickers", "Stiker"))
+        val g = android.widget.GridLayout(this); g.columnCount = 6
+        TextArt.STICKERS.forEachIndexed { i, e -> val b = Ui.center(Ui.label(this, e, 28f)); b.setPadding(0, Ui.px(this, 8), 0, Ui.px(this, 8))
+            b.setOnClickListener { snap(); val l = Layer("sticker", tl.time, minOf(total(), tl.time + 3_000_000)); l.text = e; l.x = 0.5f; l.y = 0.4f; l.anim = "pop"
+                if (l.e - l.s < 400_000) { l.s = maxOf(0, total() - 3_000_000); l.e = total() }
+                layers.add(l); s.dialog.dismiss(); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time) }
+            val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 6), android.widget.GridLayout.spec(i % 6, 1f)); p.width = 0; g.addView(b, p) }
+        s.body.addView(g); s.body.addView(Ui.hint(this, t("Drag on the picture to move; use two fingers to resize.", "Seret pada gambar untuk alih; dua jari untuk ubah saiz.")))
         s.dialog.show()
     }
+    private fun addOverlayPhoto(u: Uri) {
+        if (clips.isEmpty()) return
+        Thread { val f = copyIn(u, "ov_", ".png"); val bm = f?.let { loadBitmap(it.absolutePath) }
+            if (f != null && bm != null) { val k = minOf(1f, 900f / maxOf(bm.width, bm.height)); val sm = Bitmap.createScaledBitmap(bm, (bm.width * k).toInt().coerceAtLeast(1), (bm.height * k).toInt().coerceAtLeast(1), true)
+                f.outputStream().use { sm.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+            main.post { if (f == null || bm == null) { toast(t("This photo cannot be added", "Gambar ini tidak boleh ditambah")); return@post }
+                snap(); val l = Layer("photo", tl.time, minOf(total(), tl.time + 4_000_000)); l.file = f.absolutePath; l.x = 0.5f; l.y = 0.4f; l.anim = "pop"
+                if (l.e - l.s < 400_000) { l.s = maxOf(0, total() - 4_000_000); l.e = total() }
+                layers.add(l); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time) } }.start()
+    }
+    private fun brand() {
+        if (clips.isEmpty()) return
+        val i = layers.indexOfFirst { it.kind == "brand" }
+        if (i >= 0) { snap(); layers.removeAt(i); onSelect(Sel.None); rebuild(tl.time); toast(t("Brand removed", "Jenama dibuang")); return }
+        val b = Brand(this)
+        if (b.title.isEmpty() && b.price.isEmpty() && b.phone.isEmpty() && !b.logoFile.exists()) { toast(t("Set your brand first: Director ▸ Settings", "Tetapkan jenama dahulu: Pengarah ▸ Tetapan")); return }
+        snap(); layers.add(0, Layer("brand", 0, total()).also { it.anim = "none" }); rebuild(tl.time); toast(t("Brand added", "Jenama ditambah"))
+    }
 
-    /* ---- save: a new video made from the timeline ---- */
+    /* ---------------- sound ---------------- */
+    private fun addMusic(u: Uri) {
+        if (clips.isEmpty()) return
+        val name = try { contentResolver.query(u, null, null, null, null)?.use { c -> val k = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME); if (c.moveToFirst() && k >= 0) c.getString(k) else null } } catch (e: Exception) { null } ?: "music"
+        val w = wait(t("Loading music…", "Memuatkan muzik…"))
+        Thread { val f = copyIn(u, "m_", "_" + name.replace(Regex("[^\\w.]+"), "_")); val a = f?.let { Snd.decode(it.absolutePath) }; if (f != null) audioCache[f.absolutePath] = a
+            main.post { w.dismiss(); if (f == null || a == null || a.isEmpty()) { toast(t("This sound cannot be used", "Bunyi ini tidak boleh digunakan")); return@post }
+                snap(); val s = Sound("music", tl.time.coerceAtMost(maxOf(0, total() - 1_000_000)), total()); s.file = f.absolutePath; s.vol = 0.6f
+                sounds.add(s); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time); toast(t("Tip: lower the original sound if needed", "Tip: perlahankan bunyi asal jika perlu")) } }.start()
+    }
+    private fun sfxSheet() {
+        if (clips.isEmpty()) return
+        val s = Ui.sheet(this, t("Sound FX", "Kesan bunyi"))
+        val names = mapOf("whoosh" to "Whoosh", "ding" to "Ding", "pop" to "Pop", "clap" to t("Clap", "Tepuk"), "cash" to t("Cash", "Duit"), "drum" to t("Drum", "Dram"))
+        Snd.SFX.forEach { k -> val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
+            r.addView(Ui.btn(this, "▶  " + names[k]) { playSfx(k) }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 8 })
+            r.addView(Ui.btn(this, "+ " + t("Add", "Tambah"), true) { snap(); val a = Snd.sfx(k); val ss = Sound("sfx", tl.time, minOf(total(), tl.time + maxOf(300_000L, Snd.durUs(a)))); ss.sfx = k; sounds.add(ss); s.dialog.dismiss(); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time) })
+            s.body.addView(r, Ui.lp(this, 8)) }
+        s.dialog.show()
+    }
+    private fun playSfx(k: String) {
+        Thread { try { val a = Snd.sfx(k); val sh = ShortArray(a.size) { (a[it].coerceIn(-1f, 1f) * 32767).toInt().toShort() }
+            val at = android.media.AudioTrack.Builder().setAudioFormat(android.media.AudioFormat.Builder().setSampleRate(Snd.RATE).setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO).build())
+                .setBufferSizeInBytes(sh.size * 2).setTransferMode(android.media.AudioTrack.MODE_STATIC).build()
+            at.write(sh, 0, sh.size); at.play(); Thread.sleep(Snd.durUs(a) / 1000 + 100); at.release() } catch (e: Exception) {} }.start()
+    }
+    private fun voiceSheet(edit: Sound?) {
+        if (clips.isEmpty()) return
+        val s = Ui.sheet(this, t("AI voice", "Suara AI"))
+        val inp = Ui.input(this, t("What should the voice say?", "Apa yang suara perlu sebut?"), edit?.text ?: ""); inp.minLines = 3; inp.gravity = Gravity.TOP; s.body.addView(inp)
+        var pitch = "n"; var rate = "n"
+        pills(s.body, t("Voice", "Suara"), listOf("d" to t("Deep", "Garau"), "n" to t("Normal", "Biasa"), "h" to t("High", "Tinggi")), { pitch }) { pitch = it }
+        pills(s.body, t("Speed", "Laju"), listOf("s" to t("Slow", "Perlahan"), "n" to t("Normal", "Biasa"), "f" to t("Fast", "Laju")), { rate }) { rate = it }
+        s.body.addView(Ui.btn(this, if (edit == null) t("Add voice here", "Tambah suara di sini") else t("Update voice", "Kemas kini suara"), true) {
+            val txt = inp.text.toString().trim(); if (txt.isEmpty()) return@btn
+            s.dialog.dismiss(); speak(txt, when (pitch) { "d" -> 0.8f; "h" -> 1.25f; else -> 1f }, when (rate) { "s" -> 0.8f; "f" -> 1.25f; else -> 1f }, edit)
+        }, Ui.lp(this, 14))
+        s.body.addView(Ui.hint(this, t("Uses the phone's own voice (Malay if installed).", "Guna suara telefon sendiri (Bahasa Melayu jika ada).")))
+        s.dialog.show()
+    }
+    private fun speak(txt: String, pitch: Float, rate: Float, edit: Sound?) {
+        val w = wait(t("Making the voice…", "Membuat suara…"))
+        fun go() {
+            val e = tts ?: return
+            val loc = if (Ui.ms) Locale("ms", "MY") else Locale.US
+            if (e.isLanguageAvailable(loc) >= TextToSpeech.LANG_AVAILABLE) e.language = loc
+            e.setPitch(pitch); e.setSpeechRate(rate)
+            val f = File(work, "tts_" + System.currentTimeMillis() + ".wav"); val id = f.name
+            e.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(u: String?) {}
+                @Deprecated("old") override fun onError(u: String?) { main.post { w.dismiss(); toast(t("Voice failed", "Suara gagal")) } }
+                override fun onDone(u: String?) {
+                    val a = Snd.readWav(f); audioCache[f.absolutePath] = a
+                    main.post { w.dismiss(); if (a == null || a.isEmpty()) { toast(t("Voice failed", "Suara gagal")); return@post }
+                        snap(); val st = edit?.s ?: tl.time
+                        val s = edit ?: Sound("voice", st, st).also { sounds.add(it) }
+                        s.file = f.absolutePath; s.text = txt; s.e = minOf(total(), s.s + Snd.durUs(a))
+                        onSelect(Sel.S(sounds.indexOf(s))); rebuild(tl.time) }
+                }
+            })
+            e.synthesizeToFile(txt, null, f, id)
+        }
+        if (tts != null && ttsOk) go() else tts = TextToSpeech(this) { st -> ttsOk = st == TextToSpeech.SUCCESS; main.post { if (ttsOk) go() else { w.dismiss(); toast(t("No voice engine on this phone", "Tiada enjin suara pada telefon ini")) } } }
+    }
+    /* make the extra sound track again a moment after a change */
+    private fun mixLater() { main.removeCallbacks(mixRun); main.postDelayed(mixRun, 400) }
+    private val mixRun = Runnable {
+        val gen = ++mixGen; val list = sounds.map { it.copy() }; val tot = total()
+        if (list.isEmpty()) { mixFile = null; mplayer.clearMediaItems(); return@Runnable }
+        Thread { val f = File(work, "mix_$gen.wav"); val ok = try { Snd.mix(list, tot, f, audioCache); true } catch (e: Exception) { false }
+            main.post { if (gen != mixGen || !ok) { f.delete(); return@post }
+                val old = mixFile; mixFile = f; mplayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(f))); mplayer.prepare(); mplayer.seekTo(tl.time / 1000)
+                if (player.isPlaying) mplayer.play(); if (old != null && old != f) old.delete() } }.start()
+    }
+
+    /* ---------------- cover picture ---------------- */
+    private fun cover() {
+        if (clips.isEmpty()) return
+        val (i, l) = locate(tl.time); val c = clips[i]; val at = c.inUs + (l * c.speed).toLong(); val u = tl.time
+        Thread {
+            val fr = try { MediaMetadataRetriever().run { setDataSource(c.file.absolutePath); val b = getFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST); release(); b } } catch (e: Exception) { null }
+            val out = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); val cv = Canvas(out); cv.drawColor(Color.BLACK)
+            if (fr != null) { val k = minOf(W.toFloat() / fr.width, H.toFloat() / fr.height); val dw = fr.width * k; val dh = fr.height * k
+                val (m, o) = Looks.matrix(c.filter()); val pa = Paint(Paint.FILTER_BITMAP_FLAG)
+                pa.colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(m[0], m[4], m[8], 0f, o[0] * 255, m[1], m[5], m[9], 0f, o[1] * 255, m[2], m[6], m[10], 0f, o[2] * 255, 0f, 0f, 0f, 1f, 0f)))
+                cv.drawBitmap(fr, null, RectF((W - dw) / 2, (H - dh) / 2, (W + dw) / 2, (H + dh) / 2), pa) }
+            val still = layers.map { it.copy().also { q -> q.anim = "none" } }
+            cv.drawBitmap(art.render(still, u, W, H), 0f, 0f, null)
+            val ok = try {
+                val name = "Cover_" + System.currentTimeMillis() + ".jpg"
+                if (Build.VERSION.SDK_INT >= 29) { val cvv = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg"); put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ProMultiCam") }
+                    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cvv)!!; contentResolver.openOutputStream(uri)!!.use { out.compress(Bitmap.CompressFormat.JPEG, 94, it) } }
+                else { @Suppress("DEPRECATION") val d = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES), "ProMultiCam"); d.mkdirs(); File(d, name).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 94, it) } }
+                true } catch (e: Exception) { false }
+            main.post { toast(if (ok) t("Cover saved to gallery: Pictures/ProMultiCam", "Kulit disimpan ke galeri: Pictures/ProMultiCam") else t("Could not save", "Gagal simpan")) }
+        }.start()
+    }
+
+    /* ---------------- export ---------------- */
     private fun save() {
         if (clips.isEmpty() || busy) return
         player.pause()
         val o = orig
         if (o == null) { export(null); return }
-        AlertDialog.Builder(this).setTitle(t("Save", "Simpan"))
+        AlertDialog.Builder(this).setTitle(t("Export", "Eksport"))
             .setItems(arrayOf(t("Replace the original video", "Ganti video asal"), t("Save as a new video", "Simpan sebagai video baru"))) { _, w -> export(if (w == 0) o else null) }
             .setNegativeButton(t("Cancel", "Batal"), null).show()
     }
+    private class Speed(val s: Float) : SpeedProvider { override fun getSpeed(timeUs: Long) = s; override fun getNextSpeedChangeTimeUs(timeUs: Long) = C.TIME_UNSET }
     private fun export(replace: File?) {
         busy = true
         val tmp = File(Store.dir(this), "tmp_edit_" + System.currentTimeMillis() + ".mp4")
         val dlg = AlertDialog.Builder(this).setMessage(t("Making the video… 0%", "Membuat video… 0%")).setCancelable(false).show()
-        val txs = texts.map { it.copy() }
+        val lays = layers.map { it.copy() }
+        val wantMix = sounds.isNotEmpty() && mixFile?.exists() == true
         var off = 0L
-        val items = clips.map { c ->
+        val items = clips.mapIndexed { i, c ->
             val mi = MediaItem.Builder().setUri(Uri.fromFile(c.file)).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.inUs / 1000).setEndPositionMs(c.outUs / 1000).build()).build()
-            val fx = ArrayList<androidx.media3.common.Effect>(); fx.add(Presentation.createForWidthAndHeight(W, H, Presentation.LAYOUT_SCALE_TO_FIT))
+            val fx = ArrayList<androidx.media3.common.Effect>()
+            if (c.rot != 0 || c.mirror) fx.add(ScaleAndRotateTransformation.Builder().setRotationDegrees(-c.rot.toFloat()).setScale(if (c.mirror) -1f else 1f, 1f).build())
+            if (c.speed != 1f) fx.add(SpeedChangeEffect(c.speed))
+            fx.add(Presentation.createForWidthAndHeight(W, H, Presentation.LAYOUT_SCALE_TO_FIT))
+            val inT = c.trans.takeIf { i > 0 } ?: "none"; val outT = clips.getOrNull(i + 1)?.trans ?: "none"
+            if (c.filter() != "brightness(1.0) contrast(1.0) saturate(1.0)" || inT != "none" || outT != "none") { val (m, o) = Looks.matrix(c.filter()); fx.add(ColorFx(m, o, inT, outT, c.dur)) }
             val base = off; val du = c.dur
-            if (txs.any { it.e > base && it.s < base + du }) fx.add(OverlayEffect(ImmutableList.of(TextLayer(art, txs, base, W, H))))
+            if (lays.any { it.e > base && it.s < base + du }) fx.add(OverlayEffect(ImmutableList.of(LayerFx(art, lays, base, W, H))))
             off += du
-            EditedMediaItem.Builder(mi).setEffects(Effects(listOf(), fx)).build()
+            val au = ArrayList<AudioProcessor>()
+            if (c.speed != 1f) au.add(SpeedChangingAudioProcessor(Speed(c.speed)))
+            val v = c.vol * origVol
+            if (v != 1f) { val cm = ChannelMixingAudioProcessor(); cm.putChannelMixingMatrix(ChannelMixingMatrix.create(1, 1).scaleBy(v)); cm.putChannelMixingMatrix(ChannelMixingMatrix.create(2, 2).scaleBy(v)); au.add(cm) }
+            EditedMediaItem.Builder(mi).setEffects(Effects(au, fx)).build()
         }
-        val comp = Composition.Builder(listOf(EditedMediaItemSequence(items))).experimentalSetForceAudioTrack(true).build()
+        val seqs = ArrayList<EditedMediaItemSequence>(); seqs.add(EditedMediaItemSequence(items))
+        if (wantMix) seqs.add(EditedMediaItemSequence(listOf(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(mixFile!!))).build())))
+        val comp = Composition.Builder(seqs).experimentalSetForceAudioTrack(true).build()
         val tr = Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     busy = false; dlg.dismiss()
                     val out: File = if (replace != null) { replace.delete(); tmp.renameTo(replace); replace } else { val nf = Store.newFile(this@EditorActivity, (orig?.name?.substringBefore("_") ?: "Video") + "_edit"); tmp.renameTo(nf); nf }
-                    undo.clear()
-                    if (replace != null) { orig = replace; thumbCache.clear(); clips = arrayListOf(Clip(replace, 0, probe(replace).third, false)); texts.clear(); rebuild(0) }
+                    dirty = false
+                    if (replace != null) { orig = replace; thumbCache.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
                     AlertDialog.Builder(this@EditorActivity).setMessage(t("✅ Saved in the app's Videos.", "✅ Disimpan dalam Video app."))
                         .setPositiveButton(t("Save to Phone", "Simpan ke Telefon")) { _, _ -> Thread { val ok = Store.saveToPhone(this@EditorActivity, out); main.post { toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Could not save", "Gagal simpan")) } }.start() }
                         .setNegativeButton(t("Close", "Tutup"), null).show()
@@ -537,20 +887,34 @@ class EditorActivity : AppCompatActivity() {
                     AlertDialog.Builder(this@EditorActivity).setMessage(t("Could not make the video: ", "Gagal membuat video: ") + (exportException.message ?: "")).setPositiveButton("OK", null).show()
                 }
             }).build()
-        try { tr.start(comp, tmp.absolutePath) } catch (e: Exception) { busy = false; dlg.dismiss(); toast(t("Could not make the video", "Gagal membuat video")); return }
+        try { tr.start(comp, tmp.absolutePath) } catch (e: Exception) { busy = false; dlg.dismiss(); toast(t("Could not make the video", "Gagal membuat video") + ": " + e.message); return }
         val ph = ProgressHolder()
         fun prog() { if (!busy) return; if (tr.getProgress(ph) == Transformer.PROGRESS_STATE_AVAILABLE) dlg.setMessage(t("Making the video… ", "Membuat video… ") + ph.progress + "%"); main.postDelayed({ prog() }, 400) }
         prog()
     }
 
-    /* text drawn while saving; time is counted from this clip's first picture */
-    class TextLayer(private val art: TextArt, private val list: List<Txt>, private val base: Long, private val W: Int, private val H: Int) : BitmapOverlay() {
+    /* colours of a clip, plus the switch effect at its start and end (time counted from the clip's first picture) */
+    class ColorFx(private val m: FloatArray, private val o: FloatArray, private val inT: String, private val outT: String, private val dur: Long) : RgbMatrix {
+        private var first = -1L
+        override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray {
+            if (first < 0) first = presentationTimeUs
+            val t = presentationTimeUs - first
+            var f = 1f; var white = false
+            fun win(k: String) = if (k == "flash") 150_000f else 350_000f
+            if (inT != "none" && t < win(inT)) { f = t / win(inT); white = inT != "black" }
+            if (outT != "none" && dur - t < win(outT)) { val g = ((dur - t) / win(outT)).coerceAtLeast(0f); if (g < f) { f = g; white = outT != "black" } }
+            val r = FloatArray(16); for (i in 0..2) { for (j in 0..2) r[j * 4 + i] = m[j * 4 + i] * f; r[12 + i] = o[i] * f + if (white) 1 - f else 0f }; r[15] = 1f
+            return r
+        }
+    }
+    /* what sits on top, drawn while saving */
+    class LayerFx(private val art: TextArt, private val list: List<Layer>, private val base: Long, private val W: Int, private val H: Int) : BitmapOverlay() {
         private var first = -1L; private var key = "?"; private var bmp: Bitmap = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
         override fun getBitmap(presentationTimeUs: Long): Bitmap {
             if (first < 0) first = presentationTimeUs
             val u = base + (presentationTimeUs - first)
             val k = art.key(list, u)
-            if (k != key) { key = k; bmp = if (k.isEmpty()) Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888) else art.render(list, u, W, H) }
+            if (k != key) { key = k; bmp = art.render(list, u, W, H) }
             return bmp
         }
     }

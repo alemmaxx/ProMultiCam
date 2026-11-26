@@ -163,6 +163,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             override fun surfaceDestroyed(h: SurfaceHolder) { prog.setPreview(null, 0, 0) }
         })
         stage.addView(sv, Ui.fl(-1, -1))
+        // tap = focus there (like the phone camera); hold = back to auto focus
+        val tapper = android.view.GestureDetector(c, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: android.view.MotionEvent) = true
+            override fun onSingleTapUp(e: android.view.MotionEvent): Boolean { focusAt(stage, e.x, e.y, false); return true }
+            override fun onLongPress(e: android.view.MotionEvent) { focusAt(stage, e.x, e.y, true) }
+        })
+        sv.setOnTouchListener { _, e -> tapper.onTouchEvent(e) }
         val chips = LinearLayout(c); chips.orientation = LinearLayout.HORIZONTAL
         srcChip = Ui.label(c, "", 13f, Ui.GOLD, true); srcChip.background = Ui.round(0xB0000000.toInt(), Ui.dp(c, 99f)); srcChip.setPadding(d, d / 2, d, d / 2)
         lookChip = Ui.label(c, "", 13f, Ui.TEXT, true); lookChip.background = Ui.round(0xB0000000.toInt(), Ui.dp(c, 99f)); lookChip.setPadding(d, d / 2, d, d / 2)
@@ -706,6 +713,18 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             if (ok) { base.delete(); part.delete(); tmp.renameTo(base) } else tmp.delete()
             main.post { toast(if (ok) t("Added — one longer video", "Ditambah — satu video lebih panjang") else t("Could not join; the new part is kept as its own video", "Gagal gabung; bahagian baru disimpan berasingan")) }
         }
+    }
+
+    private fun focusAt(stage: FrameLayout, x: Float, y: Float, auto: Boolean) {
+        val s = mainSrc ?: return
+        var w = stage.width.toFloat(); var hh = w * H / W; if (hh > stage.height) { hh = stage.height.toFloat(); w = hh * W / H }
+        val ox = (stage.width - w) / 2; val oy = (stage.height - hh) / 2
+        var u = (x - ox) / w; var v = (y - oy) / hh
+        if (u < 0 || u > 1 || v < 0 || v > 1) return
+        u = 0.5f + (u - 0.5f) / s.zoom; v = 0.5f + (v - 0.5f) / s.zoom
+        if (s.local) { val c = cam ?: return; if (!Focus.tap(c.capturer, u, v, c.front, auto)) { toast(t("This camera cannot focus by tap", "Kamera ini tidak boleh fokus dengan tekan")); return } }
+        else { val d = s.data ?: return; d.send(if (auto) mapOf("t" to "cc", "op" to "auto") else mapOf("t" to "cc", "op" to "at", "v" to mapOf("x" to u.toDouble(), "y" to v.toDouble()))) }
+        if (auto) toast(t("Auto focus", "Fokus automatik")) else Focus.ring(stage, x, y)
     }
 
     private val joinQ = java.util.concurrent.Executors.newSingleThreadExecutor()
