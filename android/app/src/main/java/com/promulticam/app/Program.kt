@@ -36,6 +36,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     @Volatile private var ovPending: Bitmap? = null
     @Volatile var layout = "full"
     @Volatile var trans = "fade"          // fade, black, cut
+    @Volatile var vRect: FloatArray? = null     // polaroid / panel: the video uses only part of the picture (x, y, w, h from the top, kind)
     @Volatile var zoomMain = 1f; @Volatile var zoomSec = 1f   // digital zoom per view (works for any camera)
     private var transAt = 0L
     private var second: VideoFrame? = null
@@ -145,7 +146,10 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
                 val pw = (minOf(W, H) * 0.36f).toInt(); val ph = pw * 4 / 3; val px = W - pw - (W * 0.04f).toInt(); val py = (H * 0.12f).toInt()
                 box(px - 4, py - 4, pw + 8, ph + 8, G[0], G[1], G[2]); fill(fd2, s, px, py, pw, ph, zoomSec)
             }
-            else -> fill(fd1, f, 0, 0, W, H, zoomMain)
+            else -> { val r = vRect
+                if (r == null) fill(fd1, f, 0, 0, W, H, zoomMain)
+                else { val bg = Overlay.bgColor(r[4]); box(0, 0, W, H, android.graphics.Color.red(bg) / 255f, android.graphics.Color.green(bg) / 255f, android.graphics.Color.blue(bg) / 255f)
+                    fill(fd1, f, r[0].toInt(), (H - r[1] - r[3]).toInt(), r[2].toInt(), r[3].toInt(), zoomMain) } }
         }
         // switch effect: fade (or dip to black) from the last picture of the previous angle
         val p = (SystemClock.uptimeMillis() - transAt) / 450f

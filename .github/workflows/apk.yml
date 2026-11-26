@@ -28,6 +28,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Fonts for the brand designs (open-licence Google Fonts, same as the web)
+        run: |
+          d=android/app/src/main/assets/fonts; mkdir -p $d
+          g=https://raw.githubusercontent.com/google/fonts/main/ofl
+          get(){ curl -fsSL -o "$d/$1" "$g/$2" || echo "font $1 missing"; }
+          get bricolage.ttf "bricolagegrotesque/BricolageGrotesque%5Bopsz%2Cwdth%2Cwght%5D.ttf"
+          get poppins.ttf "poppins/Poppins-Bold.ttf"
+          get montserrat.ttf "montserrat/Montserrat%5Bwght%5D.ttf"
+          get bebas.ttf "bebasneue/BebasNeue-Regular.ttf"
+          get anton.ttf "anton/Anton-Regular.ttf"
+          get playfair.ttf "playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf"
+          get lobster.ttf "lobster/Lobster-Regular.ttf"
+          get pacifico.ttf "pacifico/Pacifico-Regular.ttf"
+          get dancing.ttf "dancingscript/DancingScript%5Bwght%5D.ttf"
+          get marker.ttf "permanentmarker/PermanentMarker-Regular.ttf"
+          ls -la $d
       - name: Build
         env:
           PMC_VERSION_CODE: ${{ github.run_number }}

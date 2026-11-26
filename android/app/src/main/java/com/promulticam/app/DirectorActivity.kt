@@ -303,7 +303,58 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val pr = Ui.input(this, t("e.g. RM12.90 or Buy 2 Free 1", "cth: RM12.90 atau Beli 2 Percuma 1"), brand.price); b.addView(pr, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Phone / contact (optional)", "Telefon / hubungi (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val ph = Ui.input(this, t("e.g. 012-345 6789 or Order via the bio link", "cth: 012-345 6789 atau Tempah di pautan bio"), brand.phone); b.addView(ph, Ui.lp(this, 6))
-        b.addView(Ui.check(this, t("Brand in the video", "Jenama dalam video"), brand.on) { v -> brand.on = v }, Ui.lp(this, 8))
+        b.addView(Ui.check(this, t("Brand in the video", "Jenama dalam video"), brand.on) { v -> brand.on = v; refreshOverlay() }, Ui.lp(this, 8))
+        b.addView(Ui.hr(this))
+        b.addView(Ui.section(this, t("Overlay", "Paparan")))
+        val og = android.widget.GridLayout(this); og.columnCount = 2
+        val cards = ArrayList<LinearLayout>()
+        val shopIn = Ui.input(this, t("e.g. Dapur Mak Long", "cth. Dapur Mak Long"), brand.shop)
+        val descIn = Ui.input(this, t("e.g. Fish broth, fresh herbs", "cth. Kuah ikan, ulam segar"), brand.desc)
+        val menuIn = Ui.input(this, "Laksam - RM5\nNasi kerabu - RM8", brand.menu, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE); menuIn.minLines = 3; menuIn.gravity = Gravity.TOP
+        val shopL = Ui.label(this, t("Shop name or @account", "Nama kedai atau @akaun"), 13f, Ui.SUB, true); val descL = Ui.label(this, t("Short description", "Penerangan ringkas"), 13f, Ui.SUB, true)
+        val menuL = Ui.label(this, t("Menu (name - price, one per line)", "Menu (nama - harga, satu baris)"), 13f, Ui.SUB, true)
+        lateinit var fontBtn: Button
+        fun showRows() { val st = brand.style
+            val shopOn = st in listOf("band", "menu", "minimal", "polaroid", "gold", "panel")
+            for (v in listOf(shopL, shopIn)) v.visibility = if (shopOn) View.VISIBLE else View.GONE
+            for (v in listOf(descL, descIn)) v.visibility = if (st == "panel") View.VISIBLE else View.GONE
+            for (v in listOf(menuL, menuIn)) v.visibility = if (st == "menu") View.VISIBLE else View.GONE
+            cards.forEachIndexed { j, cv -> cv.background = Ui.round(if (Overlay.STYLES[j] == st) 0xFF2A2416.toInt() else 0xFF15140F.toInt(), Ui.dp(this, 12f), if (Overlay.STYLES[j] == st) Ui.GOLD else Ui.LINE, Ui.px(this, if (Overlay.STYLES[j] == st) 2 else 1)) }
+            fontBtn.text = (Overlay.FONTS[brand.font.ifEmpty { Overlay.DEF_FONT[st] ?: "bricolage" }]?.let { if (Ui.ms) it.ms else it.en } ?: "") + "  ▾"
+            refreshOverlay() }
+        Overlay.STYLES.forEachIndexed { k, st ->
+            val cv = LinearLayout(this); cv.orientation = LinearLayout.VERTICAL; cv.setPadding(Ui.px(this, 10), Ui.px(this, 8), Ui.px(this, 10), Ui.px(this, 8))
+            val nm = Overlay.STYLE_NAMES[st]!!; val ds = Overlay.STYLE_DESC[st]!!
+            cv.addView(Ui.label(this, "${k + 1}. " + (if (Ui.ms) nm.second else nm.first), 13f, Ui.TEXT, true)); cv.addView(Ui.label(this, if (Ui.ms) ds.second else ds.first, 11f, Ui.SUB))
+            cv.setOnClickListener { if (st != "card" && !Auth.isPro) { needPro(); return@setOnClickListener }; brand.style = st; showRows() }
+            cards.add(cv)
+            val gp = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(k / 2), android.widget.GridLayout.spec(k % 2, 1f)); gp.width = 0; gp.setMargins(4, 5, 4, 5); og.addView(cv, gp)
+        }
+        b.addView(og, Ui.lp(this, 6))
+        b.addView(Ui.label(this, t("Colour", "Warna"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val sw = LinearLayout(this); sw.orientation = LinearLayout.HORIZONTAL; val sws = ArrayList<View>()
+        Overlay.COLORS.keys.forEach { k -> val v = View(this); sws.add(v)
+            v.setOnClickListener { if (k != "gold" && !Auth.isPro) { needPro(); return@setOnClickListener }; brand.col = k; sws.forEachIndexed { j, x -> val ck = Overlay.COLORS.keys.elementAt(j); x.background = Ui.round(Overlay.COLORS[ck]!!.c, Ui.dp(this, 99f), if (ck == brand.col) Ui.TEXT else Ui.LINE, Ui.px(this, if (ck == brand.col) 3 else 1)) }; refreshOverlay() }
+            v.background = Ui.round(Overlay.COLORS[k]!!.c, Ui.dp(this, 99f), if (k == brand.col) Ui.TEXT else Ui.LINE, Ui.px(this, if (k == brand.col) 3 else 1))
+            sw.addView(v, LinearLayout.LayoutParams(Ui.px(this, 40), Ui.px(this, 40)).apply { rightMargin = Ui.px(this@DirectorActivity, 10) }) }
+        b.addView(sw, Ui.lp(this, 6))
+        b.addView(Ui.label(this, t("Font", "Fon"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        fontBtn = Ui.btn(this, "") {
+            if (!Auth.isPro) { needPro(); return@btn }
+            val keys = Overlay.FONTS.keys.toList(); val names = keys.map { k -> Overlay.FONTS[k]!!.let { if (Ui.ms) it.ms else it.en } }.toTypedArray()
+            AlertDialog.Builder(this).setTitle(t("Font", "Fon")).setItems(names) { _, w -> brand.font = keys[w]; showRows() }.show()
+        }
+        b.addView(fontBtn, Ui.lp(this, 6))
+        for (v in listOf(shopL, shopIn, descL, descIn, menuL, menuIn)) b.addView(v, Ui.lp(this, if (v is TextView && v !is android.widget.EditText) 12 else 6))
+        shopIn.addTextChangedListener(watch { brand.shop = it; refreshOverlay() }); descIn.addTextChangedListener(watch { brand.desc = it; refreshOverlay() }); menuIn.addTextChangedListener(watch { brand.menu = it; refreshOverlay() })
+        b.addView(Ui.label(this, t("Logo position", "Kedudukan logo"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val pg = android.widget.GridLayout(this); pg.columnCount = 2; val pbs = ArrayList<Button>()
+        Overlay.POS.forEachIndexed { k, (id, nm) -> val pb = Ui.pill(this, if (Ui.ms) nm.second else nm.first, brand.logoPos == id) {
+                brand.logoPos = id; pbs.forEachIndexed { j, x -> Ui.setPill(this, x, Overlay.POS[j].first == id) }; refreshOverlay() }
+            pbs.add(pb); val gp = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(k / 2), android.widget.GridLayout.spec(k % 2, 1f)); gp.width = 0; gp.setMargins(4, 5, 4, 5); pg.addView(pb, gp) }
+        b.addView(pg, Ui.lp(this, 6))
+        b.addView(Ui.hint(this, t("Logo position: Standard style only.", "Kedudukan logo: gaya Standard sahaja.")))
+        showRows()
         b.addView(Ui.hr(this))
         b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
         b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
@@ -314,7 +365,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
             ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(ar, Ui.lp(this, 6))
-        ti.addTextChangedListener(watch { brand.title = it; brand.refresh() }); pr.addTextChangedListener(watch { brand.price = it; brand.refresh() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refresh() })
+        ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() }); pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
         s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
         s.dialog.show()
     }
@@ -351,7 +402,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         studioDialog()
     }
 
-    private fun refreshOverlay() { prog.setOverlay(brand.render(W, H, look)) }
+    private fun refreshOverlay() {
+        brand.speaker = mainSrc?.name ?: ""
+        prog.vRect = if (Auth.isPro && brand.on) Overlay.videoRect(brand.style, W, H) else null
+        prog.setOverlay(brand.render(W, H, look))
+    }
 
     /* ---------- Studio: title & closing cards, teleprompter ---------- */
     private fun studioDialog() {
@@ -498,6 +553,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         prog.zoomMain = s.zoom; zoomBar.progress = ((s.zoom - 1f) / 3f * 100).toInt()
         tr.addSink(prog.mainSink)
         pickSecond(); paintTiles(); sendLive(); paintChips()
+        if (brand.style == "speaker") refreshOverlay()
     }
     private fun setSecond(s: Src?) {
         secSrc?.track?.let { o -> try { o.removeSink(prog.secSink) } catch (e: Exception) {} }

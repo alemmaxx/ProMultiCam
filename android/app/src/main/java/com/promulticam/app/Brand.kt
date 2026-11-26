@@ -64,20 +64,22 @@ class Brand(private val ctx: Context) {
 
     // cached copies so each frame only draws, never reads settings
     @Volatile var cTitle = ""; @Volatile var cPrice = ""; @Volatile var cPhone = ""
-    fun refresh() { cTitle = title; cPrice = price; cPhone = phone; loadLogo() }
+    fun refresh() { refreshText(); loadLogo() }
+    fun refreshText() { cTitle = title; cPrice = price; cPhone = phone }
 
     /* the brand as a picture (transparent around it) */
     fun render(W: Int, H: Int, look: Looks.Look? = null): Bitmap? {
         val vig = look?.vig ?: 0f; val bars = look?.bars == true
-        if (!on && vig <= 0f && !bars) return null
+        if (!on && vig <= 0f && !bars && Auth.isPro) return null
         val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); val c = Canvas(b)
         if (vig > 0f) {
             val p = Paint(); p.shader = android.graphics.RadialGradient(W / 2f, H / 2f, maxOf(W, H) * 0.7f,
                 intArrayOf(0, 0, android.graphics.Color.argb((vig * 255).toInt(), 0, 0, 0)), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
             c.drawRect(0f, 0f, W.toFloat(), H.toFloat(), p)
         }
+        this.bars = bars
         if (bars) { val p = Paint(); p.color = android.graphics.Color.BLACK; val bh = H * 0.08f; c.drawRect(0f, 0f, W.toFloat(), bh, p); c.drawRect(0f, H - bh, W.toFloat(), H.toFloat(), p) }
-        if (on) draw(c, W, H)
+        if (on || !Auth.isPro) draw(c, W, H)
         return b
     }
 
@@ -97,31 +99,19 @@ class Brand(private val ctx: Context) {
         return b
     }
 
-    /* draw upright into a W x H area */
+    var style: String get() = sp.getString("ovStyle", "card") ?: "card"; set(v) { sp.edit().putString("ovStyle", v).apply() }
+    var col: String get() = sp.getString("ovColor", "gold") ?: "gold"; set(v) { sp.edit().putString("ovColor", v).apply() }
+    var font: String get() = sp.getString("ovFont", "") ?: ""; set(v) { sp.edit().putString("ovFont", v).apply() }
+    var logoPos: String get() = sp.getString("logoPos", "tr") ?: "tr"; set(v) { sp.edit().putString("logoPos", v).apply() }
+    var shop: String get() = sp.getString("shop", "") ?: ""; set(v) { sp.edit().putString("shop", v).apply() }
+    var desc: String get() = sp.getString("desc", "") ?: ""; set(v) { sp.edit().putString("desc", v).apply() }
+    var menu: String get() = sp.getString("menu", "") ?: ""; set(v) { sp.edit().putString("menu", v).apply() }
+    @Volatile var speaker = ""
+    @Volatile var bars = false
+
+    /* draw upright into a W x H area: the same designs as the web */
     fun draw(c: Canvas, W: Int, H: Int) {
-        val m = minOf(W, H).toFloat()
-        val pad = m * 0.045f
-        logo?.let { b ->
-            val s = m * 0.2f
-            val k = s / maxOf(b.width, b.height)
-            val w = b.width * k; val h = b.height * k
-            c.drawBitmap(b, null, RectF(W - pad - w, pad, W - pad, pad + h), pBmp)
-        }
-        var y = H - H * 0.07f
-        if (cPhone.isNotEmpty()) {
-            pPhone.textSize = m * 0.036f
-            c.drawText(cPhone, pad, y, pPhone); y -= m * 0.06f
-        }
-        if (cPrice.isNotEmpty()) {
-            pPrice.textSize = m * 0.042f
-            val tw = pPrice.measureText(cPrice); val ph = m * 0.064f; val r = ph / 2.4f
-            val rect = RectF(pad, y - ph + m * 0.012f, pad + tw + m * 0.05f, y + m * 0.012f)
-            c.drawRoundRect(rect, r, r, pPill)
-            c.drawText(cPrice, pad + m * 0.025f, y - m * 0.006f, pPrice); y -= ph + m * 0.02f
-        }
-        if (cTitle.isNotEmpty()) {
-            pTitle.textSize = m * 0.062f
-            c.drawText(cTitle, pad, y, pTitle)
-        }
+        val f = font.ifEmpty { Overlay.DEF_FONT[style] ?: "bricolage" }
+        Overlay.draw(c, Overlay.In(ctx, W, H, Auth.isPro, bars, style, col, f, logoPos, cTitle, cPrice, cPhone, shop, desc, menu, speaker, logo))
     }
 }
