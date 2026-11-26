@@ -1,0 +1,246 @@
+package com.promulticam.app
+
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.text.InputType
+import android.view.Gravity
+import android.view.View
+import android.widget.Button
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+/* ---------------- notifications: new support messages (admin) and replies (users) ---------------- */
+object Notifier {
+    private const val CH = "support"
+    fun schedule(c: Context) {
+        val w = PeriodicWorkRequestBuilder<CheckWorker>(15, TimeUnit.MINUTES).setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()
+        WorkManager.getInstance(c).enqueueUniquePeriodicWork("pmc-check", ExistingPeriodicWorkPolicy.KEEP, w)
+    }
+    /* how many support chats wait for the admin (also used for the badge) */
+    var waiting = 0
+    fun checkSync(c: Context) {
+        Auth.init(c); if (!Auth.signedIn) return
+        val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
+        try {
+            if (Auth.isAdmin) {
+                val l = Fs.list("supportChats", whereField = "unreadAdmin", whereVal = true, limit = 100)
+                waiting = l.size
+                val top = l.maxByOrNull { it.t("lastAt") } ?: return
+                if (top.t("lastAt") > sp.getLong("nAdmin", 0)) {
+                    sp.edit().putLong("nAdmin", top.t("lastAt")).apply()
+                    show(c, 1, Ui.t("Support: ", "Sokongan: ") + top.s("email").ifEmpty { Ui.t("customer", "pelanggan") } + if (l.size > 1) Ui.t(" (+${l.size - 1} more)", " (+${l.size - 1} lagi)") else "", top.s("lastMsg"),
+                        Intent(c, AdminActivity::class.java).putExtra("tab", 4))
+                }
+            } else {
+                val d = Fs.get("supportChats/" + Auth.uid) ?: return
+                if (d.b("unreadUser") && d.s("lastFrom") == "admin" && d.t("lastAt") > sp.getLong("nUser", 0)) {
+                    sp.edit().putLong("nUser", d.t("lastAt")).apply()
+                    show(c, 2, Ui.t("Reply from ProMultiCam support", "Balasan dari sokongan ProMultiCam"), d.s("lastMsg"), Intent(c, SupportActivity::class.java))
+                }
+            }
+        } catch (e: Exception) {}
+    }
+    private fun show(c: Context, id: Int, title: String, text: String, open: Intent) {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(NotificationChannel(CH, Ui.t("Support messages", "Mesej sokongan"), NotificationManager.IMPORTANCE_HIGH))
+        val pi = PendingIntent.getActivity(c, id, open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        nm.notify(id, NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_chat).setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setAutoCancel(true).setContentIntent(pi).setPriority(NotificationCompat.PRIORITY_HIGH).build())
+    }
+}
+class CheckWorker(c: Context, p: WorkerParameters) : Worker(c, p) { override fun doWork(): Result { Ui.init(applicationContext); Notifier.checkSync(applicationContext); return Result.success() } }
+
+/* ---------------- Super Admin (same as the web admin page) ---------------- */
+class AdminActivity : PageActivity() {
+    override val title0 get() = "Super Admin"
+    private var tab = 0
+    private lateinit var tabs: List<Button>
+    private val dt = SimpleDateFormat("dd MMM yyyy", Locale("ms", "MY")); private val dtt = SimpleDateFormat("dd MMM, HH:mm", Locale("ms", "MY"))
+    private fun rm(v: Double) = "RM" + String.format(Locale.US, "%.2f", v)
+    private fun day(ms: Long) = if (ms > 0) dt.format(Date(ms)) else "—"
+    override fun build() {
+        if (!Auth.isAdmin) { body.addView(Ui.label(this, t("Super Admin only.", "Untuk Super Admin sahaja."), 15f)); return }
+        val hs = HorizontalScrollView(this); hs.isHorizontalScrollBarEnabled = false; val r = LinearLayout(this); hs.addView(r)
+        tabs = listOf(t("Summary", "Ringkasan"), t("Customers", "Pelanggan"), t("Payments", "Bayaran"), t("Prices & promo", "Harga & Promo"), t("Support", "Sokongan")).mapIndexed { i, s ->
+            Ui.pill(this, s, i == 0) { show(i) }.also { r.addView(it, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = 8 }) } }
+        root.addView(hs, 1, Ui.lp(this, 8))
+        show(intent.getIntExtra("tab", 0))
+    }
+    override fun onResume() { super.onResume(); if (::tabs.isInitialized && tab == 4) show(4) }
+    private fun show(i: Int) {
+        tab = i; tabs.forEachIndexed { j, b -> Ui.setPill(this, b, j == i) }
+        body.removeAllViews(); val w = Ui.label(this, t("Loading…", "Memuatkan…"), 14f, Ui.SUB); body.addView(w)
+        bg {
+            when (i) {
+                0, 1, 2 -> { val users = Fs.list("users", "createdAt", limit = 1000); val pays = if (i != 1) Fs.list("payments", "createdAt", limit = 500) else emptyList()
+                    main.post { if (tab != i) return@post; body.removeAllViews(); when (i) { 0 -> stats(users, pays); 1 -> customers(users); else -> payments(pays) } } }
+                3 -> { val plans = Fs.get("config/plans"); val promos = Fs.list("promos", limit = 300).sortedByDescending { it.t("createdAt") }
+                    main.post { if (tab != i) return@post; body.removeAllViews(); prices(plans, promos) } }
+                4 -> { val th = Fs.list("supportChats", "lastAt", limit = 300)
+                    main.post { if (tab != i) return@post; body.removeAllViews(); support(th) } }
+            }
+        }
+    }
+    private fun status(u: Fs.Doc): Pair<String, Int> {
+        val now = System.currentTimeMillis(); val ex = u.t("expiry")
+        return when { u.s("plan") == "admin" -> "ADMIN" to 0xFF5FB38C.toInt(); u.s("status") == "suspended" -> t("SUSPENDED", "GANTUNG") to 0xFFD9776B.toInt()
+            ex > now -> (if (u.s("plan") == "trial") t("TRIAL", "PERCUBAAN") else "PRO") to Ui.GOLD; else -> t("FREE", "PERCUMA") to Ui.SUB }
+    }
+    private fun stats(users: List<Fs.Doc>, pays: List<Fs.Doc>) {
+        val now = System.currentTimeMillis(); val cust = users.filter { it.s("plan") != "admin" }; val pro = cust.filter { it.s("status") != "suspended" && it.t("expiry") > now }
+        val paid = pays.filter { it.s("status") == "paid" }
+        val cal = java.util.Calendar.getInstance().apply { set(java.util.Calendar.DAY_OF_MONTH, 1); set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0) }
+        val mRev = paid.filter { it.t("paidAt") >= cal.timeInMillis }.sumOf { it.n("amount") }
+        val g = android.widget.GridLayout(this); g.columnCount = 2
+        listOf(t("Customers", "Jumlah pelanggan") to cust.size.toString(), t("Paid Pro active", "Pro aktif (berbayar)") to pro.count { it.s("plan") != "trial" }.toString(),
+            t("On trial", "Dalam percubaan") to pro.count { it.s("plan") == "trial" }.toString(), t("Successful payments", "Bayaran berjaya") to paid.size.toString(),
+            t("This month", "Hasil bulan ini") to rm(mRev), t("All time", "Hasil keseluruhan") to rm(paid.sumOf { it.n("amount") }), t("Support waiting", "Sokongan menunggu") to Notifier.waiting.toString()).forEachIndexed { i, (k, v) ->
+            val c = Ui.card(this); c.addView(Ui.label(this, k, 12f, Ui.SUB, true)); c.addView(Ui.label(this, v, 22f, Ui.GOLD, true), Ui.lp(this, 4))
+            val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 2), android.widget.GridLayout.spec(i % 2, 1f)); p.width = 0; p.setMargins(5, 5, 5, 5); g.addView(c, p) }
+        body.addView(g)
+    }
+    private fun customers(users: List<Fs.Doc>) {
+        val q = Ui.input(this, t("Search email…", "Cari emel…")); body.addView(q)
+        val list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; body.addView(list)
+        val plbl = mapOf("admin" to "Admin", "trial" to t("Trial", "Percubaan"), "monthly" to t("Monthly", "Bulanan"), "yearly" to t("Yearly", "Tahunan"), "promo" to t("Promo code", "Kod promo"), "free" to t("Free", "Percuma"))
+        fun paint() {
+            list.removeAllViews(); val s = q.text.toString().trim().lowercase()
+            val l = users.filter { s.isEmpty() || it.s("email").lowercase().contains(s) }
+            list.addView(Ui.label(this, "${l.size} " + t("customers", "pelanggan"), 12f, Ui.SUB), Ui.lp(this, 8))
+            l.take(300).forEach { u -> val (st, col) = status(u)
+                val c = Ui.card(this); val top = LinearLayout(this); top.gravity = Gravity.CENTER_VERTICAL
+                top.addView(Ui.label(this, u.s("email").ifEmpty { u.id }, 14f, Ui.TEXT, true).apply { maxLines = 1 }, LinearLayout.LayoutParams(0, -2, 1f))
+                top.addView(Ui.label(this, " $st ", 11f, col, true).apply { background = Ui.round(0x22FFFFFF, Ui.dp(this@AdminActivity, 8f), col, 1); setPadding(8, 2, 8, 2) })
+                c.addView(top)
+                c.addView(Ui.label(this, (plbl[u.s("plan")] ?: u.s("plan").ifEmpty { "—" }) + " · " + t("until ", "hingga ") + (if (u.s("plan") == "admin") t("no limit", "tiada had") else day(u.t("expiry"))) +
+                    " · " + rm(u.n("totalPaid")) + " · " + t("joined ", "daftar ") + day(u.t("createdAt")), 12f, Ui.SUB), Ui.lp(this, 4))
+                list.addView(c, Ui.lp(this, 6)) }
+        }
+        q.addTextChangedListener(object : android.text.TextWatcher { override fun afterTextChanged(e: android.text.Editable?) { paint() }
+            override fun beforeTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {}; override fun onTextChanged(a: CharSequence?, b: Int, c: Int, d: Int) {} })
+        paint()
+    }
+    private fun payments(pays: List<Fs.Doc>) {
+        if (pays.isEmpty()) { body.addView(Ui.label(this, t("No payments yet.", "Belum ada bayaran."), 14f, Ui.SUB)); return }
+        pays.forEach { p -> val c = Ui.card(this); val col = when (p.s("status")) { "paid" -> 0xFF5FB38C.toInt(); "pending" -> Ui.GOLD; else -> 0xFFD9776B.toInt() }
+            val top = LinearLayout(this); top.gravity = Gravity.CENTER_VERTICAL
+            top.addView(Ui.label(this, rm(p.n("amount")) + "  " + (if (p.s("plan") == "yearly") t("Yearly", "Tahunan") else t("Monthly", "Bulanan")), 15f, Ui.TEXT, true), LinearLayout.LayoutParams(0, -2, 1f))
+            top.addView(Ui.label(this, " " + p.s("status") + " ", 11f, col, true).apply { background = Ui.round(0x22FFFFFF, Ui.dp(this@AdminActivity, 8f), col, 1); setPadding(8, 2, 8, 2) })
+            c.addView(top)
+            c.addView(Ui.label(this, p.s("email") + " · " + day(p.t("createdAt")) + (if (p.s("promo").isNotEmpty()) " · " + p.s("promo") else "") + (if (p.n("discount") > 0) " (-${p.n("discount").toInt()}%)" else "") + " · " + p.s("billCode"), 12f, Ui.SUB), Ui.lp(this, 4))
+            body.addView(c, Ui.lp(this, 6)) }
+    }
+    private fun prices(plans: Fs.Doc?, promos: List<Fs.Doc>) {
+        val c = Ui.card(this); c.addView(Ui.label(this, t("Prices", "Harga"), 16f, Ui.TEXT, true))
+        fun num(h: String, v: String): android.widget.EditText { c.addView(Ui.label(this, h, 12f, Ui.SUB, true), Ui.lp(this, 8)); val e = Ui.input(this, h, v, InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL); c.addView(e, Ui.lp(this, 4)); return e }
+        fun fmt(d: Double) = if (d == 0.0) "" else if (d % 1.0 == 0.0) d.toInt().toString() else d.toString()
+        val m = num(t("Monthly (RM)", "Bulanan (RM)"), fmt(plans?.n("monthly") ?: 0.0)); val y = num(t("Yearly (RM)", "Tahunan (RM)"), fmt(plans?.n("yearly") ?: 0.0))
+        val tr = num(t("Free trial days", "Hari percubaan percuma"), ((plans?.f?.get("trialDays") as? Number)?.toInt() ?: 7).toString())
+        c.addView(Ui.btn(this, t("Save prices", "Simpan harga"), true) {
+            val mv = m.text.toString().toDoubleOrNull() ?: 0.0; val yv = y.text.toString().toDoubleOrNull() ?: 0.0; val tv = tr.text.toString().toIntOrNull()?.coerceAtLeast(0) ?: 0
+            if (mv < 1 || yv < 1) { toast(t("Enter at least RM1", "Masukkan harga sekurang-kurangnya RM1")); return@btn }
+            bg { val ok = Fs.write("config/plans", mapOf("monthly" to mv, "yearly" to yv, "trialDays" to tv.toLong()), now = listOf("updatedAt")); main.post { toast(if (ok) t("Prices saved", "Harga disimpan") else t("Failed", "Gagal")) } }
+        }, Ui.lp(this, 12))
+        body.addView(c)
+        // promo codes
+        val pc = Ui.card(this); pc.addView(Ui.label(this, t("Promo codes", "Kod promo"), 16f, Ui.TEXT, true))
+        val code = Ui.input(this, t("Code, e.g. RAYA30", "Kod, cth. RAYA30")); code.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS; pc.addView(code, Ui.lp(this, 8))
+        val days = Ui.input(this, t("Pro days", "Hari Pro"), "", InputType.TYPE_CLASS_NUMBER); pc.addView(days, Ui.lp(this, 6))
+        val max = Ui.input(this, t("How many people can use it", "Berapa orang boleh guna"), "", InputType.TYPE_CLASS_NUMBER); pc.addView(max, Ui.lp(this, 6))
+        pc.addView(Ui.btn(this, t("Create code", "Cipta kod"), true) {
+            val k = code.text.toString().trim().uppercase(); val dv = days.text.toString().toIntOrNull() ?: 0; val mx = max.text.toString().toIntOrNull() ?: 0
+            if (!Regex("^[A-Z0-9-]{3,30}$").matches(k)) { toast(t("Code: 3–30 letters/numbers, no spaces", "Nama kod: 3–30 huruf/nombor, tanpa jarak")); return@btn }
+            if (mx < 1) { toast(t("Enter how many people (at least 1)", "Masukkan berapa orang boleh guna (sekurang-kurangnya 1)")); return@btn }
+            if (dv !in 1..3650) { toast(t("Enter Pro days (1–3650)", "Masukkan berapa hari Pro (1–3650)")); return@btn }
+            bg { val ok = Fs.write("promos/$k", mapOf("type" to "days", "value" to dv.toLong(), "maxUses" to mx.toLong(), "uses" to 0L, "active" to true), now = listOf("createdAt"), merge = false, create = true)
+                main.post { toast(if (ok) t("Code created", "Kod dicipta") else t("Code exists or failed", "Kod sudah wujud atau gagal")); if (ok) show(3) } }
+        }, Ui.lp(this, 10))
+        promos.forEach { p -> val full = p.n("maxUses") > 0 && p.n("uses") >= p.n("maxUses"); val on = p.f["active"] != false
+            val r = LinearLayout(this); r.orientation = LinearLayout.VERTICAL; r.setPadding(0, Ui.px(this, 10), 0, 0)
+            r.addView(Ui.label(this, p.id + "  ·  " + (if (p.s("type") == "days") "${p.n("value").toInt()} " + t("days", "hari") else t("Discount ", "Diskaun ") + "${p.n("value").toInt()}%") +
+                "  ·  ${p.n("uses").toInt()}" + (if (p.n("maxUses") > 0) " / ${p.n("maxUses").toInt()}" else "") + "  ·  " + (if (!on) t("Off", "Tidak aktif") else if (full) t("Full", "Penuh") else t("Active", "Aktif")), 14f, if (on && !full) Ui.TEXT else Ui.SUB, true))
+            val br = LinearLayout(this)
+            br.addView(Ui.btn(this, if (on) t("Turn off", "Matikan") else t("Turn on", "Aktifkan")) { bg { Fs.write("promos/" + p.id, mapOf("active" to !on)); main.post { show(3) } } }.apply { textSize = 13f }, LinearLayout.LayoutParams(-2, Ui.px(this, 42)).apply { rightMargin = 8 })
+            if (!on) br.addView(Ui.dangerBtn(this, t("Delete", "Padam")) { AlertDialog.Builder(this).setMessage(t("Delete code ${p.id}?", "Padam kod ${p.id}?")).setPositiveButton(t("Delete", "Padam")) { _, _ -> bg { Fs.delete("promos/" + p.id); main.post { show(3) } } }.setNegativeButton(t("Cancel", "Batal"), null).show() }.apply { textSize = 13f }, LinearLayout.LayoutParams(-2, Ui.px(this, 42)))
+            r.addView(br, Ui.lp(this, 6)); pc.addView(r) }
+        body.addView(pc, Ui.lp(this, 12))
+    }
+    private fun support(th: List<Fs.Doc>) {
+        Notifier.waiting = th.count { it.b("unreadAdmin") }
+        if (th.isEmpty()) { body.addView(Ui.label(this, t("No support messages yet.", "Belum ada mesej sokongan."), 14f, Ui.SUB)); return }
+        th.forEach { x -> val c = Ui.card(this)
+            if (x.b("unreadAdmin")) c.background = Ui.round(0xFF262117.toInt(), Ui.dp(this, 16f), Ui.GOLD, Ui.px(this, 2))
+            val top = LinearLayout(this); top.gravity = Gravity.CENTER_VERTICAL
+            top.addView(Ui.label(this, x.s("email").ifEmpty { x.id }, 14f, Ui.TEXT, true).apply { maxLines = 1 }, LinearLayout.LayoutParams(0, -2, 1f))
+            if (x.b("unreadAdmin")) top.addView(Ui.label(this, " ● " + t("New", "Baru") + " ", 11f, Ui.GOLD, true))
+            c.addView(top)
+            c.addView(Ui.label(this, (if (x.s("lastFrom") == "admin") t("You: ", "Anda: ") else "") + x.s("lastMsg"), 13f, Ui.SUB).apply { maxLines = 2 }, Ui.lp(this, 4))
+            if (x.t("lastAt") > 0) c.addView(Ui.label(this, dtt.format(Date(x.t("lastAt"))), 11f, Ui.SUB))
+            c.setOnClickListener { startActivity(Intent(this, AdminChatActivity::class.java).putExtra("id", x.id).putExtra("email", x.s("email"))) }
+            body.addView(c, Ui.lp(this, 6)) }
+    }
+}
+
+/* one support conversation, answered by the admin */
+class AdminChatActivity : PageActivity() {
+    override val title0 get() = intent.getStringExtra("email")?.ifEmpty { null } ?: t("Support", "Sokongan")
+    private val id get() = intent.getStringExtra("id") ?: ""
+    private var alive = true; private var lastN = -1
+    override fun build() {
+        val row = LinearLayout(this); row.gravity = Gravity.CENTER_VERTICAL
+        val inp = Ui.input(this, t("Reply…", "Balas…")); inp.maxLines = 4; row.addView(inp, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(Ui.btn(this, t("Send", "Hantar"), true) {
+            val v = inp.text.toString().trim().take(2000); if (v.isEmpty()) return@btn; inp.setText("")
+            bg { val ok = Fs.commit(listOf(
+                    org.json.JSONObject().put("update", org.json.JSONObject().put("name", "projects/kukusanmy/databases/promulticam/documents/supportChats/$id/messages/" + Fs.newId())
+                        .put("fields", org.json.JSONObject().put("from", Fs.enc("admin")).put("text", Fs.enc(v))))
+                        .put("updateTransforms", org.json.JSONArray().put(org.json.JSONObject().put("fieldPath", "at").put("setToServerValue", "REQUEST_TIME")))
+                        .put("currentDocument", org.json.JSONObject().put("exists", false)),
+                    org.json.JSONObject().put("update", org.json.JSONObject().put("name", "projects/kukusanmy/databases/promulticam/documents/supportChats/$id")
+                        .put("fields", org.json.JSONObject().put("lastMsg", Fs.enc(v.take(300))).put("lastFrom", Fs.enc("admin")).put("unreadUser", Fs.enc(true)).put("unreadAdmin", Fs.enc(false))))
+                        .put("updateMask", org.json.JSONObject().put("fieldPaths", org.json.JSONArray(listOf("lastMsg", "lastFrom", "unreadUser", "unreadAdmin"))))
+                        .put("updateTransforms", org.json.JSONArray().put(org.json.JSONObject().put("fieldPath", "lastAt").put("setToServerValue", "REQUEST_TIME")))))
+                main.post { if (!ok) { inp.setText(v); toast(t("Not sent", "Tidak dihantar")) } else poll(false) } }
+        }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = 8 })
+        root.addView(row, Ui.lp(this, 6))
+        bg { Fs.write("supportChats/$id", mapOf("unreadAdmin" to false)) }
+        poll(true)
+    }
+    override fun onDestroy() { alive = false; super.onDestroy() }
+    private fun poll(again: Boolean) {
+        bg { val l = Fs.list("messages", "at", desc = false, limit = 300, parent = "supportChats/$id")
+            main.post { if (!alive) return@post
+                if (l.size != lastN) { lastN = l.size; body.removeAllViews(); val f = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+                    l.forEach { m -> val me = m.s("from") == "admin"
+                        val b = LinearLayout(this); b.orientation = LinearLayout.VERTICAL; b.setPadding(d, d * 3 / 4, d, d * 3 / 4)
+                        b.background = Ui.round(if (me) 0xFF262117.toInt() else Ui.CARD2, Ui.dp(this, 14f), if (me) Ui.GOLD else Ui.LINE, 1)
+                        b.addView(Ui.label(this, m.s("text"), 15f, Ui.TEXT).apply { setTextIsSelectable(true) })
+                        if (m.t("at") > 0) b.addView(Ui.label(this, f.format(Date(m.t("at"))), 11f, Ui.SUB))
+                        val w = LinearLayout(this); w.gravity = if (me) Gravity.END else Gravity.START
+                        w.addView(b, LinearLayout.LayoutParams(-2, -2).apply { if (me) leftMargin = d * 4 else rightMargin = d * 4 }); body.addView(w, Ui.lp(this, 8)) }
+                    (body.parent as? ScrollView)?.post { (body.parent as ScrollView).fullScroll(View.FOCUS_DOWN) } }
+                if (again) main.postDelayed({ if (alive) poll(true) }, 5000) } }
+    }
+}

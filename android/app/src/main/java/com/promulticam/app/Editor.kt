@@ -372,7 +372,7 @@ class EditorActivity : AppCompatActivity() {
         else { main.postDelayed({ askAdd(true) }, 300) }
         mainTools()
     }
-    override fun onDestroy() { player.release(); mplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); if (!busy) work.listFiles()?.forEach { it.delete() }; super.onDestroy() }
+    override fun onDestroy() { player.release(); mplayer.release(); tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; if (!busy) work.listFiles()?.forEach { it.delete() }; super.onDestroy() }
     override fun onPause() { super.onPause(); if (player.isPlaying) player.pause() }
 
     private fun sbtn(l: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, l, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 12), Ui.px(this, 2), Ui.px(this, 12), Ui.px(this, 6)); b.minHeight = 0; b.minimumHeight = 0; b.minWidth = 0; b.minimumWidth = 0; return b }
@@ -393,15 +393,20 @@ class EditorActivity : AppCompatActivity() {
         fmtBtn.text = when { W * 16 == H * 9 -> "9:16"; W * 9 == H * 16 -> "16:9"; W == H -> "1:1"; W * 5 == H * 4 -> "4:5"; else -> "${W}×$H" } + " ▾"
         ovKey = "?"
     }
+    /* small pictures for the timeline; made only while paused, one reader per file (so playing stays smooth, also when sped up) */
+    private val readers = HashMap<String, MediaMetadataRetriever>()
+    private val thumbWant = LinkedHashSet<String>()
     fun thumb(c: Clip, at: Long): Bitmap? {
-        val k = c.file.name + "@" + at
+        val k = c.file.absolutePath + "@" + at
         if (thumbCache.containsKey(k)) return thumbCache[k]
-        thumbCache[k] = null
-        thumbQ.execute { val b = try { MediaMetadataRetriever().run { setDataSource(c.file.absolutePath); val x = getScaledFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 96, 160); release(); x } } catch (e: Exception) { null }
-            main.post { thumbCache[k] = b; tl.invalidate() } }
+        if (player.isPlaying || !thumbWant.add(k)) return null
+        thumbQ.execute {
+            val b = try { val r = readers.getOrPut(c.file.absolutePath) { MediaMetadataRetriever().also { it.setDataSource(c.file.absolutePath) } }
+                r.getScaledFrameAtTime(at, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 96, 160) } catch (e: Exception) { null }
+            main.post { thumbCache[c.file.absolutePath + "@" + at] = b; thumbWant.remove(k); tl.invalidate() }
+        }
         return null
     }
-
     /* ---------------- time ---------------- */
     fun total() = clips.sumOf { it.dur }
     private fun start(i: Int): Long { var o = 0L; for (k in 0 until minOf(i, clips.size)) o += clips[k].dur; return o }
@@ -412,9 +417,10 @@ class EditorActivity : AppCompatActivity() {
     private fun showTime(u: Long) { timeTx.text = fmt(u) + " / " + fmt(total()) }
     private fun loop() {
         if (!player.isPlaying) return
-        if (!scrubbing) { val u = now(); tl.time = u; tl.invalidate(); showTime(u); paintOverlay(u); veilAt(u); syncMusic(u, false) }
+        if (!scrubbing) { val u = now(); tl.time = u; if (++tick % 2 == 0) tl.invalidate(); showTime(u); paintOverlay(u); veilAt(u); syncMusic(u, false) }
         main.postDelayed({ loop() }, 33)
     }
+    private var tick = 0
     private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (tl.time >= total() - 60_000) seekTo(0); player.play() } }
     fun onScrub(u: Long) { scrubbing = true; if (player.isPlaying) player.pause(); seekTo(u); showTime(u); main.removeCallbacks(endScrub); main.postDelayed(endScrub, 250) }
     private val endScrub = Runnable { scrubbing = false }
@@ -452,7 +458,7 @@ class EditorActivity : AppCompatActivity() {
         player.playbackParameters = PlaybackParameters(c.speed); player.volume = (c.vol * origVol).coerceIn(0f, 1f)
         val (m, o) = Looks.matrix(c.filter())
         val cm = ColorMatrix(floatArrayOf(m[0], m[4], m[8], 0f, o[0] * 255, m[1], m[5], m[9], 0f, o[1] * 255, m[2], m[6], m[10], 0f, o[2] * 255, 0f, 0f, 0f, 1f, 0f))
-        tv.setLayerType(View.LAYER_TYPE_HARDWARE, Paint().apply { colorFilter = ColorMatrixColorFilter(cm) })
+        if (c.filter() == "brightness(1.0) contrast(1.0) saturate(1.0)") tv.setLayerType(View.LAYER_TYPE_NONE, null) else tv.setLayerType(View.LAYER_TYPE_HARDWARE, Paint().apply { colorFilter = ColorMatrixColorFilter(cm) })
         fitVideo()
     }
     private fun fitVideo() {
@@ -947,7 +953,7 @@ class EditorActivity : AppCompatActivity() {
                     busy = false; dlg.dismiss()
                     val out: File = if (replace != null) { replace.delete(); tmp.renameTo(replace); replace } else { val nf = Store.newFile(this@EditorActivity, (orig?.name?.substringBefore("_") ?: "Video") + "_edit"); tmp.renameTo(nf); nf }
                     dirty = false
-                    if (replace != null) { orig = replace; thumbCache.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
+                    if (replace != null) { orig = replace; thumbCache.clear(); thumbWant.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
                     AlertDialog.Builder(this@EditorActivity).setMessage(t("✅ Saved in the app's Videos.", "✅ Disimpan dalam Video app."))
                         .setPositiveButton(t("Save to Phone", "Simpan ke Telefon")) { _, _ -> Thread { val ok = Store.saveToPhone(this@EditorActivity, out); main.post { toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Could not save", "Gagal simpan")) } }.start() }
                         .setNegativeButton(t("Close", "Tutup"), null).show()

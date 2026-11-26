@@ -111,7 +111,7 @@ object Auth {
 
     fun logout() { uid = null; email = null; idToken = null; refresh = null; expiry = 0; plan = "free"; sp.edit().clear().apply() }
 
-    private fun tokenSync(): String? {
+    fun tokenSync(): String? {
         if (idToken != null && System.currentTimeMillis() < exp) return idToken
         val rt = refresh ?: return null
         val r = Request.Builder().url("https://securetoken.googleapis.com/v1/token?key=$KEY")

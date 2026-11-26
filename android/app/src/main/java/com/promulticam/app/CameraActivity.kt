@@ -69,7 +69,11 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
         if (need.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) startCam() else perms.launch(need)
         linkCode(intent)
+        turn = Turn(this) { }
     }
+    private lateinit var turn: Turn
+    override fun onResume() { super.onResume(); if (::turn.isInitialized) turn.enable() }
+    override fun onPause() { super.onPause(); if (::turn.isInitialized) turn.disable() }
     /* opened from a shared link: https://promulticam.web.app/join/123456 → join that studio */
     override fun onNewIntent(i: android.content.Intent) { super.onNewIntent(i); linkCode(i) }
     private fun linkCode(i: android.content.Intent?) {

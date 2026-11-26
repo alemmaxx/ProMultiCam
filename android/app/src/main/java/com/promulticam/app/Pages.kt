@@ -182,6 +182,7 @@ class SupportActivity : PageActivity() {
         }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = d / 2 })
         root.addView(row, Ui.lp(this, 6))
         poll(true)
+        Thread { try { Fs.write("supportChats/" + Auth.uid, mapOf("uid" to Auth.uid, "unreadUser" to false)) } catch (e: Exception) {} }.start()
     }
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun poll(again: Boolean) {

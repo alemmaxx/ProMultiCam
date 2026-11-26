@@ -28,9 +28,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.init(this); Auth.init(this)
+        builtAdmin = Auth.isAdmin
         build()
+        Notifier.schedule(this)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
     }
-    override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin() } }
+    private var builtAdmin = false
+    override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin(); if (Auth.isAdmin != builtAdmin) recreate() }; alive = true; checkLoop() }
+    override fun onPause() { super.onPause(); alive = false }
+    private var adminTx: android.widget.TextView? = null; private var alive = false
+    /* new support messages: notification + count on the Super Admin button, every 30 s while open */
+    private fun checkLoop() {
+        if (!alive) return
+        Thread { Notifier.checkSync(this); runOnUiThread { adminTx?.text = "Super Admin" + if (Notifier.waiting > 0) " (${Notifier.waiting})" else "" } }.start()
+        window.decorView.postDelayed({ checkLoop() }, 30_000)
+    }
 
     private fun build() {
         val c = this
@@ -80,7 +93,8 @@ class MainActivity : AppCompatActivity() {
             Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { Nav.open(this, "test") },
             Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { Nav.open(this, "support") },
             Triple(R.drawable.ic_apk, "App APK") { Nav.open(this, "apk") },
-            Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") })
+            Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") }) +
+            (if (Auth.isAdmin) listOf(Triple(R.drawable.ic_crown, "Super Admin") { startActivity(Intent(c, AdminActivity::class.java)) }) else emptyList())
         tools.forEachIndexed { i, (ic, l, f) ->
             val tl = LinearLayout(c); tl.orientation = LinearLayout.VERTICAL; tl.gravity = Gravity.CENTER
             tl.background = if (i == 0) Ui.raised(c, 0xFF262117.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.GOLD) else Ui.raised(c, 0xB812100D.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE)
@@ -88,6 +102,7 @@ class MainActivity : AppCompatActivity() {
             val iv = ImageView(c); iv.setImageResource(ic); iv.imageTintList = ColorStateList.valueOf(if (i == 0) Ui.GOLD else Ui.SUB)
             tl.addView(iv, LinearLayout.LayoutParams(Ui.px(c, 22), Ui.px(c, 22)))
             val tx = Ui.center(Ui.label(c, l, 11f, if (i == 0) Ui.GOLD else Ui.TEXT, true)); tl.addView(tx, Ui.lp(c, 4))
+            if (l == "Super Admin") adminTx = tx
             tl.setOnClickListener { f() }
             val p = GridLayout.LayoutParams(GridLayout.spec(i / 3), GridLayout.spec(i % 3, 1f)); p.width = 0; p.height = Ui.px(c, 66); p.setMargins(Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4), Ui.px(c, 4))
             g.addView(tl, p)

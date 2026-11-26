@@ -120,6 +120,35 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         setContentView(buildUi())
         val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
         if (need.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) startAll() else perms.launch(need)
+        turn = Turn(this) { n -> onTurn(n) }
+    }
+    /* ---------- turning the phone (like the web): the screen turns, and when not recording the video format follows so the logo and names sit right ---------- */
+    private lateinit var turn: Turn
+    override fun onResume() { super.onResume(); if (::turn.isInitialized && sp.getBoolean("follow", true)) turn.enable() }
+    override fun onPause() { super.onPause(); if (::turn.isInitialized) turn.disable() }
+    private fun onTurn(n: Int) {
+        val side = n == 90 || n == 270
+        if (enc == null && side != land) {
+            sp.edit().putString("fmt", if (side) "l" else "p").apply(); prog.resize(W, H); sendFmt()
+            toast(if (side) t("Horizontal 16:9", "Melintang 16:9") else t("Vertical 9:16", "Menegak 9:16"))
+        }
+    }
+    override fun onConfigurationChanged(c: android.content.res.Configuration) { super.onConfigurationChanged(c); arrange(c.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) }
+    private lateinit var rootV: LinearLayout; private lateinit var topV: View; private lateinit var stageV: View; private lateinit var tilesV: View; private lateinit var rowV: View
+    private fun arrange(sideUi: Boolean) {
+        if (!::rootV.isInitialized) return
+        listOf(topV, stageV, tilesV, rowV).forEach { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        rootV.removeAllViews()
+        if (!sideUi) {
+            rootV.orientation = LinearLayout.VERTICAL
+            rootV.addView(topV); rootV.addView(stageV, LinearLayout.LayoutParams(-1, 0, 1f)); rootV.addView(tilesV, LinearLayout.LayoutParams(-1, Ui.px(this, 108))); rootV.addView(rowV)
+        } else {
+            rootV.orientation = LinearLayout.HORIZONTAL
+            rootV.addView(stageV, LinearLayout.LayoutParams(0, -1, 1f))
+            val side = LinearLayout(this); side.orientation = LinearLayout.VERTICAL
+            side.addView(topV); side.addView(tilesV, LinearLayout.LayoutParams(-1, Ui.px(this, 108))); side.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f)); side.addView(rowV)
+            rootV.addView(side, LinearLayout.LayoutParams(Ui.px(this, 360), -1))
+        }
     }
 
     override fun onDestroy() {
@@ -139,7 +168,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
 
     private fun buildUi(): View {
         val c = this; val d = Ui.px(c, 10)
-        val root = LinearLayout(c); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG)
+        val root = LinearLayout(c); root.orientation = LinearLayout.VERTICAL; root.setBackgroundColor(Ui.BG); rootV = root
         // top bar: back · name + cameras live · videos · studio · style · settings
         val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL; top.setPadding(d, d * 2, d, d)
         val ib = { ic: Int, f: () -> Unit -> Ui.iconBtn(c, ic) { f() } }
@@ -152,7 +181,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         for ((ic, f) in listOf<Pair<Int, () -> Unit>>(R.drawable.ic_video to { startActivity(Intent(c, VideosActivity::class.java)) },
             R.drawable.ic_studio to { studioSheet() }, R.drawable.ic_palette to { styleSheet() }, R.drawable.ic_sliders to { settingsSheet() }))
             top.addView(ib(ic, f), LinearLayout.LayoutParams(Ui.px(c, 46), Ui.px(c, 46)).apply { leftMargin = Ui.px(c, 5) })
-        root.addView(top)
+        root.addView(top); topV = top
 
         // the program picture
         val stage = FrameLayout(c); stage.setBackgroundColor(Color.BLACK)
@@ -193,13 +222,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         stage.addView(zoomBar, Ui.fl(Ui.px(c, 200), -2, Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = -Ui.px(c, 70) })
         countTx = Ui.label(c, "", 96f, Color.WHITE, true); countTx.visibility = View.GONE; countTx.setShadowLayer(12f, 0f, 2f, Color.BLACK)
         stage.addView(countTx, Ui.fl(-2, -2, Gravity.CENTER))
-        root.addView(stage, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(stage, LinearLayout.LayoutParams(-1, 0, 1f)); stageV = stage
 
         // camera tiles + "add camera"
         val hs = HorizontalScrollView(c); hs.isHorizontalScrollBarEnabled = false
         tiles = LinearLayout(c); tiles.orientation = LinearLayout.HORIZONTAL; tiles.setPadding(d, d, d, 0)
         hs.addView(tiles)
-        root.addView(hs, LinearLayout.LayoutParams(-1, Ui.px(c, 108)))
+        root.addView(hs, LinearLayout.LayoutParams(-1, Ui.px(c, 108))); tilesV = hs
         addTile = LinearLayout(c); addTile.orientation = LinearLayout.VERTICAL; addTile.gravity = Gravity.CENTER
         addTile.background = GradientDrawable().apply { setColor(0xFF15140F.toInt()); cornerRadius = Ui.dp(c, 10f); setStroke(Ui.px(c, 2), Ui.GOLD, Ui.dp(c, 6f), Ui.dp(c, 4f)) }
         val pc = android.widget.ImageView(c); pc.setImageResource(R.drawable.ic_plus); pc.setColorFilter(0xFF1A1407.toInt())
@@ -214,7 +243,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         recBtn = Ui.btn(c, "● " + t("Start Recording", "Mula Rakam"), true) { if (enc == null) countdown() else stopRec() }
         row.addView(pauseBtn, LinearLayout.LayoutParams(0, Ui.px(c, 56), 1f))
         row.addView(recBtn, LinearLayout.LayoutParams(0, Ui.px(c, 56), 2f).apply { leftMargin = d })
-        root.addView(row)
+        root.addView(row); rowV = row
         qBtn = Ui.btn(c, "") {}   // quality lives in Settings
         lookBtn = Ui.btn(c, "") {}; layBtn = Ui.btn(c, "") {}; trBtn = Ui.btn(c, "") {}
         paintChips(); fpsLoop()
@@ -373,6 +402,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.hint(this, t("Logo position: Standard style only.", "Kedudukan logo: gaya Standard sahaja.")))
         showRows()
         b.addView(Ui.hr(this))
+        b.addView(Ui.check(this, t("Turn with the phone (screen and format)", "Ikut putaran telefon (skrin & format)"), sp.getBoolean("follow", true)) { v -> sp.edit().putBoolean("follow", v).apply(); if (v) turn.enable() else { turn.disable(); turn.cur = 0; turn.apply() } })
         b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
         b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
         b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
