@@ -352,7 +352,87 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.label(this, t("Title (optional)", "Tajuk (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val ti = Ui.input(this, t("e.g. Nasi Lemak Sambal Sotong", "cth: Nasi Lemak Sambal Sotong"), brand.title); b.addView(ti, Ui.lp(this, 6))
         b.addView(Ui.hr(this))
-        b.addView(Ui.section(this, t("Brand", "Jenama")))
+        // brand + when to show, kept as 6 styles: tap a style to use it, "Edit" to change it
+        b.addView(Ui.section(this, t("Brand styles", "Gaya Jenama")))
+        b.addView(Ui.hint(this, t("Each style keeps its own logo, price, contact, look and when to show.", "Setiap gaya simpan logo, harga, hubungi, rupa dan bila dipaparkan sendiri.")))
+        val sf = Flow(this, Ui.px(this, 6)); val sbs = ArrayList<Button>()
+        val editB = Ui.btn(this, "", true) { brandSheet() }
+        fun paintSlots() { val c = sp.getInt("brandSlot", 1); sbs.forEachIndexed { j, q -> Ui.setPill(this, q, j + 1 == c) }; editB.text = "✎ " + t("Edit style ", "Ubah Gaya ") + c }
+        for (n in 1..6) { val pb = Ui.pill(this, t("Style ", "Gaya ") + n, false) { switchSlot(n); paintSlots() }; pb.textSize = 13f; sbs.add(pb); sf.addView(pb) }
+        b.addView(sf, Ui.lp(this, 6)); b.addView(editB, Ui.lp(this, 8)); paintSlots()
+        slotPaint = { paintSlots() }
+        b.addView(Ui.hr(this))
+        b.addView(Ui.check(this, t("Turn the screen with the phone", "Skrin ikut putaran telefon"), sp.getBoolean("follow", true)) { v -> sp.edit().putBoolean("follow", v).apply(); if (v) turn.enable() else { turn.disable(); turn.cur = 0; turn.apply() } })
+        b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
+        b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
+        b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val ar = LinearLayout(this); ar.orientation = LinearLayout.HORIZONTAL; val ap = ArrayList<Button>()
+        for (n in listOf(0, 5, 10, 15)) { val pb = Ui.pill(this, if (n == 0) t("Off", "Tutup") else "${n}s", sp.getInt("auto", 0) == n) {
+                if (n > 0 && !Auth.isPro) { needPro(); return@pill }
+                sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
+            ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
+        b.addView(ar, Ui.lp(this, 6))
+        b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL; val tb = ArrayList<Button>()
+        for ((id, name) in listOf("fade" to t("Soft fade", "Lembut"), "black" to t("Dip to black", "Gelap"), "cut" to t("Straight cut", "Terus"))) {
+            val pb = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("fade", "black", "cut")[j] == trans) } }
+            tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
+        b.addView(tr, Ui.lp(this, 6))
+        // fade at the start and end of each recording (also each Continue / Resume)
+        b.addView(Ui.label(this, t("Fade in / out of the recording", "Pudar awal & akhir rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val fr = Flow(this, Ui.px(this, 6)); val fbs = ArrayList<Button>()
+        val fadeRows = LinearLayout(this); fadeRows.orientation = LinearLayout.VERTICAL
+        fun fmode() = when { recFi() > 0 && recFo() > 0 -> "both"; recFi() > 0 -> "in"; recFo() > 0 -> "out"; else -> "none" }
+        val ids = listOf("none", "in", "out", "both")
+        fun secRow(label: String, key: String): View { val r = LinearLayout(this); r.gravity = Gravity.CENTER_VERTICAL
+            r.addView(Ui.label(this, label, 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
+            val cur = sp.getFloat(key, 0f).takeIf { it > 0 } ?: 1f; val vt = Ui.label(this, String.format(Locale.US, "%.1fs", cur), 13f, Ui.TEXT, true)
+            val sb = SeekBar(this); sb.max = 28; sb.progress = ((cur - 0.2f) * 10).toInt().coerceIn(0, 28); sb.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); sb.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
+            sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(x: SeekBar?, p: Int, u: Boolean) { if (!u) return; val v = 0.2f + p / 10f; vt.text = String.format(Locale.US, "%.1fs", v); if (sp.getFloat(key, 0f) > 0) sp.edit().putFloat(key, v).apply() }
+                override fun onStartTrackingTouch(x: SeekBar?) {}; override fun onStopTrackingTouch(x: SeekBar?) {} })
+            r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 48), -2)); r.tag = sb; return r }
+        val inR = secRow(t("Fade in", "Pudar masuk"), "recFi"); val outR = secRow(t("Fade out", "Pudar keluar"), "recFo")
+        fun paintF() { val m = fmode(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
+        for ((j, l) in listOf(t("None", "Tiada"), t("Start only", "Awal sahaja"), t("End only", "Akhir sahaja"), t("Start & end", "Awal & akhir")).withIndex()) {
+            val pb = Ui.pill(this, l, false) { val wantIn = ids[j] == "in" || ids[j] == "both"; val wantOut = ids[j] == "out" || ids[j] == "both"
+                fun v(r: View) = 0.2f + (r.tag as SeekBar).progress / 10f
+                sp.edit().putFloat("recFi", if (wantIn) v(inR) else 0f).putFloat("recFo", if (wantOut) v(outR) else 0f).apply(); paintF() }
+            pb.textSize = 12f; fbs.add(pb); fr.addView(pb) }
+        b.addView(fr, Ui.lp(this, 4)); fadeRows.addView(inR, Ui.lp(this, 6)); fadeRows.addView(outR, Ui.lp(this, 4)); b.addView(fadeRows); paintF()
+        b.addView(Ui.hint(this, t("Picture to black and sound, also when you Pause/Resume or Continue a video.", "Gambar ke hitam dan bunyi, juga semasa Jeda/Sambung atau Sambung video.")))
+        b.addView(Ui.check(this, t("Noise filter", "Penapis bunyi"), sp.getBoolean("noise", false)) { v -> sp.edit().putBoolean("noise", v).apply() }, Ui.lp(this, 8))
+        ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() })
+        s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
+        s.dialog.show()
+    }
+    /* ---------- brand styles (6 saved sets of brand + when to show) ---------- */
+    private var slotPaint: (() -> Unit)? = null
+    private val SLOT_S = listOf("price", "phone", "ovStyle", "ovColor", "ovFont", "logoPos", "shop", "desc", "menu") + listOf("logo", "title", "price", "phone").map { "vis_$it" }
+    private val SLOT_B = listOf("brand", "logoBg"); private val SLOT_I = listOf("logo", "title", "price", "phone").flatMap { listOf("dur_$it", "every_$it") }
+    private fun saveSlot(n: Int) {
+        val j = org.json.JSONObject(); val all = sp.all
+        (SLOT_S + SLOT_B + SLOT_I).forEach { k -> all[k]?.let { j.put(k, it) } }
+        sp.edit().putString("slot$n", j.toString()).apply()
+        for ((a, b) in listOf("logo.png" to "logo_s$n.png", "logo_orig.png" to "logo_orig_s$n.png")) { val src = File(filesDir, a); val dst = File(filesDir, b); if (src.exists()) src.copyTo(dst, true) else dst.delete() }
+    }
+    private fun loadSlot(n: Int) {
+        val js = sp.getString("slot$n", null) ?: return   // a new style starts as a copy of the current one
+        val j = try { org.json.JSONObject(js) } catch (e: Exception) { return }
+        val ed = sp.edit()
+        (SLOT_S + SLOT_B + SLOT_I).forEach { k -> if (!j.has(k)) ed.remove(k) else when (k) { in SLOT_B -> ed.putBoolean(k, j.getBoolean(k)); in SLOT_I -> ed.putInt(k, j.getInt(k)); else -> ed.putString(k, j.getString(k)) } }
+        ed.apply()
+        for ((a, b) in listOf("logo.png" to "logo_s$n.png", "logo_orig.png" to "logo_orig_s$n.png")) { val src = File(filesDir, b); val dst = File(filesDir, a); if (src.exists()) src.copyTo(dst, true) else dst.delete() }
+    }
+    private fun switchSlot(n: Int) {
+        val cur = sp.getInt("brandSlot", 1); if (n == cur) return
+        saveSlot(cur); sp.edit().putInt("brandSlot", n).apply(); loadSlot(n)
+        brand.loadLogo(); brand.refresh(); visKey = ""; visTick(true); refreshOverlay()
+        toast(t("Style ", "Gaya ") + n)
+    }
+    private fun brandSheet() {
+        val n = sp.getInt("brandSlot", 1)
+        val s = Ui.sheet(this, t("Style ", "Gaya ") + n, t("Done", "Siap") to { refreshOverlay() })
+        val b = s.body
         val lr = LinearLayout(this); lr.orientation = LinearLayout.HORIZONTAL; lr.gravity = Gravity.CENTER_VERTICAL
         val lv = android.widget.ImageView(this); logoView = lv; lv.background = Ui.round(0xFF121110.toInt(), Ui.dp(this, 12f), Ui.LINE, 2); lv.setImageBitmap(brand.logo); lv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         lr.addView(lv, LinearLayout.LayoutParams(Ui.px(this, 54), Ui.px(this, 54)))
@@ -441,50 +521,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(pg, Ui.lp(this, 6))
         b.addView(Ui.hint(this, t("Logo position: Standard style only.", "Kedudukan logo: gaya Standard sahaja.")))
         showRows()
-        b.addView(Ui.hr(this))
-        b.addView(Ui.check(this, t("Turn the screen with the phone", "Skrin ikut putaran telefon"), sp.getBoolean("follow", true)) { v -> sp.edit().putBoolean("follow", v).apply(); if (v) turn.enable() else { turn.disable(); turn.cur = 0; turn.apply() } })
-        b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
-        b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
-        b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val ar = LinearLayout(this); ar.orientation = LinearLayout.HORIZONTAL; val ap = ArrayList<Button>()
-        for (n in listOf(0, 5, 10, 15)) { val pb = Ui.pill(this, if (n == 0) t("Off", "Tutup") else "${n}s", sp.getInt("auto", 0) == n) {
-                if (n > 0 && !Auth.isPro) { needPro(); return@pill }
-                sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
-            ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
-        b.addView(ar, Ui.lp(this, 6))
-        b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL; val tb = ArrayList<Button>()
-        for ((id, name) in listOf("fade" to t("Soft fade", "Lembut"), "black" to t("Dip to black", "Gelap"), "cut" to t("Straight cut", "Terus"))) {
-            val pb = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("fade", "black", "cut")[j] == trans) } }
-            tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
-        b.addView(tr, Ui.lp(this, 6))
-        // fade at the start and end of each recording (also each Continue / Resume)
-        b.addView(Ui.label(this, t("Fade in / out of the recording", "Pudar awal & akhir rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val fr = Flow(this, Ui.px(this, 6)); val fbs = ArrayList<Button>()
-        val fadeRows = LinearLayout(this); fadeRows.orientation = LinearLayout.VERTICAL
-        fun fmode() = when { recFi() > 0 && recFo() > 0 -> "both"; recFi() > 0 -> "in"; recFo() > 0 -> "out"; else -> "none" }
-        val ids = listOf("none", "in", "out", "both")
-        fun secRow(label: String, key: String): View { val r = LinearLayout(this); r.gravity = Gravity.CENTER_VERTICAL
-            r.addView(Ui.label(this, label, 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
-            val cur = sp.getFloat(key, 0f).takeIf { it > 0 } ?: 1f; val vt = Ui.label(this, String.format(Locale.US, "%.1fs", cur), 13f, Ui.TEXT, true)
-            val sb = SeekBar(this); sb.max = 28; sb.progress = ((cur - 0.2f) * 10).toInt().coerceIn(0, 28); sb.progressTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD); sb.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.GOLD)
-            sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener { override fun onProgressChanged(x: SeekBar?, p: Int, u: Boolean) { if (!u) return; val v = 0.2f + p / 10f; vt.text = String.format(Locale.US, "%.1fs", v); if (sp.getFloat(key, 0f) > 0) sp.edit().putFloat(key, v).apply() }
-                override fun onStartTrackingTouch(x: SeekBar?) {}; override fun onStopTrackingTouch(x: SeekBar?) {} })
-            r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 48), -2)); r.tag = sb; return r }
-        val inR = secRow(t("Fade in", "Pudar masuk"), "recFi"); val outR = secRow(t("Fade out", "Pudar keluar"), "recFo")
-        fun paintF() { val m = fmode(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
-        for ((j, l) in listOf(t("None", "Tiada"), t("Start only", "Awal sahaja"), t("End only", "Akhir sahaja"), t("Start & end", "Awal & akhir")).withIndex()) {
-            val pb = Ui.pill(this, l, false) { val wantIn = ids[j] == "in" || ids[j] == "both"; val wantOut = ids[j] == "out" || ids[j] == "both"
-                fun v(r: View) = 0.2f + (r.tag as SeekBar).progress / 10f
-                sp.edit().putFloat("recFi", if (wantIn) v(inR) else 0f).putFloat("recFo", if (wantOut) v(outR) else 0f).apply(); paintF() }
-            pb.textSize = 12f; fbs.add(pb); fr.addView(pb) }
-        b.addView(fr, Ui.lp(this, 4)); fadeRows.addView(inR, Ui.lp(this, 6)); fadeRows.addView(outR, Ui.lp(this, 4)); b.addView(fadeRows); paintF()
-        b.addView(Ui.hint(this, t("Picture to black and sound, also when you Pause/Resume or Continue a video.", "Gambar ke hitam dan bunyi, juga semasa Jeda/Sambung atau Sambung video.")))
-        b.addView(Ui.check(this, t("Noise filter", "Penapis bunyi"), sp.getBoolean("noise", false)) { v -> sp.edit().putBoolean("noise", v).apply() }, Ui.lp(this, 8))
-        ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() }); pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
-        s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
+        pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
+        s.dialog.setOnDismissListener { saveSlot(n); refreshOverlay(); logoView = null; slotPaint?.invoke() }
         s.dialog.show()
     }
+
     private fun watch(f: (String) -> Unit) = object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
