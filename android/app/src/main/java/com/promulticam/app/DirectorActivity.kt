@@ -319,18 +319,6 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             lb.add(b); lay.addView(b, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 })
         }
         s.body.addView(lay, Ui.lp(this, 6))
-        fun soon(title: String, items: List<String>) {
-            s.body.addView(Ui.section(this, title))
-            val g = android.widget.GridLayout(this); g.columnCount = 3
-            items.forEachIndexed { i, n ->
-                val b = Ui.pill(this, n, i == 0) { if (i > 0) toast(t("Coming soon in the app. Available on the web now.", "Akan datang dalam app. Ada di web sekarang.")) }
-                if (i > 0) b.alpha = 0.55f
-                val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 3), android.widget.GridLayout.spec(i % 3, 1f)); p.width = 0; p.setMargins(4, 6, 4, 6); g.addView(b, p)
-            }
-            s.body.addView(g)
-        }
-        soon(t("AI background", "Latar AI"), listOf(t("Off", "Tiada"), "Blur", t("Kitchen", "Dapur"), "Studio", t("Office", "Pejabat"), t("Garden", "Taman")))
-        soon(t("Face stickers", "Stiker Muka"), listOf(t("Off", "Tiada"), t("Glasses", "Cermin mata"), t("Hat", "Topi"), t("Crown", "Mahkota"), t("Mask", "Topeng"), t("Cat", "Kucing")))
         s.dialog.show()
     }
 
@@ -354,7 +342,6 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.hr(this))
         // brand + when to show, kept as 6 styles: tap a style to use it, "Edit" to change it
         b.addView(Ui.section(this, t("Brand styles", "Gaya Jenama")))
-        b.addView(Ui.hint(this, t("Each style keeps its own logo, price, contact, look and when to show.", "Setiap gaya simpan logo, harga, hubungi, rupa dan bila dipaparkan sendiri.")))
         val sf = Flow(this, Ui.px(this, 6)); val sbs = ArrayList<Button>()
         val editB = Ui.btn(this, "", true) { brandSheet() }
         fun paintSlots() { val c = sp.getInt("brandSlot", 1); sbs.forEachIndexed { j, q -> Ui.setPill(this, q, j + 1 == c) }; editB.text = "✎ " + t("Edit style ", "Ubah Gaya ") + c }
@@ -379,7 +366,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(tr, Ui.lp(this, 6))
         // fade at the start and end of each recording (also each Continue / Resume)
-        b.addView(Ui.label(this, t("Fade in / out of the recording", "Pudar awal & akhir rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        b.addView(Ui.label(this, t("Recording fade", "Pudar rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val fr = Flow(this, Ui.px(this, 6)); val fbs = ArrayList<Button>()
         val fadeRows = LinearLayout(this); fadeRows.orientation = LinearLayout.VERTICAL
         fun fmode() = when { recFi() > 0 && recFo() > 0 -> "both"; recFi() > 0 -> "in"; recFo() > 0 -> "out"; else -> "none" }
@@ -393,13 +380,12 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 48), -2)); r.tag = sb; return r }
         val inR = secRow(t("Fade in", "Pudar masuk"), "recFi"); val outR = secRow(t("Fade out", "Pudar keluar"), "recFo")
         fun paintF() { val m = fmode(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
-        for ((j, l) in listOf(t("None", "Tiada"), t("Start only", "Awal sahaja"), t("End only", "Akhir sahaja"), t("Start & end", "Awal & akhir")).withIndex()) {
+        for ((j, l) in listOf(t("None", "Tiada"), t("Start", "Awal"), t("End", "Akhir"), t("Both", "Kedua")).withIndex()) {
             val pb = Ui.pill(this, l, false) { val wantIn = ids[j] == "in" || ids[j] == "both"; val wantOut = ids[j] == "out" || ids[j] == "both"
                 fun v(r: View) = 0.2f + (r.tag as SeekBar).progress / 10f
                 sp.edit().putFloat("recFi", if (wantIn) v(inR) else 0f).putFloat("recFo", if (wantOut) v(outR) else 0f).apply(); paintF() }
             pb.textSize = 12f; fbs.add(pb); fr.addView(pb) }
         b.addView(fr, Ui.lp(this, 4)); fadeRows.addView(inR, Ui.lp(this, 6)); fadeRows.addView(outR, Ui.lp(this, 4)); b.addView(fadeRows); paintF()
-        b.addView(Ui.hint(this, t("Picture to black and sound, also when you Pause/Resume or Continue a video.", "Gambar ke hitam dan bunyi, juga semasa Jeda/Sambung atau Sambung video.")))
         b.addView(Ui.check(this, t("Noise filter", "Penapis bunyi"), sp.getBoolean("noise", false)) { v -> sp.edit().putBoolean("noise", v).apply() }, Ui.lp(this, 8))
         ti.addTextChangedListener(watch { brand.title = it; brand.refreshText(); refreshOverlay() })
         s.dialog.setOnDismissListener { refreshOverlay(); paintChips(); logoView = null }
@@ -463,24 +449,23 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.check(this, t("Brand in the video", "Jenama dalam video"), brand.on) { v -> brand.on = v; refreshOverlay() }, Ui.lp(this, 8))
         // each part: always, hidden, or shown for some seconds (once at the start, or again and again)
         b.addView(Ui.label(this, t("When to show", "Bila dipaparkan"), 15f, Ui.TEXT, true), Ui.lp(this, 14))
-        b.addView(Ui.hint(this, t("Time counts from the start of the recording.", "Masa dikira dari mula rakaman.")))
         for ((k, nm) in listOf("logo" to "Logo", "title" to t("Title", "Tajuk"), "price" to t("Price", "Harga"), "phone" to t("Phone", "Telefon"))) {
             val box = Ui.card(this); box.addView(Ui.label(this, nm, 14f, Ui.GOLD, true))
             val modes = Flow(this, Ui.px(this, 6)); val more = LinearLayout(this); more.orientation = LinearLayout.VERTICAL
             val mb = ArrayList<Button>()
             fun paintMode() { val m = sp.getString("vis_$k", "on"); mb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("on", "off", "timed")[j] == m) }; more.visibility = if (m == "timed") View.VISIBLE else View.GONE }
-            for ((id, l) in listOf("on" to t("Always", "Sentiasa"), "off" to t("Hidden", "Tiada"), "timed" to t("For some seconds", "Ikut masa"))) {
+            for ((id, l) in listOf("on" to t("Always", "Sentiasa"), "off" to t("Hidden", "Tiada"), "timed" to t("Timed", "Ikut masa"))) {
                 val p = Ui.pill(this, l, false) { sp.edit().putString("vis_$k", id).apply(); paintMode(); visTick(true) }; p.textSize = 13f; mb.add(p); modes.addView(p) }
             box.addView(modes, Ui.lp(this, 6))
             val r1 = LinearLayout(this); r1.gravity = Gravity.CENTER_VERTICAL
-            r1.addView(Ui.label(this, t("Show for", "Papar selama"), 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
+            r1.addView(Ui.label(this, t("Show", "Papar"), 13f, Ui.SUB, true), LinearLayout.LayoutParams(Ui.px(this, 110), -2))
             val du = Ui.input(this, "5", sp.getInt("dur_$k", 5).toString(), android.text.InputType.TYPE_CLASS_NUMBER); du.addTextChangedListener(watch { v -> sp.edit().putInt("dur_$k", v.toIntOrNull()?.coerceIn(1, 3600) ?: 5).apply() })
             r1.addView(du, LinearLayout.LayoutParams(Ui.px(this, 90), -2)); r1.addView(Ui.label(this, "  " + t("seconds", "saat"), 13f, Ui.SUB))
             more.addView(r1, Ui.lp(this, 8))
             more.addView(Ui.label(this, t("Repeat", "Ulang"), 13f, Ui.SUB, true), Ui.lp(this, 8))
             val reps = Flow(this, Ui.px(this, 6)); val rb = ArrayList<Button>(); val ev = listOf(0, 30, 60, 120, 300)
             fun paintRep() { val e = sp.getInt("every_$k", 0); rb.forEachIndexed { j, q -> Ui.setPill(this, q, ev[j] == e) } }
-            for (e in ev) { val p = Ui.pill(this, when (e) { 0 -> t("Once at start", "Sekali di awal"); 30 -> t("Every 30 s", "Setiap 30 saat"); 60 -> t("Every 1 min", "Setiap 1 min"); 120 -> t("Every 2 min", "Setiap 2 min"); else -> t("Every 5 min", "Setiap 5 min") }, false) { sp.edit().putInt("every_$k", e).apply(); paintRep() }
+            for (e in ev) { val p = Ui.pill(this, when (e) { 0 -> t("Once", "Sekali"); 30 -> "30s"; 60 -> "1 min"; 120 -> "2 min"; else -> "5 min" }, false) { sp.edit().putInt("every_$k", e).apply(); paintRep() }
                 p.textSize = 12f; rb.add(p); reps.addView(p) }
             more.addView(reps, Ui.lp(this, 4))
             box.addView(more); paintMode(); paintRep()
