@@ -609,7 +609,7 @@ class EditorActivity : AppCompatActivity() {
     private fun audioTools() {
         page = "audio"; tools.removeAllViews()
         tool("‹", t("Back", "Kembali")) { mainTools() }
-        tool("♪", t("Music", "Muzik")) { pickMusic.launch("audio/*") }
+        tool("♪", t("Music", "Muzik")) { musicSheet() }
         tool("🔊", t("Sound FX", "Kesan bunyi")) { sfxSheet() }
         tool("🗣", t("AI voice", "Suara AI")) { voiceSheet(null) }
         tool(if (origVol == 0f) "🔇" else "🔈", t("Original", "Bunyi asal"), origVol != 1f) { volSheet(t("Original sound (all clips)", "Bunyi asal (semua klip)"), origVol) { v -> origVol = v; clipLook() } }
@@ -626,6 +626,7 @@ class EditorActivity : AppCompatActivity() {
         tool("⛶", t("Fill frame", "Isi bingkai"), c.fill) { snap(); c.fill = !c.fill; rebuild(tl.time); toast(if (c.fill) t("Fills the frame (edges cut)", "Isi bingkai (tepi dipotong)") else t("Whole picture (bars if needed)", "Gambar penuh (jalur jika perlu)")) }
         tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
         tool("⇋", t("Mirror", "Cermin"), c.mirror) { snap(); c.mirror = !c.mirror; rebuild(tl.time) }
+        if (!c.still) tool("⏪", t("Reverse", "Terbalik")) { reverse(i) }
         tool("❄", t("Freeze", "Beku")) { freeze() }
         if (c.still) tool("⏱", t("Duration", "Tempoh")) { stillDur(i) }
         tool("⧉", t("Duplicate", "Salin")) { snap(); clips.add(i + 1, c.copy()); rebuild(tl.time) }
@@ -790,6 +791,26 @@ class EditorActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle(t("Photo duration", "Tempoh gambar")).setItems(opts.map { "${it.toInt()}s" }.toTypedArray()) { _, w ->
             val dl = wait(t("Please wait…", "Sila tunggu…"))
             makeStill(c.img, opts[w]) { n -> dl.dismiss(); if (n != null) { snap(); n.trans = c.trans; n.look = c.look; n.bri = c.bri; n.con = c.con; n.sat = c.sat; n.rot = c.rot; n.mirror = c.mirror; clips[i] = n; rebuild(tl.time) } } }.show()
+    }
+    /* the clip plays backwards (pictures and sound); undo brings the normal one back */
+    private fun reverse(i: Int) {
+        val c = clips.getOrNull(i) ?: return
+        if (c.outUs - c.inUs > 60_000_000) { toast(t("Split the clip first: reverse works on up to 60 s.", "Belah klip dulu: terbalik untuk maksimum 60 saat.")); return }
+        val dl = wait(t("Reversing… 0%", "Menterbalikkan… 0%"))
+        Thread {
+            val f = File(work, "rv_" + System.currentTimeMillis() + ".mp4"); val (pw, ph, _) = probe(c.file)
+            var last = -1
+            val ok = try { Reverse.make(c.file, c.inUs, c.outUs, pw, ph, f) { pc -> if (pc != last) { last = pc; main.post { dl.setMessage(t("Reversing… $pc%", "Menterbalikkan… $pc%")) } } }; true } catch (e: Exception) { f.delete(); false }
+            main.post {
+                dl.dismiss()
+                if (!ok) { toast(t("This clip cannot be reversed", "Klip ini tidak boleh diterbalikkan")); return@post }
+                val du = probe(f).third.takeIf { it > 0 } ?: (c.outUs - c.inUs)
+                snap()
+                val n = Clip(f, 0, du, false).also { it.fileDur = du; it.speed = c.speed; it.vol = c.vol; it.look = c.look; it.bri = c.bri; it.con = c.con; it.sat = c.sat; it.rot = c.rot; it.mirror = c.mirror
+                    it.trans = c.trans; it.fx = c.fx; it.fi = c.fi; it.fo = c.fo; it.fadeVid = c.fadeVid; it.fill = c.fill }
+                clips[i] = n; rebuild(tl.time); toast(t("Reversed ⏪", "Diterbalikkan ⏪"))
+            }
+        }.start()
     }
     private fun freeze() {
         if (clips.isEmpty()) return
@@ -986,6 +1007,33 @@ class EditorActivity : AppCompatActivity() {
             main.post { w.dismiss(); if (f == null || a == null || a.isEmpty()) { toast(t("This sound cannot be used", "Bunyi ini tidak boleh digunakan")); return@post }
                 snap(); val s = Sound("music", tl.time.coerceAtMost(maxOf(0, total() - 1_000_000)), total()); s.file = f.absolutePath; s.vol = 0.6f
                 sounds.add(s); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time); toast(t("Tip: lower the original sound if needed", "Tip: perlahankan bunyi asal jika perlu")) } }.start()
+    }
+    /* music: our own built-in songs, or a song from the phone */
+    private fun musicSheet() {
+        if (clips.isEmpty()) return
+        val s = Ui.sheet(this, t("Music", "Muzik")); var mp: android.media.MediaPlayer? = null
+        fun stop() { try { mp?.release() } catch (e: Exception) {}; mp = null }
+        s.dialog.setOnDismissListener { stop() }
+        s.body.addView(Ui.btn(this, "📁  " + t("From my phone", "Dari telefon saya"), true) { s.dialog.dismiss(); pickMusic.launch("audio/*") })
+        s.body.addView(Ui.label(this, t("Built-in music (free to use)", "Muzik terbina (bebas guna)"), 13f, Ui.SUB, true), Ui.lp(this, 14))
+        MusicLib.ALL.forEach { song -> val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
+            val name = t(song.en, song.ms) + "  ·  ${song.bpm} BPM"
+            r.addView(Ui.btn(this, "▶  $name") {
+                stop(); val w = wait(t("Preparing…", "Menyediakan…"))
+                Thread { val f = try { MusicLib.file(this, song.id) } catch (e: Exception) { null }
+                    main.post { w.dismiss(); if (f == null || !s.dialog.isShowing) return@post
+                        try { mp = android.media.MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); start() } } catch (e: Exception) {} } }.start()
+            }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 8 })
+            r.addView(Ui.btn(this, "+ " + t("Add", "Tambah"), true) {
+                stop(); val w = wait(t("Preparing…", "Menyediakan…"))
+                Thread { val f = try { MusicLib.file(this, song.id) } catch (e: Exception) { null }; val a = f?.let { Snd.readWav(it) }; if (f != null) audioCache[f.absolutePath] = a
+                    main.post { w.dismiss(); s.dialog.dismiss(); if (f == null || a == null) { toast(t("Could not make the music", "Gagal sediakan muzik")); return@post }
+                        snap(); val ss = Sound("music", 0, total()); ss.file = f.absolutePath; ss.vol = 0.5f
+                        sounds.add(ss); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time); toast(t("Music added for the whole video", "Muzik ditambah untuk seluruh video")) } }.start()
+            })
+            s.body.addView(r, Ui.lp(this, 8)) }
+        s.body.addView(Ui.hint(this, t("Made by the app, so it is safe to post anywhere.", "Dibuat oleh app sendiri, jadi selamat untuk dimuat naik di mana-mana.")))
+        s.dialog.show()
     }
     private fun sfxSheet() {
         if (clips.isEmpty()) return
