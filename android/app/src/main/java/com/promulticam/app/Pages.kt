@@ -368,9 +368,9 @@ class AboutActivity : PageActivity() {
     }
 }
 
-/* ---------------- App APK: this version, check for a newer one, update ---------------- */
+/* ---------------- App Update: this version, check for a newer one, update ---------------- */
 class ApkActivity : PageActivity() {
-    override val title0 get() = "App APK"
+    override val title0 get() = "App Update"
     private val VJ = "https://promulticam.web.app/apk/version.json"
     private val APK = "https://promulticam.web.app/apk/ProMultiCam.apk"
     override fun build() {
@@ -395,25 +395,26 @@ class ApkActivity : PageActivity() {
             main.post {
                 if (isFinishing) return@post
                 val n = j.optLong("code"); val v = j.optString("v"); val mb = j.optString("mb"); val dt = j.optString("date")
-                if (n > code) { st.text = t("New version $v ($mb MB, $dt)", "Versi baru $v ($mb MB, $dt)"); if (dlId < 0) up.visibility = View.VISIBLE }
+                newCode = n
+                if (n > code) { st.text = t("New version $v ($mb MB, $dt)", "Versi baru $v ($mb MB, $dt)")
+                    // not downloading yet (or an older file): start it now, no button needed
+                    if (dlId < 0 || getSharedPreferences("pmc", Context.MODE_PRIVATE).getLong("apkDlCode", 0) < n) download() }
                 else st.text = t("You have the latest version.", "Anda guna versi terkini.")
             }
         }
         // a download that is still going (page opened again)
-        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); dlId = sp.getLong("apkDl", -1L); if (dlId >= 0) watch()
+        val sp = getSharedPreferences("pmc", Context.MODE_PRIVATE); dlId = sp.getLong("apkDl", -1L)
+        autoInst = intent.getBooleanExtra("install", false)   // opened from "tap to install"
+        if (dlId >= 0) watch()
     }
     private lateinit var up: android.widget.Button; private lateinit var inst: android.widget.Button
     private lateinit var prog: android.widget.ProgressBar; private lateinit var pTx: TextView
-    private var dlId = -1L; private var alive = true
+    private var dlId = -1L; private var alive = true; private var newCode = 0L; private var autoInst = false
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun dm() = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
     private fun download() {
         try {
-            File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "ProMultiCam.apk").delete()
-            dlId = dm().enqueue(DownloadManager.Request(Uri.parse(APK + "?t=" + System.currentTimeMillis())).setTitle("ProMultiCam").setDescription(t("App update", "Kemas kini app"))
-                .setMimeType("application/vnd.android.package-archive").setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "ProMultiCam.apk"))
-            getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().putLong("apkDl", dlId).apply()
+            dlId = Notifier.fetchApk(this, newCode)
             up.visibility = View.GONE; watch()
         } catch (e: Exception) { toast(t("Could not download", "Gagal muat turun")) }
     }
@@ -426,7 +427,8 @@ class ApkActivity : PageActivity() {
             status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)); got = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)); tot = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)) } } } catch (e: Exception) {}
         val mb = { b: Long -> String.format(Locale.US, "%.1f", b / 1048576.0) }
         when (status) {
-            DownloadManager.STATUS_SUCCESSFUL -> { prog.progress = 100; pTx.text = "✅ " + t("Downloaded. Tap Install now.", "Siap dimuat turun. Tekan Pasang sekarang."); inst.visibility = View.VISIBLE; return }
+            DownloadManager.STATUS_SUCCESSFUL -> { prog.progress = 100; pTx.text = "✅ " + t("Downloaded. Tap Install now.", "Siap dimuat turun. Tekan Pasang sekarang."); inst.visibility = View.VISIBLE
+                if (autoInst) { autoInst = false; install() }; return }
             DownloadManager.STATUS_FAILED, -1 -> { prog.visibility = View.GONE; pTx.text = t("Download failed. Try again.", "Muat turun gagal. Cuba lagi."); up.visibility = View.VISIBLE
                 getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().remove("apkDl").apply(); dlId = -1; return }
             DownloadManager.STATUS_PAUSED -> pTx.text = t("Waiting for the internet…", "Menunggu internet…")

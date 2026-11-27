@@ -47,9 +47,30 @@ object Notifier {
             val mine = c.packageManager.getPackageInfo(c.packageName, 0).longVersionCode; val code = j.optLong("code")
             newApk = if (code > mine) j.optString("v") else ""
             val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
-            if (code > mine && code > sp.getLong("nApk", 0)) { sp.edit().putLong("nApk", code).apply()
-                show(c, 3, Ui.t("New ProMultiCam version ", "Versi baru ProMultiCam ") + j.optString("v"), Ui.t("Tap to update the app.", "Tekan untuk kemas kini app."), Intent(c, ApkActivity::class.java)) }
+            // new version: download it quietly in the background; "tap to install" comes when it is done
+            if (code > mine && sp.getLong("apkDlCode", 0) < code) { sp.edit().putLong("nApk", code).putString("apkDlV", j.optString("v")).apply(); fetchApk(c, code) }
+            else if (code > mine && sp.getBoolean("apkReady", false) && code > sp.getLong("nReady", 0)) ready(c)
         } catch (e: Exception) {}
+    }
+    /* start the background download of the new app (same file the App Update page uses) */
+    fun fetchApk(c: Context, code: Long): Long {
+        val dm = c.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+        val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
+        sp.getLong("apkDl", -1L).let { if (it >= 0) try { dm.remove(it) } catch (e: Exception) {} }
+        java.io.File(c.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "ProMultiCam.apk").delete()
+        val id = dm.enqueue(android.app.DownloadManager.Request(android.net.Uri.parse("https://promulticam.web.app/apk/ProMultiCam.apk?t=" + System.currentTimeMillis()))
+            .setTitle("ProMultiCam").setDescription(Ui.t("Downloading the new version", "Memuat turun versi baru"))
+            .setMimeType("application/vnd.android.package-archive").setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE)
+            .setDestinationInExternalFilesDir(c, android.os.Environment.DIRECTORY_DOWNLOADS, "ProMultiCam.apk"))
+        sp.edit().putLong("apkDl", id).putLong("apkDlCode", code).putBoolean("apkReady", false).apply()
+        return id
+    }
+    /* the download finished: one "tap to install" notification */
+    fun ready(c: Context) {
+        val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE)
+        sp.edit().putBoolean("apkReady", true).putLong("nReady", sp.getLong("apkDlCode", 0)).apply()
+        show(c, 3, Ui.t("New version ready ", "Versi baru sedia ") + sp.getString("apkDlV", ""), Ui.t("Tap to install. Your videos stay.", "Tekan untuk pasang. Video anda kekal."),
+            Intent(c, ApkActivity::class.java).putExtra("install", true))
     }
     fun checkSync(c: Context) {
         checkApk(c)
@@ -83,6 +104,18 @@ object Notifier {
         val pi = androidx.core.app.TaskStackBuilder.create(c).addNextIntent(Intent(c, MainActivity::class.java)).addNextIntent(open).getPendingIntent(id, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         nm.notify(id, NotificationCompat.Builder(c, CH).setSmallIcon(R.drawable.ic_chat).setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true).setContentIntent(pi).setPriority(NotificationCompat.PRIORITY_HIGH).build())
+    }
+}
+/* DownloadManager tells us when the background download is done */
+class DlReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(c: Context, i: Intent) {
+        val id = i.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+        val sp = c.getSharedPreferences("pmc", Context.MODE_PRIVATE); if (id < 0 || id != sp.getLong("apkDl", -2L)) return
+        val dm = c.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+        var ok = false
+        try { dm.query(android.app.DownloadManager.Query().setFilterById(id))?.use { q -> if (q.moveToFirst()) ok = q.getInt(q.getColumnIndexOrThrow(android.app.DownloadManager.COLUMN_STATUS)) == android.app.DownloadManager.STATUS_SUCCESSFUL } } catch (e: Exception) {}
+        Ui.init(c)
+        if (ok) Notifier.ready(c) else sp.edit().remove("apkDl").putLong("apkDlCode", 0).apply()   // failed: try again on the next check
     }
 }
 class CheckWorker(c: Context, p: WorkerParameters) : Worker(c, p) { override fun doWork(): Result { Ui.init(applicationContext); Notifier.checkSync(applicationContext); return Result.success() } }

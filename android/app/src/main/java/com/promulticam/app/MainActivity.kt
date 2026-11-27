@@ -74,7 +74,18 @@ class MainActivity : AppCompatActivity() {
         val langB = Ui.btn(c, if (Ui.ms) "Bahasa Melayu ▾" else "English ▾") { Ui.setLang(c, if (Ui.ms) "en" else "ms"); recreate() }; langB.textSize = 13f
         top.addView(langB, LinearLayout.LayoutParams(-2, Ui.px(c, 46)))
         loginBtn = Ui.btn(c, "") { openAccount() }; loginBtn.textSize = 13f
-        top.addView(loginBtn, LinearLayout.LayoutParams(-2, Ui.px(c, 46)).apply { leftMargin = Ui.px(c, 6) })
+        // log in, and the Super Admin button right under it (admin only, with a red count)
+        val acc = LinearLayout(c); acc.orientation = LinearLayout.VERTICAL; acc.gravity = Gravity.END
+        acc.addView(loginBtn, LinearLayout.LayoutParams(-2, Ui.px(c, 46)))
+        if (Auth.isAdmin) {
+            val fr = FrameLayout(c); val sb = Ui.btn(c, "👑 Super Admin") { startActivity(Intent(c, AdminActivity::class.java)) }; sb.textSize = 12f; sb.setTextColor(Ui.GOLD)
+            fr.addView(sb, Ui.fl(-2, Ui.px(c, 42)).apply { topMargin = Ui.px(c, 8); rightMargin = Ui.px(c, 6) })
+            val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
+            bd.setPadding(Ui.px(c, 5), 0, Ui.px(c, 5), 0); bd.minWidth = Ui.px(c, 22); bd.visibility = View.GONE
+            fr.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END)); adminBadge = bd
+            acc.addView(fr, LinearLayout.LayoutParams(-2, -2).apply { topMargin = Ui.px(c, 2) })
+        }
+        top.addView(acc, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = Ui.px(c, 6) })
         col.addView(top)
 
         col.addView(Ui.label(c, t("MULTI-CAM STUDIO", "STUDIO MULTI-KAMERA"), 12f, Ui.GOLD, true), Ui.lp(c, 10))
@@ -103,9 +114,9 @@ class MainActivity : AppCompatActivity() {
             Triple(R.drawable.ic_video, t("Videos", "Video")) { startActivity(Intent(c, VideosActivity::class.java)) },
             Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { Nav.open(this, "test") },
             Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { Nav.open(this, "support") },
-            Triple(R.drawable.ic_apk, "App APK") { Nav.open(this, "apk") },
+            Triple(R.drawable.ic_apk, "App Update") { Nav.open(this, "apk") },
             Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") }) +
-            (if (Auth.isAdmin) listOf(Triple(R.drawable.ic_crown, "Super Admin") { startActivity(Intent(c, AdminActivity::class.java)) }) else emptyList())
+            emptyList<Triple<Int, String, () -> Unit>>()
         tools.forEachIndexed { i, (ic, l, f) ->
             val tl = LinearLayout(c); tl.orientation = LinearLayout.VERTICAL; tl.gravity = Gravity.CENTER
             tl.background = if (i == 0) Ui.raised(c, 0xFF262117.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.GOLD) else Ui.raised(c, 0xB812100D.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE)
