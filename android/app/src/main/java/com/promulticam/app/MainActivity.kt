@@ -63,8 +63,10 @@ class MainActivity : AppCompatActivity() {
         root.addView(bg, Ui.fl(-1, -1))
         val shade = View(c); shade.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x9E080705.toInt(), 0x73080705, 0xC7080705.toInt()))
         root.addView(shade, Ui.fl(-1, -1))
-        val sv = ScrollView(c); sv.isFillViewport = true; val col = LinearLayout(c); col.orientation = LinearLayout.VERTICAL
-        col.setPadding(Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 24)); sv.addView(col); root.addView(sv, Ui.fl(-1, -1))
+        // one screen, no scrolling: the role cards take whatever room is left
+        val col = LinearLayout(c); col.orientation = LinearLayout.VERTICAL
+        col.setPadding(Ui.px(c, 18), Ui.px(c, 14), Ui.px(c, 18), Ui.px(c, 14)); root.addView(col, Ui.fl(-1, -1))
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
 
         // top row: logo on the left; on the right, language + log in side by side, and Super Admin under them (same width, same height)
         val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.TOP
@@ -106,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         col.addView(Ui.label(c, t("Choose role", "Pilih peranan"), 13f, Ui.SUB, true), Ui.lp(c, 14))
 
         // the two role cards
-        val roles = LinearLayout(c); roles.orientation = LinearLayout.HORIZONTAL; roles.minimumHeight = Ui.px(c, 300)
+        val roles = LinearLayout(c); roles.orientation = LinearLayout.HORIZONTAL; roles.minimumHeight = Ui.px(c, 150)
         roles.addView(role(true) { sp.edit().putString("devName", name.text.toString().trim()).apply(); goDirector() }, LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = Ui.px(c, 6) })
         roles.addView(role(false) { sp.edit().putString("devName", name.text.toString().trim()).apply(); startActivity(Intent(c, CameraActivity::class.java)) }, LinearLayout.LayoutParams(0, -1, 1f).apply { leftMargin = Ui.px(c, 6) })
         col.addView(roles, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = Ui.px(c, 6) })
