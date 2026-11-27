@@ -5,9 +5,11 @@ import kotlin.math.sin
 
 /* The same visual styles as the web app, turned into one colour matrix each (done on the GPU) */
 object Looks {
-    class Look(val id: String, val en: String, val ms: String, val f: String, val vig: Float = 0f, val bars: Boolean = false)
+    class Look(val id: String, val en: String, val ms: String, val f: String, val vig: Float = 0f, val bars: Boolean = false, val ev: Int = 0)   // ev: camera brightness step
     val ALL = listOf(
         Look("std", "Standard", "Standard", ""),
+        // bright, sharp, clear: lifts dark rooms, sharpens detail, richer colour, camera a little brighter, more data when saved
+        Look("supermassive", "Supermassive", "Supermassive", "brightness(1.08) contrast(1.1) saturate(1.22) sharp(0.75) lift(0.3)", 0.12f, false, 1),
         Look("super", "Super", "Super", "contrast(1.08) saturate(1.18) brightness(1.03)", 0.22f),
         Look("fantastic", "Fantastic", "Fantastic", "sepia(0.14) saturate(1.28) contrast(1.12) hue-rotate(-5)", 0.38f),
         Look("superior", "Superior", "Superior", "contrast(1.16) saturate(1.22) brightness(0.99) sepia(0.06)", 0.3f),
@@ -19,7 +21,7 @@ object Looks {
         Look("vhs", "Retro 90s", "Retro 90an", "saturate(1.25) contrast(0.88) brightness(1.08) hue-rotate(-10)"),
         Look("drama", "Dramatic", "Dramatik", "contrast(1.45) brightness(0.82) saturate(1.1)", 0.6f),
         Look("soft", "Soft", "Lembut", "brightness(1.1) contrast(0.85) saturate(0.9)"))
-    fun byId(id: String?) = ALL.firstOrNull { it.id == id } ?: ALL[3]
+    fun byId(id: String?) = ALL.firstOrNull { it.id == id } ?: ALL[1]
 
     /* 3x3 colour part + offset, as a column-major mat4 and a vec4 for the shader */
     fun matrix(f: String): Pair<FloatArray, FloatArray> {

@@ -12,7 +12,7 @@ import android.view.Surface
 import java.io.FileDescriptor
 
 /* Hardware video encoder (fed by the GPU through a Surface) + microphone AAC encoder -> one MP4 file */
-class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, private val withAudio: Boolean) {
+class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, private val withAudio: Boolean, private val rich: Boolean = false) {
     private val muxer = MediaMuxer(fd, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
     private val lock = Object()
     private var vTrack = -1; private var aTrack = -1; private var started = false
@@ -30,7 +30,7 @@ class Encoder(private val W: Int, private val H: Int, fd: FileDescriptor, privat
     fun start() {
         val f = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H)
         f.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        f.setInteger(MediaFormat.KEY_BIT_RATE, if (W * H >= 1900000) 10_000_000 else 6_000_000)
+        f.setInteger(MediaFormat.KEY_BIT_RATE, if (W * H >= 1900000) (if (rich) 16_000_000 else 10_000_000) else (if (rich) 9_000_000 else 6_000_000))
         f.setInteger(MediaFormat.KEY_FRAME_RATE, 30)
         f.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         venc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)

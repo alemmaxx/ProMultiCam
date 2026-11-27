@@ -113,7 +113,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Ui.init(this); Auth.init(this); Rtc.init(this)
         brand = Brand(this); brand.refresh()
-        look = Looks.byId(sp.getString("look", "superior"))
+        look = Looks.byId(sp.getString("look", "supermassive"))
         resumeFile = intent.getStringExtra("resume")?.let { File(it) }
         main.postDelayed({ loadStill() }, 800)
         prog = Program(W, H); prog.setLook(look.f); prog.layout = layout; prog.trans = trans
@@ -299,7 +299,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         Looks.ALL.forEachIndexed { i, l ->
             val b = Ui.pill(this, lookName(l), l === look) {
                 if (l.id != "std" && !Auth.isPro) { needPro(); return@pill }
-                look = l; sp.edit().putString("look", l.id).apply(); prog.setLook(l.f); refreshOverlay(); paintChips()
+                val oldEv = look.ev; look = l; sp.edit().putString("look", l.id).apply(); prog.setLook(l.f); refreshOverlay(); paintChips(); if (oldEv != l.ev) applyEv()
                 pills.forEachIndexed { j, p -> Ui.setPill(this, p, Looks.ALL[j] === look) }
             }
             pills.add(b)
@@ -658,6 +658,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         refreshOverlay()
         cam = if (sp.getBoolean("selfCam", true)) Rtc.camera(this, false, 1920, 1080, "dir") else null
         cam?.let { c -> val s = Src("local", t("Director", "Pengarah"), true); s.track = c.track; addSrc(s) }
+        if (look.ev != 0) main.postDelayed({ applyEv() }, 1500)
         openStudio()
     }
 
@@ -720,8 +721,14 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         if (link === s.media || link === s.data) removeSrc(s.id)
     }
 
+    /* the look's camera brightness, on every camera (Supermassive makes them a little brighter) */
+    private fun applyEv(only: Src? = null) {
+        (if (only != null) listOf(only) else srcs).forEach { s -> val st = camState.getOrPut(s.id) { intArrayOf(0, 0) }; st[1] = look.ev
+            if (s.local) cam?.let { c -> Focus.light(c.capturer, c.front, st[0] == 1, look.ev) } else s.data?.send(mapOf("t" to "cc", "op" to "light", "torch" to (st[0] == 1), "ev" to look.ev)) }
+    }
     private fun addSrc(s: Src) {
         srcs.add(s)
+        if (!s.local && look.ev != 0) main.postDelayed({ if (srcs.contains(s)) applyEv(s) }, 2500)
         val d = Ui.dp(this, 6f).toInt()
         val f = FrameLayout(this); f.background = Ui.round(Ui.CARD, Ui.dp(this, 10f)); f.setPadding(d / 2, d / 2, d / 2, d / 2)
         val v = SurfaceViewRenderer(this); v.init(Rtc.egl.eglBaseContext, null); v.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
@@ -817,7 +824,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val pfd = try { ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE) } catch (e: Exception) { toast(t("Cannot save here", "Tidak boleh simpan")); return }
         recPfd = pfd
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val e = Encoder(W, H, pfd.fileDescriptor, audio)
+        val e = Encoder(W, H, pfd.fileDescriptor, audio, look.id == "supermassive")
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
         fadeIn(e)
