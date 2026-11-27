@@ -48,6 +48,9 @@ class VideosActivity : AppCompatActivity() {
         draftBtn = btn(t("Drafts", "Draf")) { drafts() }; draftBtn.setTextColor(Ui.GOLD)
         r2.addView(draftBtn, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
         root.addView(r2, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d / 2 })
+        // templates: pick one, put in your videos/photos, done
+        root.addView(btn("📋  " + t("Templates (free)", "Templat (percuma)"), true) { startActivity(android.content.Intent(this, EditorActivity::class.java).putExtra("tpl", true)) },
+            LinearLayout.LayoutParams(-1, Ui.px(this, 52)).apply { topMargin = d / 2 })
         root.addView(Ui.hint(this, t("Tick 2 or more, then Join Video.", "Tanda 2 atau lebih, kemudian Join Video.")))
         val sv = ScrollView(this); list = LinearLayout(this); list.orientation = LinearLayout.VERTICAL; sv.addView(list)
         root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })

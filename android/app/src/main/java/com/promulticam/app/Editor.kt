@@ -391,7 +391,7 @@ class EditorActivity : AppCompatActivity() {
         else if (f != null && f.exists()) { orig = f; draftId = "f_" + f.nameWithoutExtension; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0)
             if (Drafts.exists(this, draftId)) AlertDialog.Builder(this).setMessage(t("You have an unfinished edit of this video. Continue it?", "Ada suntingan belum siap untuk video ini. Sambung?"))
                 .setPositiveButton(t("Continue", "Sambung")) { _, _ -> openDraft(draftId) }.setNegativeButton(t("Start again", "Mula semula")) { _, _ -> Drafts.delete(this, draftId) }.show() }
-        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ askAdd(true) }, 300) }
+        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ if (intent.getBooleanExtra("tpl", false)) templateSheet() else askAdd(true) }, 300) }
         mainTools()
     }
     override fun onDestroy() { player.release(); mplayer.release(); pplayers.forEach { it.release() }; tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
