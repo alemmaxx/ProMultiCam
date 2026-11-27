@@ -592,6 +592,7 @@ class EditorActivity : AppCompatActivity() {
     private fun refreshTools() { when (val s = tl.sel) { is Sel.C -> clipTools(s.i); is Sel.L -> layerTools(s.i); is Sel.S -> soundTools(s.i); else -> if (page == "audio") audioTools() else mainTools() } }
     private fun mainTools() {
         page = "main"; tools.removeAllViews()
+        tool("📋", t("Templates", "Templat")) { templateSheet() }
         tool("✂", t("Edit", "Edit")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
         tool("♪", t("Audio", "Audio")) { audioTools() }
         tool("T", t("Text", "Teks")) { newText() }
@@ -678,10 +679,76 @@ class EditorActivity : AppCompatActivity() {
         tl.sel = Sel.C(i); rebuild(at)
     }
     private var addEnd = false
+    /* ---------------- templates ---------------- */
+    private var tplPending: Templates.Item? = null
+    private val pickMany = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> val tp = tplPending; if (tp != null && us.isNotEmpty()) applyTemplate(tp, us) else if (clips.isEmpty()) finish() }
+    private fun templateSheet() {
+        val s = Ui.sheet(this, t("Templates", "Templat")); val b = s.body
+        b.addView(Ui.hint(this, t("Pick a template, then choose your videos and photos. Everything else is done for you.", "Pilih templat, kemudian pilih video dan gambar anda. Yang lain siap sendiri.")))
+        fun row(it: Templates.Item, parent: LinearLayout) {
+            val c = Ui.card(this); val r = LinearLayout(this); r.gravity = Gravity.CENTER_VERTICAL
+            val tx = LinearLayout(this); tx.orientation = LinearLayout.VERTICAL
+            tx.addView(Ui.label(this, it.name, 15f, Ui.TEXT, true)); tx.addView(Ui.label(this, "${it.slots} " + t("clips", "klip") + " · " + String.format(Locale.US, "%.0fs", it.secs), 12f, Ui.SUB))
+            r.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
+            if (it.kind == "mine" || (it.kind == "server" && Auth.isAdmin)) r.addView(Ui.btn(this, "🗑") { AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?"))
+                .setPositiveButton(t("Delete", "Padam")) { _, _ -> if (it.kind == "mine") { Templates.deleteMine(this, it.id); parent.removeView(c) } else Thread { val ok = Templates.unpublish(it.id); main.post { if (ok) parent.removeView(c) } }.start() }
+                .setNegativeButton(t("Cancel", "Batal"), null).show() }, LinearLayout.LayoutParams(Ui.px(this, 52), -2))
+            c.addView(r); c.setOnClickListener { _ -> s.dialog.dismiss(); useTemplate(it) }
+            parent.addView(c, Ui.lp(this, 6))
+        }
+        // save / publish the current edit
+        if (clips.isNotEmpty()) {
+            b.addView(Ui.btn(this, "💾 " + t("Save this edit as a template", "Simpan suntingan ini sebagai templat")) { askName { n -> Templates.saveMine(this, Templates.fromProject(n, W, H, clips, layers, sounds)); toast(t("Template saved", "Templat disimpan")); s.dialog.dismiss() } }, Ui.lp(this, 8))
+            if (Auth.isAdmin) b.addView(Ui.btn(this, "📢 " + t("Publish to everyone", "Terbitkan kepada semua"), true) { askName { n -> Thread { val ok = Templates.publish(Templates.fromProject(n, W, H, clips, layers, sounds)); main.post { toast(if (ok) t("Published", "Diterbitkan") else t("Failed", "Gagal")); if (ok) s.dialog.dismiss() } }.start() } }, Ui.lp(this, 6))
+        }
+        val mine = Templates.mine(this)
+        if (mine.isNotEmpty()) { b.addView(Ui.section(this, t("My templates", "Templat saya"))); val m = LinearLayout(this); m.orientation = LinearLayout.VERTICAL; mine.forEach { row(it, m) }; b.addView(m) }
+        b.addView(Ui.section(this, t("From ProMultiCam", "Dari ProMultiCam"))); val sv = LinearLayout(this); sv.orientation = LinearLayout.VERTICAL; b.addView(sv)
+        val wait = Ui.label(this, t("Loading…", "Memuatkan…"), 13f, Ui.SUB); sv.addView(wait)
+        Thread { val l = Templates.server(); main.post { sv.removeView(wait); if (l.isEmpty()) sv.addView(Ui.label(this, t("None yet", "Belum ada"), 13f, Ui.SUB)) else l.forEach { row(it, sv) } } }.start()
+        b.addView(Ui.section(this, t("Built in", "Terbina"))); val bl = LinearLayout(this); bl.orientation = LinearLayout.VERTICAL; Templates.builtin().forEach { row(it, bl) }; b.addView(bl)
+        s.dialog.setOnCancelListener { if (clips.isEmpty()) finish() }
+        s.dialog.show()
+    }
+    private fun askName(f: (String) -> Unit) {
+        val e = Ui.input(this, t("Template name", "Nama templat"))
+        AlertDialog.Builder(this).setTitle(t("Name", "Nama")).setView(LinearLayout(this).apply { setPadding(Ui.px(this@EditorActivity, 20), Ui.px(this@EditorActivity, 8), Ui.px(this@EditorActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
+            .setPositiveButton("OK") { _, _ -> val n = e.text.toString().trim(); if (n.isNotEmpty()) f(n.take(40)) }.setNegativeButton(t("Cancel", "Batal"), null).show()
+    }
+    private fun useTemplate(it: Templates.Item) {
+        tplPending = it
+        toast(t("Choose ${it.slots} videos or photos (fewer is fine; they repeat)", "Pilih ${it.slots} video atau gambar (kurang pun boleh; ia diulang)"))
+        pickMany.launch(arrayOf("video/*", "image/*"))
+    }
+    /* fill the template's slots with the chosen media, in order */
+    private fun applyTemplate(tp: Templates.Item, us: List<Uri>) {
+        val j = tp.j; val w = wait(t("Making your video…", "Membuat video anda…"))
+        val tw = j.optInt("W", 1080); val th = j.optInt("H", 1920)
+        Thread {
+            val media = us.mapIndexedNotNull { i, u -> val ty = contentResolver.getType(u) ?: ""; val isImg = ty.startsWith("image")
+                copyIn(u, if (isImg) "img_" else "v_", if (isImg) ".jpg" else ".mp4")?.let { it to isImg } }
+            val a = j.optJSONArray("slots") ?: org.json.JSONArray(); val out = ArrayList<Clip>()
+            for (k in 0 until a.length()) {
+                if (media.isEmpty()) break
+                val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val (f, isImg) = media[k % media.size]
+                val c: Clip? = if (isImg) { val bm = loadBitmap(f.absolutePath); if (bm == null) null else { val v = File(work, "p_" + System.currentTimeMillis() + "_" + k + ".mp4")
+                        try { StillClip.make(bm, tw, th, dur, v); val du = probe(v).third.takeIf { it > 0 } ?: dur; Clip(v, 0, du, true).also { it.fileDur = du; it.img = f.absolutePath } } catch (e: Exception) { null } } }
+                    else { val pr = probe(f); if (pr.third <= 0) null else { val st = if (pr.third > dur * 2) (pr.third - dur) / 3 else 0L; Clip(f, st, minOf(pr.third, st + dur), false).also { it.fileDur = pr.third } } }
+                c?.let { it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std"); it.fi = o.optDouble("fi", 0.0).toFloat(); it.fo = o.optDouble("fo", 0.0).toFloat()
+                    it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat(); out.add(it) }
+            }
+            main.post { w.dismiss()
+                if (out.isEmpty()) { toast(t("These files cannot be used", "Fail ini tidak boleh digunakan")); if (clips.isEmpty()) finish(); return@post }
+                if (clips.isNotEmpty()) snap()
+                dirty = true; clips = out; layers = ArrayList(Templates.layers(j)); sounds = ArrayList(Templates.sounds(j)); setFormat(tw, th); onSelect(Sel.None); rebuild(0)
+                toast(t("Done! Tap a text to change it.", "Siap! Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
+        }.start()
+    }
     private fun askAdd(first: Boolean) {
         addEnd = !first && tl.time >= total() - 1_000
         AlertDialog.Builder(this).setTitle(t("Add video or photo", "Tambah video atau gambar"))
-            .setItems(arrayOf(t("Video", "Video"), t("Photo", "Gambar"))) { _, w -> if (w == 0) pickVideo.launch("video/*") else pickPhoto.launch("image/*") }
+            .setItems(if (first) arrayOf(t("Video", "Video"), t("Photo", "Gambar"), "📋 " + t("Use a template", "Guna templat")) else arrayOf(t("Video", "Video"), t("Photo", "Gambar"))) { _, w ->
+                when (w) { 0 -> pickVideo.launch("video/*"); 1 -> pickPhoto.launch("image/*"); else -> templateSheet() } }
             .setNegativeButton(t("Cancel", "Batal")) { _, _ -> if (clips.isEmpty()) finish() }.setOnCancelListener { if (clips.isEmpty()) finish() }.show()
     }
     private fun wait(s: String): AlertDialog = AlertDialog.Builder(this).setMessage(s).setCancelable(false).show()

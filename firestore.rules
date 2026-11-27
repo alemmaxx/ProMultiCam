@@ -52,6 +52,11 @@ service cloud.firestore {
       }
     }
     // Promo codes — Super Admin only (redemption goes through Cloud Functions)
+    // editor templates: everyone signed in can use them, only the super admin publishes
+    match /templates/{id} {
+      allow read: if signedIn();
+      allow write: if isSuper();
+    }
     match /promos/{code} {
       allow read, write: if isSuper();
       match /uses/{uid} { allow read: if isSuper(); allow write: if false; }
