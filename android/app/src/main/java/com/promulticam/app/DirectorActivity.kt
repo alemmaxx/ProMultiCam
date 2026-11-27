@@ -751,7 +751,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
         fadeIn(e)
-        if (resumeFile != null && trans != "cut") { if (stillReady) prog.fadeIn() else { stillReady = false } }
+        if (resumeFile != null && useStill()) { if (stillReady) prog.fadeIn() else { stillReady = false } }
         if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, sp.getString("introSub", "") ?: "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
         recStart = System.currentTimeMillis(); pausedMs = 0; pauseAt = 0; ending = false
         recBtn.text = "■ " + t("Stop", "Tamat"); pauseBtn.isEnabled = true; pauseBtn.alpha = 1f; qBtn.isEnabled = false
@@ -800,10 +800,12 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val e = enc ?: return
         if (fading) return
         if (!e.paused && recFo() > 0 && !fadeOutDone) { fadeOut { togglePause(); prog.dim = 0f }; return }
-        if (e.paused) { if (trans != "cut") prog.fadeIn(); fadeIn(e); e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
-        else { if (trans != "cut") prog.holdLast(); e.pause(); pauseAt = System.currentTimeMillis(); pauseBtn.text = "▶ " + t("Resume", "Sambung") }
+        if (e.paused) { if (useStill()) prog.fadeIn(); fadeIn(e); e.resume(); pausedMs += System.currentTimeMillis() - pauseAt; pauseAt = 0; pauseBtn.text = "‖ " + t("Pause", "Jeda") }
+        else { if (useStill()) prog.holdLast(); e.pause(); pauseAt = System.currentTimeMillis(); pauseBtn.text = "▶ " + t("Resume", "Sambung") }
     }
     /* fade in / out of a recording (picture to black and sound), set in Settings */
+    /* with a fade in/out set, a continued part simply fades up from black: no picture of the last moment */
+    private fun useStill() = trans != "cut" && recFi() <= 0f && recFo() <= 0f
     private fun recFi() = sp.getFloat("recFi", 0f); private fun recFo() = sp.getFloat("recFo", 0f)
     private var fading = false; private var fadeOutDone = false
     private fun ramp(up: Boolean, sec: Float, done: () -> Unit) {
@@ -840,7 +842,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         if (!ok) part?.delete()
         val base = resumeFile
         if (ok && base != null && part != null) joinInto(base, part)
-        if (resumeFile != null && trans != "cut") { prog.holdLast(); stillReady = true }
+        if (resumeFile != null && useStill()) { prog.holdLast(); stillReady = true }
         recBtn.isEnabled = true; recBtn.text = "● " + t("Start Recording", "Mula Rakam"); pauseBtn.isEnabled = false; pauseBtn.alpha = 0.5f; pauseBtn.text = "‖ " + t("Pause", "Jeda"); qBtn.isEnabled = true
         timeTx.visibility = View.GONE
         sendLive(); srcs.forEach { it.data?.send(mapOf("t" to "q", "hi" to false)) }
@@ -874,6 +876,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private var stillReady = false
     /* the last picture of the video being continued, so the new part starts with the switch effect */
     private fun loadStill() {
+        if (!useStill()) return
         val f = resumeFile ?: return
         Thread {
             val b = try { val r = android.media.MediaMetadataRetriever(); r.setDataSource(f.absolutePath)
