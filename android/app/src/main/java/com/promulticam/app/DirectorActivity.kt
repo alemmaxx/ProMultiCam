@@ -185,7 +185,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
 
         // the program picture
         val stage = FrameLayout(c); stage.setBackgroundColor(Color.BLACK)
-        val sv = SurfaceView(c)
+        val sv = SurfaceView(c); mainSv = sv
         sv.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(h: SurfaceHolder) {}
             override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) { prog.setPreview(h.surface, w, hh) }
@@ -407,6 +407,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     /* ---------- brand styles (6 saved sets of brand + when to show) ---------- */
     private var slotPaint: (() -> Unit)? = null
+    private var mainSv: SurfaceView? = null
     private val SLOT_S = listOf("price", "phone", "ovStyle", "ovColor", "ovFont", "logoPos", "shop", "desc", "menu") + listOf("logo", "title", "price", "phone").map { "vis_$it" }
     private val SLOT_B = listOf("brand", "logoBg"); private val SLOT_I = listOf("logo", "title", "price", "phone").flatMap { listOf("dur_$it", "every_$it") }
     private fun saveSlot(n: Int) {
@@ -433,6 +434,17 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val n = sp.getInt("brandSlot", 1)
         val s = Ui.sheet(this, t("Style ", "Gaya ") + n, t("Done", "Siap") to { refreshOverlay() })
         val b = s.body
+        // the live picture stays on top while the settings scroll below, so every change shows at once
+        val outer = (b.parent as View).parent as LinearLayout
+        val pv = android.view.SurfaceView(this)
+        pv.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(h: SurfaceHolder) {}
+            override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) { prog.setPreview(h.surface, w, hh) }
+            override fun surfaceDestroyed(h: SurfaceHolder) { mainSv?.let { m -> if (m.holder.surface.isValid) prog.setPreview(m.holder.surface, m.width, m.height) else prog.setPreview(null, 0, 0) } }
+        })
+        val box = FrameLayout(this); box.setBackgroundColor(android.graphics.Color.BLACK); box.addView(pv, FrameLayout.LayoutParams(-1, -1))
+        outer.addView(box, 1, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.42f).toInt()).apply { topMargin = Ui.px(this@DirectorActivity, 6); bottomMargin = Ui.px(this@DirectorActivity, 6) })
+        s.dialog.window?.setLayout(-1, -1)
         val lr = LinearLayout(this); lr.orientation = LinearLayout.HORIZONTAL; lr.gravity = Gravity.CENTER_VERTICAL
         val lv = android.widget.ImageView(this); logoView = lv; lv.background = Ui.round(0xFF121110.toInt(), Ui.dp(this, 12f), Ui.LINE, 2); lv.setImageBitmap(brand.logo); lv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         lr.addView(lv, LinearLayout.LayoutParams(Ui.px(this, 54), Ui.px(this, 54)))
