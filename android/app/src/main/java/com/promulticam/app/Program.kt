@@ -35,7 +35,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     private var ovTex = 0
     @Volatile private var ovPending: Bitmap? = null
     @Volatile var layout = "full"
-    @Volatile var trans = "fade"          // fade, black, cut
+    @Volatile var trans = "fade"          // same list as the editor (Fx.TRANS); "none"/"cut" = straight cut
     @Volatile var vRect: FloatArray? = null     // polaroid / panel: the video uses only part of the picture (x, y, w, h from the top, kind)
     @Volatile var zoomMain = 1f; @Volatile var zoomSec = 1f   // digital zoom per view (works for any camera)
     private var transAt = 0L
@@ -174,12 +174,11 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         }
         // switch effect: fade (or dip to black) from the last picture of the previous angle
         val p = (SystemClock.uptimeMillis() - transAt) / 450f
-        if (hasFrozen && p < 1f && trans != "cut") {
+        if (hasFrozen && p < 1f && trans != "cut" && trans != "none") {
             GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-            if (trans == "black") { if (p < 0.5f) { fade.alpha = 1f; fade.drawRgb(tex[1 - cur], LookDrawer.ID, W, H, 0, 0, W, H) }
-                val a = if (p < 0.5f) p * 2 else (1 - p) * 2; fade.cm = ZERO; fade.alpha = a; fade.drawRgb(tex[1 - cur], LookDrawer.ID, W, H, 0, 0, W, H); fade.cm = LookDrawer.ID.copyOf() }
-            else { fade.alpha = 1f - p; fade.drawRgb(tex[1 - cur], LookDrawer.ID, W, H, 0, 0, W, H) }
-            GLES20.glDisable(GLES20.GL_BLEND)
+            transDraw(p)
+            GLES20.glDisable(GLES20.GL_BLEND); GLES20.glDisable(GLES20.GL_SCISSOR_TEST)
+            GLES20.glViewport(0, 0, W, H)
         } else if (p >= 1f) hasFrozen = false
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
         GLES20.glFlush()
@@ -204,6 +203,31 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         fpsN++; val now = SystemClock.uptimeMillis(); if (now - fpsT >= 1000) { fps = fpsN; fpsN = 0; fpsT = now }
     }
 
+    /* the same switch effects as the editor, drawn from the last picture of the previous angle (old) over the new one */
+    private fun old(x: Int, y: Int, w: Int, hh: Int, a: Float = 1f) { fade.alpha = a; fade.drawRgb(tex[1 - cur], LookDrawer.ID, W, H, x, y, w, hh) }
+    private fun solid(white: Boolean, a: Float) { if (a <= 0.003f) return; fade.cm = ZERO; fade.co = if (white) floatArrayOf(1f, 1f, 1f, 0f) else floatArrayOf(0f, 0f, 0f, 0f)
+        fade.alpha = a.coerceAtMost(1f); fade.drawRgb(tex[cur], LookDrawer.ID, W, H, 0, 0, W, H); fade.cm = LookDrawer.ID.copyOf(); fade.co = floatArrayOf(0f, 0f, 0f, 0f) }
+    private fun clip(x: Int, y: Int, w: Int, hh: Int) { GLES20.glEnable(GLES20.GL_SCISSOR_TEST); GLES20.glScissor(x, y, maxOf(0, w), maxOf(0, hh)) }
+    private fun transDraw(p: Float) {
+        val e = p * p * (3 - 2 * p)   // smooth start and end
+        when (trans) {
+            "black", "white" -> { if (p < 0.5f) old(0, 0, W, H); solid(trans == "white", if (p < 0.5f) p * 2 else (1 - p) * 2) }
+            "flash" -> { if (p < 0.15f) old(0, 0, W, H); solid(true, if (p < 0.15f) p / 0.15f else (1 - p) / 0.85f) }
+            "slide" -> old((-e * W).toInt(), 0, W, H)
+            "slideup" -> old(0, (e * H).toInt(), W, H)
+            "zoom" -> { val s = 1f + e * 0.6f; val w = (W * s).toInt(); val hh = (H * s).toInt(); old((W - w) / 2, (H - hh) / 2, w, hh, 1f - e) }
+            "whip" -> { val q = e * e; old((-q * W * 1.2f).toInt(), 0, W, H, 1f - q * 0.5f) }
+            "wipe" -> { clip((e * W).toInt(), 0, W, H); old(0, 0, W, H) }
+            "circle" -> {   // the new angle opens from the middle
+                val rw = (e * W).toInt(); val rh = (e * H).toInt(); val x0 = (W - rw) / 2; val y0 = (H - rh) / 2
+                clip(0, 0, x0, H); old(0, 0, W, H); clip(x0 + rw, 0, W - x0 - rw, H); old(0, 0, W, H)
+                clip(x0, 0, rw, y0); old(0, 0, W, H); clip(x0, y0 + rh, rw, H - y0 - rh); old(0, 0, W, H)
+            }
+            "doors" -> { val d = (e * W / 2).toInt()
+                clip(0, 0, W / 2 - d, H); old(-d, 0, W, H); clip(W / 2 + d, 0, W - W / 2 - d, H); old(d, 0, W, H) }
+            else -> old(0, 0, W, H, 1f - p)   // fade
+        }
+    }
     private fun show(x: Int, y: Int, w: Int, hh: Int) {
         plain.drawRgb(tex[cur], LookDrawer.ID, W, H, x, y, w, hh)
         if (ovTex != 0) {

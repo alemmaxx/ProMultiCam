@@ -360,10 +360,12 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(ar, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val tr = LinearLayout(this); tr.orientation = LinearLayout.HORIZONTAL; val tb = ArrayList<Button>()
-        for ((id, name) in listOf("fade" to t("Soft fade", "Lembut"), "black" to t("Dip to black", "Gelap"), "cut" to t("Straight cut", "Terus"))) {
-            val pb = Ui.pill(this, name, trans == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, listOf("fade", "black", "cut")[j] == trans) } }
-            tb.add(pb); tr.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
+        // same switch effects as the editor
+        val tr = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); val tIds = Fx.TRANS
+        fun cur() = if (trans == "cut") "none" else trans
+        for (id in tIds) {
+            val pb = Ui.pill(this, Fx.transName(id), cur() == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, tIds[j] == cur()) } }
+            pb.textSize = 12f; tb.add(pb); tr.addView(pb) }
         b.addView(tr, Ui.lp(this, 6))
         // fade at the start and end of each recording (also each Continue / Resume)
         b.addView(Ui.label(this, t("Recording fade", "Pudar rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
@@ -873,7 +875,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     /* fade in / out of a recording (picture to black and sound), set in Settings */
     /* with a fade in/out set, a continued part simply fades up from black: no picture of the last moment */
-    private fun useStill() = trans != "cut" && recFi() <= 0f && recFo() <= 0f
+    private fun useStill() = trans != "cut" && trans != "none" && recFi() <= 0f && recFo() <= 0f
     private fun recFi() = sp.getFloat("recFi", 0f); private fun recFo() = sp.getFloat("recFo", 0f)
     private var fading = false; private var fadeOutDone = false
     private fun ramp(up: Boolean, sec: Float, done: () -> Unit) {
