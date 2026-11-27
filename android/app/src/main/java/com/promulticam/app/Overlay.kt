@@ -72,8 +72,25 @@ object Overlay {
     private fun ft(px: Float) { val f = FONTS[i.font]!!; p.typeface = face(i.ctx, i.font); p.textSize = px }
     private fun fi(px: Float, w: Int? = null) { val f = FONTS[i.font]!!; val key = if (f.script) "poppins" else i.font; p.typeface = face(i.ctx, key, w ?: FONTS[key]!!.w); p.textSize = px }
     private fun cap(x: String) = if (FONTS[i.font]?.caps == true) x.uppercase() else x
-    private fun fit(t: String, maxW: Float): String { if (p.measureText(t) <= maxW) return t; var s = t; while (s.length > 1 && p.measureText("$s…") > maxW) s = s.dropLast(1); return "$s…" }
-    private fun wrap(txt: String, maxW: Float, max: Int): List<String> {
+    /* long words: the letters get smaller until the whole line fits (only cut with … if it is extremely long) */
+    private fun fit(t0: String, maxW: Float): String {
+        val t = t0.replace(Regex("\\s*\n\\s*"), "  ·  "); if (p.measureText(t) <= maxW) return t
+        val sz = p.textSize; var z = sz; while (z > sz * 0.45f && p.measureText(t) > maxW) { z *= 0.94f; p.textSize = z }
+        if (p.measureText(t) <= maxW) return t
+        var r = t; while (r.length > 1 && p.measureText("$r…") > maxW) r = r.dropLast(1); return "$r…" }
+    private var Wg = 0f; private var Hg = 0f; private var barG = 0f; private var Sg = 0f
+    /* the logo where the person chose (top/bottom, left/right), inside an area of the picture */
+    private fun placeLogo(box: Float, alpha: Float = 1f, ax: Float = 0f, ay: Float = barG, aw: Float = Wg, ah: Float = Hg - 2 * barG) {
+        if (!logoOk()) return; val pos = i.logoPos; val mm = Sg * 0.04f
+        val x = if (pos.getOrNull(1) == 'l') ax + mm else ax + aw - mm - box
+        val y = if (pos.getOrNull(0) == 't') ay + mm else ay + ah - mm - box
+        logoAt(x, y, box, alpha)
+    }
+    private fun wrap(txt0: String, maxW: Float, max: Int): List<String> {
+        // lines typed by the person (Enter) are kept; each is wrapped if too long
+        val paras = txt0.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+        if (paras.size > 1) { val all = ArrayList<String>(); for (pa in paras) all.addAll(wrap(pa, maxW, max)); return all.take(max) }
+        val txt = paras.firstOrNull() ?: ""
         val words = txt.split(Regex("\\s+")).filter { it.isNotEmpty() }; val out = ArrayList<String>(); var cur = ""
         var idx = 0
         while (idx < words.size) { val w = words[idx]; val test = if (cur.isEmpty()) w else "$cur $w"
@@ -103,7 +120,7 @@ object Overlay {
     fun draw(c: Canvas, inp: In) {
         g = c; i = inp
         val W = i.W.toFloat(); val H = i.H.toFloat(); val S = minOf(W, H); val m = Math.round(S * 0.045f).toFloat(); val barH = if (i.bars) Math.round(H * 0.08f).toFloat() else 0f
-        val P = H > W; val PRO = i.pro
+        val P = H > W; val PRO = i.pro; Wg = W; Hg = H; barG = barH; Sg = S
         val title = i.title.trim(); val price = if (PRO) i.price.trim() else ""; val phone = if (PRO) i.phone.trim() else ""
         val shop = if (PRO) i.shop.trim() else ""; val desc = if (PRO) i.desc.trim() else ""
         val st = if (PRO && i.style in STYLES) i.style else "card"; val C = COLORS[if (PRO) i.col else "gold"] ?: COLORS["gold"]!!
@@ -113,13 +130,16 @@ object Overlay {
         val low = H - barH - m
         when (st) {
             "band" -> {
-                val bh = Math.round(S * 0.17f).toFloat(); val y = low - bh; rect(0f, y, W, bh, 0xE60E0E0F.toInt()); rect(0f, y, W, maxOf(3f, S * 0.008f), C.c)
-                var x = m; val lb = if (logoOk()) Math.round(bh * 0.7f).toFloat() else 0f; if (lb > 0) { logoAt(x, y + (bh - lb) / 2, lb); x += lb + m * 0.6f }
+                val bh = Math.round(S * 0.17f).toFloat(); val y = low - bh
+                fill.shader = android.graphics.LinearGradient(0f, y, 0f, y + bh, 0xF2141210.toInt(), 0xE6070707.toInt(), android.graphics.Shader.TileMode.CLAMP); fill.style = Paint.Style.FILL; g.drawRect(0f, y, W, y + bh, fill); fill.shader = null
+                rect(0f, y, W, maxOf(3f, S * 0.008f), C.c)
+                placeLogo(Math.round(S * 0.15f).toFloat(), 1f, 0f, barH, W, y - barH)
+                val x = m
                 val mw = W - x - m; ft(bh * 0.32f); text(fit(cap(title.ifEmpty { shop }), mw), x, y + bh * 0.48f, Color.WHITE)
                 fi(bh * 0.22f); text(fit(info, mw), x, y + bh * 0.8f, C.c)
             }
             "promo" -> {
-                logoAt(m, m + barH, Math.round(S * 0.18f).toFloat())
+                placeLogo(Math.round(S * 0.18f).toFloat(), 1f, 0f, barH, W, low - S * 0.16f - barH)
                 if (price.isNotEmpty()) { val r = Math.round(S * 0.14f).toFloat(); val cx = W - m - r; val cy = m + barH + r
                     g.save(); g.translate(cx, cy); g.rotate(Math.toDegrees(-0.17).toFloat()); fill.style = Paint.Style.FILL; fill.color = C.c; g.drawCircle(0f, 0f, r, fill)
                     fi(r * 0.26f, 800); text(Ui.t("PROMO", "PROMO"), 0f, -r * 0.28f, C.ink, Paint.Align.CENTER); ft(r * 0.5f); text(fit(cap(price), r * 1.7f), 0f, r * 0.32f, C.ink, Paint.Align.CENTER); g.restore() }
@@ -127,10 +147,10 @@ object Overlay {
                 if (phone.isNotEmpty()) { fi(S / 24); text(fit(phoneLine(phone), W - m * 2), m, low, Color.WHITE) }; shadow(S, false)
             }
             "menu" -> {
-                logoAt(W - m - Math.round(S * 0.18f), m + barH, Math.round(S * 0.18f).toFloat())
                 var items = menuItems(); if (items.isEmpty() && (title.isNotEmpty() || price.isNotEmpty())) items = listOf(Pair(title, price))
                 val fs = Math.round(S / 24).toFloat(); val pad = Math.round(fs * 0.8f).toFloat(); val rowH = fs * 1.55f; val w = W - m * 2
                 val h = pad * 2 + fs * 1.4f + items.size * rowH + (if (phone.isNotEmpty()) fs * 1.4f else 0f); val y = low - h
+                placeLogo(Math.round(S * 0.18f).toFloat(), 1f, 0f, barH, W, y - barH)
                 rr(m, y, w, h, fs * 0.6f, 0xE00E0E0F.toInt()); rr(m, y, w, h, fs * 0.6f, C.c, maxOf(2f, S * 0.004f))
                 var cy = y + pad + fs; ft(fs * 1.05f); text(fit(cap(shop.ifEmpty { Ui.t("TODAY'S MENU", "MENU HARI INI") }), w - pad * 2), m + pad, cy, C.c); cy += fs * 1.4f
                 for ((n, pr) in items) { fi(fs, 600); text(fit(n, w * 0.62f), m + pad, cy, Color.WHITE); fi(fs, 800); text(pr, m + w - pad, cy, C.c, Paint.Align.RIGHT); cy += rowH }
@@ -141,33 +161,36 @@ object Overlay {
                 text(fit(cap(Ui.t("TODAY'S SALE", "JUALAN HARI INI") + if (price.isNotEmpty()) "  ·  $price" else ""), W - m * 2), W / 2, barH + bh * 0.68f, C.ink, Paint.Align.CENTER)
                 fi(S / 30, 700); val tg = Ui.t("Limited stock", "Stok terhad"); val tw = p.measureText(tg) + S * 0.04f
                 rr(W - m - tw, barH + bh + m * 0.5f, tw, S * 0.06f, S * 0.015f, 0xD90E0E0F.toInt()); text(tg, W - m - tw / 2, barH + bh + m * 0.5f + S * 0.042f, if (C.c == Color.WHITE) Ui.GOLD else C.c, Paint.Align.CENTER)
-                val ch = Math.round(S * 0.12f).toFloat(); val cy = low - ch; rr(m, cy, W - m * 2, ch, ch * 0.25f, C.c)
+                val ch = Math.round(S * 0.12f).toFloat(); val cy = low - ch
+                placeLogo(Math.round(S * 0.15f).toFloat(), 1f, 0f, barH + bh + S * 0.08f, W, cy - S * 0.12f - (barH + bh + S * 0.08f))
+                rr(m, cy, W - m * 2, ch, ch * 0.25f, C.c)
                 fi(ch * 0.36f, 800); text(fit(if (phone.isNotEmpty()) phoneLine(phone) else title, W - m * 4), W / 2, cy + ch * 0.63f, C.ink, Paint.Align.CENTER)
                 if (title.isNotEmpty() && phone.isNotEmpty()) { shadow(S, true); ft(S / 13); text(fit(cap(title), W - m * 2), W / 2, cy - S * 0.04f, Color.WHITE, Paint.Align.CENTER); shadow(S, false) }
             }
             "minimal" -> {
-                val lb = Math.round(S * 0.11f).toFloat(); logoAt(W - m - lb, low - lb, lb, 0.85f)
+                val lb = Math.round(S * 0.11f).toFloat(); placeLogo(lb, 0.85f)
                 val t0 = shop.ifEmpty { title }; if (t0.isNotEmpty()) { shadow(S, true); fi(S / 28, 600); p.alpha = 217; text(fit(t0, W * 0.6f), m, low - S * 0.02f, Color.WHITE); p.alpha = 255; shadow(S, false) }
             }
             "polaroid" -> {
                 val R = videoRect(st, i.W, i.H)!!; val by = R[1] + R[3]; val rest = H - by
                 ft(minOf(rest * 0.3f, S / 10)); text(fit(cap(title.ifEmpty { shop }), W * 0.9f), W / 2, by + rest * 0.42f, 0xFF2B1D12.toInt(), Paint.Align.CENTER)
                 fi(minOf(rest * 0.15f, S / 24), 600); text(fit(info, W * 0.9f), W / 2, by + rest * 0.7f, 0xFF7A5A32.toInt(), Paint.Align.CENTER)
-                logoAt(R[0] + R[2] - m - Math.round(S * 0.13f), R[1] + m, Math.round(S * 0.13f).toFloat())
+                placeLogo(Math.round(S * 0.13f).toFloat(), 1f, R[0], R[1], R[2], R[3])
             }
             "gold" -> {
                 val ins = Math.round(S * 0.02f).toFloat(); rr(ins, ins + barH, W - ins * 2, H - ins * 2 - barH * 2, S * 0.03f, C.c, maxOf(3f, S * 0.008f))
                 if (shop.isNotEmpty() || logoOk()) { ft(S / 24); val tx = cap(shop); val tw = maxOf(p.measureText(tx), if (shop.isNotEmpty()) 0f else S * 0.1f) + S * 0.08f; val th = S * 0.075f
                     rr(W / 2 - tw / 2, barH, tw, th, S * 0.02f, C.c)
                     if (shop.isNotEmpty()) text(tx, W / 2, barH + th * 0.7f, C.ink, Paint.Align.CENTER) else logoAt(W / 2 - th * 0.45f, barH + th * 0.05f, th * 0.9f) }
-                if (shop.isNotEmpty() && logoOk()) logoAt(W - m - Math.round(S * 0.15f), barH + m + S * 0.06f, Math.round(S * 0.15f).toFloat())
+                if (shop.isNotEmpty() && logoOk()) placeLogo(Math.round(S * 0.15f).toFloat(), 1f, 0f, barH + S * 0.09f, W, low - S * 0.2f - (barH + S * 0.09f))
                 shadow(S, true); ft(S / 11); text(fit(cap(title), W - m * 3), W / 2, low - S * 0.07f, Color.WHITE, Paint.Align.CENTER)
                 fi(S / 24); text(fit(info, W - m * 3), W / 2, low, C.c, Paint.Align.CENTER); shadow(S, false)
             }
             "panel" -> {
                 val R = videoRect(st, i.W, i.H)!!; val px = if (P) 0f else R[2]; val py = if (P) R[3] else 0f; val pw = if (P) W else W - R[2]; val ph = if (P) H - R[3] else H; val pad = Math.round(S * 0.05f).toFloat()
                 if (P) rect(0f, py, W, maxOf(3f, S * 0.008f), C.c) else rect(px, 0f, maxOf(3f, S * 0.008f), H, C.c)
-                val x = px + pad; var y = py + pad; val lb = if (logoOk()) Math.round(S * 0.1f).toFloat() else 0f; if (lb > 0) logoAt(x, y, lb)
+                placeLogo(Math.round(S * 0.13f).toFloat(), 1f, R[0], R[1], R[2], R[3])
+                val x = px + pad; var y = py + pad; val lb = 0f
                 val tx = if (lb > 0) x + lb + pad * 0.5f else x; val tw = px + pw - pad - tx
                 ft(if (P) S / 16 else minOf(S / 16, pw / 10)); text(fit(cap(title.ifEmpty { shop }), tw), tx, y + (if (lb > 0) lb * 0.62f else S / 16), Color.WHITE)
                 y += maxOf(lb, S / 16) + pad * 0.6f
@@ -179,7 +202,7 @@ object Overlay {
                     fi(S / 34, 600); text(fit(phone, pw - pad * 2), x, by - S * 0.02f, 0xFFC8C4BB.toInt()) }
             }
             "speaker" -> {
-                logoAt(W - m - Math.round(S * 0.16f), m + barH, Math.round(S * 0.16f).toFloat())
+                placeLogo(Math.round(S * 0.16f).toFloat(), 1f, 0f, barH, W, low - S * 0.16f - barH)
                 val who = i.speaker; if (who.isEmpty() && title.isEmpty()) return
                 val fs = Math.round(S / 20).toFloat(); val pad = fs * 0.6f; val y = low - fs * 1.7f
                 ft(fs); val nw = minOf(W - m * 2, p.measureText(cap(who)) + pad * 2); rect(m, y, nw, fs * 1.7f, 0xEB0E0E0F.toInt()); text(fit(cap(who), nw - pad * 2), m + pad, y + fs * 1.2f, Color.WHITE)
@@ -192,12 +215,14 @@ object Overlay {
 
     /* style 1: the recipe card (also what Basic uses) */
     private fun card(W: Float, H: Float, S: Float, m: Float, barH: Float, title: String, price: String, phone: String, C: Col) {
-        val hasCard = price.isNotEmpty() || phone.isNotEmpty()
-        var cardY = 0f; var cardH = 0f; val fs = Math.round(S / 17).toFloat(); val fs2 = Math.round(S / 24).toFloat(); val pad = Math.round(fs * 0.6f).toFloat()
+        val pl = price.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.take(3)
+        val phl = phone.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.take(2)
+        val hasCard = pl.isNotEmpty() || phl.isNotEmpty()
+        var cardY = 0f; var cardH = 0f; val fs = Math.round(S / 17).toFloat(); val fs2 = Math.round(S / 24).toFloat(); val pad = Math.round(fs * 0.7f).toFloat()
         val cardW = W - m * 2; var tl = listOf<String>()
         if (hasCard) {
-            if (title.isNotEmpty()) { ft(fs); tl = wrap(cap(title), cardW - pad * 2, 2) }
-            cardH = pad * 2 + (if (tl.isNotEmpty()) fs * 1.3f + (tl.size - 1) * fs * 1.12f else 0f) + (if (price.isNotEmpty()) fs * 1.55f else 0f) + (if (phone.isNotEmpty()) fs2 * 1.6f else 0f)
+            if (title.isNotEmpty()) { ft(fs); tl = wrap(cap(title), cardW - pad * 2, 3) }
+            cardH = pad * 2 + (if (tl.isNotEmpty()) fs * 1.3f + (tl.size - 1) * fs * 1.12f else 0f) + pl.size * fs * 1.55f + phl.size * fs2 * 1.5f
             cardY = H - barH - m - cardH
         }
         val l = i.logo
@@ -210,18 +235,22 @@ object Overlay {
             g.drawBitmap(l, null, RectF(x, y, x + lw, y + lh), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         }
         if (hasCard) {
+            // glass card: soft dark panel, thin colour edge and an accent line
+            rr(m, cardY, cardW, cardH, fs * 0.45f, 0x99090909.toInt()); rr(m, cardY, cardW, cardH, fs * 0.45f, (C.c and 0x00FFFFFF) or 0x66000000, maxOf(1.5f, S * 0.0025f))
+            rr(m + pad * 0.45f, cardY + pad, maxOf(3f, S * 0.007f), cardH - pad * 2, S * 0.004f, C.c)
             shadow(S, true)
-            var cy = cardY + pad; val lx = m + pad; val maxW = cardW - pad * 2
-            if (tl.isNotEmpty()) { ft(fs); tl.forEachIndexed { k, ln -> text(ln, lx, cy + fs * 0.95f + k * fs * 1.12f, Color.WHITE) }; cy += fs * 1.3f + (tl.size - 1) * fs * 1.12f }
-            if (price.isNotEmpty()) { val pf = Math.round(fs * 0.9f).toFloat(); fi(pf, 800); val pt = fit(price, maxW - pad); val pw = p.measureText(pt) + pad * 1.2f
+            var cy = cardY + pad; val lx = m + pad * 1.1f; val maxW = cardW - pad * 2.2f
+            if (tl.isNotEmpty()) { ft(fs); tl.forEachIndexed { k, ln -> ft(fs); text(fit(ln, maxW), lx, cy + fs * 0.95f + k * fs * 1.12f, Color.WHITE) }; cy += fs * 1.3f + (tl.size - 1) * fs * 1.12f }
+            for (pr in pl) { val pf = Math.round(fs * 0.9f).toFloat(); fi(pf, 800); val pt = fit(pr, maxW - pad); val pw = p.measureText(pt) + pad * 1.2f
                 rr(lx, cy + fs * 0.05f, pw, pf * 1.35f, pf * 0.3f, C.c); shadow(S, false); text(pt, lx + pad * 0.6f, cy + fs * 0.05f + pf * 0.98f, C.ink); shadow(S, true); cy += fs * 1.55f }
-            if (phone.isNotEmpty()) { fi(fs2, 800); text(fit(phoneLine(phone), maxW), lx, cy + fs2 * 1.05f, Color.WHITE) }
+            phl.forEachIndexed { k, ln -> fi(fs2, 800); text(fit(if (k == 0) phoneLine(ln) else ln, maxW), lx, cy + fs2 * 1.05f, Color.WHITE); cy += fs2 * 1.5f }
             shadow(S, false)
         } else if (title.isNotEmpty()) {
             val f = Math.round(S / 15).toFloat(); ft(f)
-            val tt = fit(cap(title), W - m * 4); val tw = p.measureText(tt); val pd = f * 0.5f; val ty = Math.round(H * (if (i.bars) 0.1f else 0.06f)).toFloat()
-            rr(W / 2 - tw / 2 - pd, ty, tw + pd * 2, f * 1.6f, f * 0.35f, (C.c and 0x00FFFFFF) or 0xF2000000.toInt())
-            text(tt, W / 2, ty + f * 1.15f, C.ink, Paint.Align.CENTER)
+            val lines = wrap(cap(title), W - m * 4, 3); val pd = f * 0.5f; val ty = Math.round(H * (if (i.bars) 0.1f else 0.06f)).toFloat()
+            var tw = 0f; lines.forEach { tw = maxOf(tw, p.measureText(it)) }; tw = minOf(tw, W - m * 4)
+            rr(W / 2 - tw / 2 - pd, ty, tw + pd * 2, f * 0.5f + lines.size * f * 1.15f, f * 0.35f, (C.c and 0x00FFFFFF) or 0xF2000000.toInt())
+            lines.forEachIndexed { k, ln -> ft(f); text(fit(ln, W - m * 4), W / 2, ty + f * 1.15f + k * f * 1.15f, C.ink, Paint.Align.CENTER) }
         }
     }
 

@@ -350,7 +350,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         qr.addView(q7, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }); qr.addView(q10, LinearLayout.LayoutParams(0, -2, 1f))
         b.addView(qr, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Title (optional)", "Tajuk (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val ti = Ui.input(this, t("e.g. Nasi Lemak Sambal Sotong", "cth: Nasi Lemak Sambal Sotong"), brand.title); b.addView(ti, Ui.lp(this, 6))
+        val ti = Ui.input(this, t("e.g. Nasi Lemak Sambal Sotong", "cth: Nasi Lemak Sambal Sotong"), brand.title); multi(ti); b.addView(ti, Ui.lp(this, 6))
         b.addView(Ui.hr(this))
         // brand + when to show, kept as 6 styles: tap a style to use it, "Edit" to change it
         b.addView(Ui.section(this, t("Brand styles", "Gaya Jenama")))
@@ -444,7 +444,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         })
         val box = FrameLayout(this); box.setBackgroundColor(android.graphics.Color.BLACK); box.addView(pv, FrameLayout.LayoutParams(-1, -1))
         outer.addView(box, 1, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.42f).toInt()).apply { topMargin = Ui.px(this@DirectorActivity, 6); bottomMargin = Ui.px(this@DirectorActivity, 6) })
-        s.dialog.window?.setLayout(-1, -1)
+        s.dialog.window?.setLayout(-1, -1); s.dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        val full = (resources.displayMetrics.heightPixels * 0.42f).toInt(); val small = (resources.displayMetrics.heightPixels * 0.2f).toInt()
+        outer.viewTreeObserver.addOnGlobalLayoutListener {
+            val r = android.graphics.Rect(); outer.getWindowVisibleDisplayFrame(r); val kb = resources.displayMetrics.heightPixels - r.bottom > resources.displayMetrics.heightPixels * 0.15f
+            val want = if (kb) small else full; val lp = box.layoutParams; if (lp.height != want) { lp.height = want; box.layoutParams = lp } }
         val lr = LinearLayout(this); lr.orientation = LinearLayout.HORIZONTAL; lr.gravity = Gravity.CENTER_VERTICAL
         val lv = android.widget.ImageView(this); logoView = lv; lv.background = Ui.round(0xFF121110.toInt(), Ui.dp(this, 12f), Ui.LINE, 2); lv.setImageBitmap(brand.logo); lv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         lr.addView(lv, LinearLayout.LayoutParams(Ui.px(this, 54), Ui.px(this, 54)))
@@ -453,9 +457,9 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(lr, Ui.lp(this, 6))
         b.addView(Ui.check(this, t("Remove logo background (see-through)", "Buang latar logo (lutsinar)"), brand.removeBg) { v -> brand.removeBg = v; lv.setImageBitmap(brand.logo); refreshOverlay() })
         b.addView(Ui.label(this, t("Price / tagline (optional)", "Harga / slogan (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val pr = Ui.input(this, t("e.g. RM12.90 or Buy 2 Free 1", "cth: RM12.90 atau Beli 2 Percuma 1"), brand.price); b.addView(pr, Ui.lp(this, 6))
+        val pr = Ui.input(this, t("e.g. RM12.90 or Buy 2 Free 1", "cth: RM12.90 atau Beli 2 Percuma 1"), brand.price); multi(pr); b.addView(pr, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Phone / contact (optional)", "Telefon / hubungi (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
-        val ph = Ui.input(this, t("e.g. 012-345 6789 or Order via the bio link", "cth: 012-345 6789 atau Tempah di pautan bio"), brand.phone); b.addView(ph, Ui.lp(this, 6))
+        val ph = Ui.input(this, t("e.g. 012-345 6789 or Order via the bio link", "cth: 012-345 6789 atau Tempah di pautan bio"), brand.phone); multi(ph); b.addView(ph, Ui.lp(this, 6))
         b.addView(Ui.check(this, t("Brand in the video", "Jenama dalam video"), brand.on) { v -> brand.on = v; refreshOverlay() }, Ui.lp(this, 8))
         // each part: always, hidden, or shown for some seconds (once at the start, or again and again)
         b.addView(Ui.label(this, t("When to show", "Bila dipaparkan"), 15f, Ui.TEXT, true), Ui.lp(this, 14))
@@ -506,7 +510,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             cv.addView(Ui.label(this, "${k + 1}. " + (if (Ui.ms) nm.second else nm.first), 13f, Ui.TEXT, true)); cv.addView(Ui.label(this, if (Ui.ms) ds.second else ds.first, 11f, Ui.SUB))
             cv.setOnClickListener { if (st != "card" && !Auth.isPro) { needPro(); return@setOnClickListener }; brand.style = st; showRows() }
             cards.add(cv)
-            val gp = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(k / 2), android.widget.GridLayout.spec(k % 2, 1f)); gp.width = 0; gp.setMargins(4, 5, 4, 5); og.addView(cv, gp)
+            (cv.getChildAt(0) as TextView).maxLines = 1; (cv.getChildAt(1) as TextView).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END }
+            val gp = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(k / 2), android.widget.GridLayout.spec(k % 2, 1f)); gp.width = 0; gp.height = Ui.px(this, 78); gp.setMargins(4, 5, 4, 5); og.addView(cv, gp)
         }
         b.addView(og, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Colour", "Warna"), 13f, Ui.SUB, true), Ui.lp(this, 12))
@@ -531,13 +536,14 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 brand.logoPos = id; pbs.forEachIndexed { j, x -> Ui.setPill(this, x, Overlay.POS[j].first == id) }; refreshOverlay() }
             pbs.add(pb); val gp = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(k / 2), android.widget.GridLayout.spec(k % 2, 1f)); gp.width = 0; gp.setMargins(4, 5, 4, 5); pg.addView(pb, gp) }
         b.addView(pg, Ui.lp(this, 6))
-        b.addView(Ui.hint(this, t("Logo position: Standard style only.", "Kedudukan logo: gaya Standard sahaja.")))
         showRows()
         pr.addTextChangedListener(watch { brand.price = it; brand.refreshText(); refreshOverlay() }); ph.addTextChangedListener(watch { brand.phone = it; brand.refreshText(); refreshOverlay() })
         s.dialog.setOnDismissListener { saveSlot(n); refreshOverlay(); logoView = null; slotPaint?.invoke() }
         s.dialog.show()
     }
 
+    /* text boxes that take more than one line (Enter = new line) */
+    private fun multi(e: android.widget.EditText) { e.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES; e.isSingleLine = false; e.maxLines = 3; e.minLines = 1 }
     private fun watch(f: (String) -> Unit) = object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
