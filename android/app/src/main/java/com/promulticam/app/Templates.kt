@@ -108,7 +108,7 @@ object Templates {
             St("quick", "music", "Quick cuts", "Potongan pantas", "ceria", 12, 2, listOf("zoomin", "pulse"), listOf("whip", "zoom", "flash"), "pop", null),
             St("doors", "music", "Doors & circles", "Pintu & bulatan", "ceria", 8, 4, listOf("zoomin"), listOf("doors", "circle", "wipe"), "pop", null),
             St("piano", "music", "Soft piano", "Piano lembut", "lembut", 6, 4, listOf("zoomin", "zoomout"), listOf("fade", "white"), "soft", null))
-        return stories() + S.map { st ->
+        return showcase() + stories() + S.map { st ->
             val bpm = MusicLib.ALL.first { it.id == st.song }.bpm; val beat = 60f / bpm; val d = st.beats * beat
             val slots = List(st.n) { k -> slot(d, st.fxs[k % st.fxs.size], if (k == 0) "none" else st.trs[k % st.trs.size], st.look, if (k == 0) 0.3f else 0f, if (k == st.n - 1) 0.8f else 0f) }
             val lays = ArrayList<JSONObject>(); val total = d * st.n
@@ -117,6 +117,79 @@ object Templates {
             st.sub?.let { lays.add(tx(t(it.first, it.second), maxOf(0f, total - d * 2), total, "darkbox", "white", "slide", 0.8f)) }
             Item("b_" + st.id, t(st.en, st.ms), tpl(t(st.en, st.ms), slots, lays).put("cat", st.cat).put("music", st.song), "built")
         }
+    }
+    /* "Super": templates that use every tool of the editor at once */
+    private fun showcase(): List<Item> {
+        val out = ArrayList<Item>()
+        // 1) everything: 16 boxes, every switch, every moving effect, many colour looks, text styles, stickers, decorations, keyframes, sound effects and music
+        run {
+            val beat = 60f / 112; val d = beat * 4; val n = 16; val total = d * n
+            val trs = Fx.TRANS.filter { it != "none" }; val fxs = Fx.EFFECTS.filter { it != "none" }
+            val looks = listOf("supermassive", "super", "fantastic", "superior", "cine", "warm", "pop", "vhs", "drama", "soft", "old", "bw")
+            val slots = List(n) { k -> slot(d, fxs[k % fxs.size], if (k == 0) "none" else trs[(k - 1) % trs.size], looks[k % looks.size], if (k == 0) 0.5f else 0f, if (k == n - 1) 1.2f else 0f).also { o ->
+                o.put("dn", true)
+                if (k == 2) o.put("blur", true)                                   // blurred sides
+                if (k == 3) o.put("kf", "0,1.0000,0.0000,0.0000;1500000,1.6000,0.1000,-0.0800")   // keyframe zoom & move
+                if (k == 6) o.put("speed", 0.5)                                    // slow motion
+                if (k == 9) o.put("speed", 2.0)                                    // fast
+                if (k == 11) o.put("sat", 0.3).put("con", 0.15) } }
+            val L = ArrayList<JSONObject>()
+            // title flies down with keyframes
+            L.add(tx(t("EVERYTHING", "SEMUA FUNGSI"), 0f, d * 2, "d3", "gold", "pop", 0.2f, "anton", 1.5f).put("kf", "0,1.5000,0.0000,-0.3000;1600000,1.5000,0.0000,-0.1200;3200000,1.2000,0.0000,-0.1500"))
+            L.add(tx(t("ProMultiCam editor", "Editor ProMultiCam"), 0.4f, d * 2, "plain", "yellow", "fade", 0.36f, "dancing", 1.1f))
+            // a different text style / font / colour / animation on each box
+            val styles = listOf("boxword", "outline", "plain", "shadow", "glow", "neon", "gradient", "d3", "bubble", "darkbox", "highlight", "retro")
+            val fonts = listOf("bricolage", "poppins", "montserrat", "bebas", "anton", "playfair", "lobster", "pacifico", "dancing", "marker")
+            val cols = listOf("white", "yellow", "gold", "orange", "red", "pink", "cyan", "white")
+            val anims = listOf("pop", "slide", "fade", "type", "shake")
+            for (k in 2 until n - 1) { val st = styles[k % styles.size]
+                L.add(tx(Fx.transName(trs[(k - 1) % trs.size]) + " · " + Fx.fxName(fxs[k % fxs.size]), k * d + 0.1f, (k + 1) * d - 0.05f, st, cols[k % cols.size], anims[k % anims.size], 0.8f, fonts[k % fonts.size], 0.9f)) }
+            L.add(tx(t("Thank you!", "Terima kasih!"), (n - 1) * d, total, "glow", "gold", "type", 0.45f, "lobster", 1.4f))
+            // stickers
+            L.add(tx("🔥", d * 4, d * 6, kind = "sticker", y = 0.3f, anim = "pop", scale = 1.2f).put("x", 0.78))
+            L.add(tx("😋", d * 8, d * 10, kind = "sticker", y = 0.3f, anim = "shake", scale = 1.2f).put("x", 0.22))
+            L.add(tx("💯", d * 12, d * 14, kind = "sticker", y = 0.28f, anim = "pop", scale = 1.3f).put("x", 0.75))
+            // decorations, one after another (all 12)
+            Deco.ALL.forEachIndexed { i, k -> val s0 = i * total / Deco.ALL.size; L.add(tx(k, s0, s0 + total / Deco.ALL.size + d * 0.6f, kind = "deco", anim = "none", scale = 1f)) }
+            val snd = listOf(fx("whoosh", d - 0.1f), fx("pop", d * 4), fx("ding", d * 6), fx("drum", d * 8), fx("clap", d * 12), fx("cash", d * 14))
+            out.add(Item("b_superall", t("Everything ✨", "Semua fungsi ✨"), tpl(t("Everything ✨", "Semua fungsi ✨"), slots, L, snd).put("cat", "super").put("music", "ceria"), "built"))
+        }
+        // 2) cinematic: light leaks, strips, reveal, tilt, story title, soft lights, film look
+        run {
+            val beat = 60f / 90; val d = beat * 4; val n = 10; val total = d * n
+            val trs = listOf("leak", "bands", "reveal", "tilt", "circle", "doors", "leak", "wipe", "zoom")
+            val slots = List(n) { k -> slot(d, listOf("zoomin", "dutch", "panl", "panr", "zoomout")[k % 5], if (k == 0) "none" else trs[(k - 1) % trs.size], "cine", if (k == 0) 0.8f else 0f, if (k == n - 1) 1.5f else 0f).put("blur", k % 4 == 1) }
+            val L = listOf(tx(t("THE STORY", "KISAH KAMI"), 0f, total, "shadow", "white", "fade", 0.42f, "playfair", 1.5f),
+                tx(t("begins", "bermula"), 0.3f, total, "plain", "gold", "fade", 0.47f, "dancing", 1.2f),
+                tx("bokeh", 0f, total, kind = "deco", anim = "none", scale = 0.7f), tx("sparkle", d * 6, total, kind = "deco", anim = "none", scale = 0.8f))
+            out.add(Item("b_supercine", t("Super cinematic", "Super sinematik"), tpl(t("Super cinematic", "Super sinematik"), slots, L).put("cat", "super").put("music", "epik"), "built"))
+        }
+        // 3) party / promo: fast beat, flashes, confetti, hearts, stickers, big sale text
+        run {
+            val beat = 60f / 128; val d = beat * 2; val n = 14; val total = d * n
+            val trs = listOf("flash", "whip", "zoom", "slide", "bands", "slideup", "white", "tilt")
+            val slots = List(n) { k -> slot(d, listOf("pulse", "shake", "zoomin", "blink")[k % 4], if (k == 0) "none" else trs[(k - 1) % trs.size], "pop").put("speed", if (k % 5 == 4) 1.5 else 1.0) }
+            val L = listOf(tx(t("BIG SALE", "JUALAN HEBAT"), 0f, d * 4, "neon", "yellow", "shake", 0.3f, "anton", 1.6f),
+                tx(t("50% OFF", "DISKAUN 50%"), d * 4, d * 9, "d3", "red", "pop", 0.4f, "bebas", 1.7f).put("kf", "0,1.0000,0.0000,0.0000;600000,1.4000,0.0000,0.0000;1200000,1.0000,0.0000,0.0000"),
+                tx(t("ORDER NOW", "ORDER SEKARANG"), d * 9, total, "bubble", "gold", "slide", 0.8f, "poppins", 1.2f),
+                tx("🛒", d * 9, total, kind = "sticker", y = 0.65f, anim = "shake", scale = 1.3f),
+                tx("confetti", 0f, d * 5, kind = "deco", anim = "none", scale = 1.2f), tx("hearts", d * 5, d * 10, kind = "deco", anim = "none"), tx("stars", d * 10, total, kind = "deco", anim = "none"))
+            val snd = listOf(fx("drum", 0.05f), fx("cash", d * 4), fx("clap", d * 9))
+            out.add(Item("b_superparty", t("Super promo", "Super promosi"), tpl(t("Super promo", "Super promosi"), slots, L, snd).put("cat", "super").put("music", "tenaga"), "built"))
+        }
+        // 4) cooking: steam, warm look, keyframe zoom on the food, recipe steps, clean sound
+        run {
+            val beat = 60f / 100; val d = beat * 4; val n = 8; val total = d * n
+            val slots = List(n) { k -> slot(d, listOf("zoomin", "panr", "zoomin", "sway")[k % 4], if (k == 0) "none" else listOf("leak", "slide", "circle", "whip")[k % 4], "warm", if (k == 0) 0.4f else 0f, if (k == n - 1) 1f else 0f)
+                .put("dn", true).put("kf", if (k % 3 == 2) "0,1.0000,0.0000,0.0000;2000000,1.5000,0.0000,0.0500" else "") }
+            val L = ArrayList<JSONObject>()
+            L.add(tx(t("TODAY'S RECIPE", "RESEPI HARI INI"), 0f, d * 2, "boxword", "gold", "pop", 0.2f, "anton", 1.3f))
+            for (k in 1 until n - 1) L.add(tx(t("Step $k", "Langkah $k"), k * d + 0.1f, (k + 1) * d - 0.05f, "darkbox", "white", "slide", 0.82f, "poppins", 1f))
+            L.add(tx(t("Enjoy!", "Selamat menjamu selera!"), (n - 1) * d, total, "glow", "yellow", "type", 0.45f, "lobster", 1.2f))
+            L.add(tx("steam", 0f, total, kind = "deco", anim = "none", scale = 0.9f)); L.add(tx("😋", (n - 1) * d, total, kind = "sticker", y = 0.3f, anim = "pop", scale = 1.3f))
+            out.add(Item("b_supercook", t("Super cooking", "Super masakan"), tpl(t("Super cooking", "Super masakan"), slots, L, listOf(fx("ding", (n - 1) * d))).put("cat", "super").put("music", "dapur"), "built"))
+        }
+        return out
     }
     /* "story" look: one big title stays on the whole video, quick cuts on the beat, light leaks, tilts and strips */
     private fun stories(): List<Item> {
@@ -134,8 +207,8 @@ object Templates {
             Item("b_" + y.id, t(y.en, y.ms), tpl(t(y.en, y.ms), slots, lays).put("cat", y.cat).put("music", y.song), "built")
         }
     }
-    val CATS = listOf("all", "food", "sale", "greet", "life", "music")
-    fun catName(k: String) = when (k) { "all" -> t("All", "Semua"); "food" -> t("Food", "Makanan"); "sale" -> t("Sales", "Jualan"); "greet" -> t("Wishes", "Ucapan"); "life" -> t("Life", "Gaya hidup"); else -> t("Music", "Muzik") }
+    val CATS = listOf("all", "super", "food", "sale", "greet", "life", "music")
+    fun catName(k: String) = when (k) { "all" -> t("All", "Semua"); "super" -> "Super ✨"; "food" -> t("Food", "Makanan"); "sale" -> t("Sales", "Jualan"); "greet" -> t("Wishes", "Ucapan"); "life" -> t("Life", "Gaya hidup"); else -> t("Music", "Muzik") }
 
     /* ---- saved on the phone ---- */
     private fun dir(c: Context) = File(c.filesDir, "templates").apply { mkdirs() }
@@ -150,15 +223,16 @@ object Templates {
 
     /* the edit in the editor → a template (videos/photos become empty slots; text, stickers, brand and sound effects are kept) */
     fun fromProject(name: String, W: Int, H: Int, clips: List<Clip>, layers: List<Layer>, sounds: List<Sound>): JSONObject {
-        val slots = clips.map { c -> slot(c.dur / 1e6f, c.fx, c.trans, c.look, c.fi, c.fo).put("speed", c.speed.toDouble()).put("bri", c.bri.toDouble()).put("con", c.con.toDouble()).put("sat", c.sat.toDouble()) }
-        val ls = layers.filter { it.kind in listOf("text", "sticker", "brand") }.map { l -> JSONObject().put("kind", l.kind).put("text", l.text).put("s", l.s).put("e", l.e).put("style", l.style).put("col", l.col).put("anim", l.anim)
-            .put("x", l.x.toDouble()).put("y", l.y.toDouble()).put("font", l.font).put("scale", l.scale.toDouble()) }
+        val slots = clips.map { c -> slot(c.dur / 1e6f, c.fx, c.trans, c.look, c.fi, c.fo).put("speed", c.speed.toDouble()).put("bri", c.bri.toDouble()).put("con", c.con.toDouble()).put("sat", c.sat.toDouble())
+            .put("blur", c.blur).put("kf", c.kf).put("dn", c.dn) }
+        val ls = layers.filter { it.kind in listOf("text", "sticker", "brand", "deco") }.map { l -> JSONObject().put("kind", l.kind).put("text", l.text).put("s", l.s).put("e", l.e).put("style", l.style).put("col", l.col).put("anim", l.anim)
+            .put("x", l.x.toDouble()).put("y", l.y.toDouble()).put("font", l.font).put("scale", l.scale.toDouble()).put("kf", l.kf) }
         val ss = sounds.filter { it.kind == "sfx" }.map { s -> JSONObject().put("kind", "sfx").put("sfx", s.sfx).put("s", s.s).put("e", s.e).put("vol", s.vol.toDouble()) }
         return tpl(name, slots, ls, ss, W, H)
     }
     fun layers(j: JSONObject): List<Layer> { val a = j.optJSONArray("layers") ?: return emptyList(); return (0 until a.length()).map { i -> val o = a.getJSONObject(i)
         Layer(o.optString("kind", "text"), o.optLong("s"), o.optLong("e")).also { l -> l.text = o.optString("text"); l.style = o.optString("style", "boxword"); l.col = o.optString("col", "white"); l.anim = o.optString("anim", "pop")
-            l.x = o.optDouble("x", 0.5).toFloat(); l.y = o.optDouble("y", 0.78).toFloat(); l.font = o.optString("font", "bricolage"); l.scale = o.optDouble("scale", 1.0).toFloat() } } }
+            l.x = o.optDouble("x", 0.5).toFloat(); l.y = o.optDouble("y", 0.78).toFloat(); l.font = o.optString("font", "bricolage"); l.scale = o.optDouble("scale", 1.0).toFloat(); l.kf = o.optString("kf") } } }
     fun sounds(j: JSONObject): List<Sound> { val a = j.optJSONArray("sounds") ?: return emptyList(); return (0 until a.length()).map { i -> val o = a.getJSONObject(i)
         Sound("sfx", o.optLong("s"), o.optLong("e")).also { s -> s.sfx = o.optString("sfx", "ding"); s.vol = o.optDouble("vol", 1.0).toFloat() } } }
 }

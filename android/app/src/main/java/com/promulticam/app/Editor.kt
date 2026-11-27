@@ -730,7 +730,7 @@ class EditorActivity : AppCompatActivity() {
         val old = clips.getOrNull(i) ?: return
         val isImg = (contentResolver.getType(u) ?: "").startsWith("image")
         fun put(n: Clip) { n.speed = old.speed; n.vol = old.vol; n.look = old.look; n.bri = old.bri; n.con = old.con; n.sat = old.sat; n.trans = old.trans; n.fx = old.fx
-            n.fi = old.fi; n.fo = old.fo; n.fadeVid = old.fadeVid; n.fill = old.fill; n.blur = old.blur; n.kf = old.kf
+            n.fi = old.fi; n.fo = old.fo; n.fadeVid = old.fadeVid; n.fill = old.fill; n.blur = old.blur; n.kf = old.kf; n.dn = old.dn && !n.still
             snap(); clips[i] = n; tl.sel = Sel.C(i); rebuild(start(i)); toast(t("Replaced 🔁", "Ditukar 🔁")); done() }
         val w = wait(t("Loading…", "Memuatkan…"))
         Thread {
@@ -890,8 +890,10 @@ class EditorActivity : AppCompatActivity() {
             for (k in 0 until a.length()) {
                 if (media.isEmpty()) {   // no media yet: an empty box to fill in the editor
                     val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val v = File(work, "slot_" + System.currentTimeMillis() + "_" + k + ".mp4")
-                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw, th, dur, v); val du = probe(v).third.takeIf { it > 0 } ?: dur
+                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw, th, (dur * o.optDouble("speed", 1.0)).toLong(), v); val du = probe(v).third.takeIf { it > 0 } ?: dur
                         out.add(Clip(v, 0, du, true).also { it.fileDur = du; it.img = "slot"; it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std")
+                            it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat()
+                            it.blur = o.optBoolean("blur"); it.kf = o.optString("kf"); it.dn = o.optBoolean("dn")
                             it.fi = o.optDouble("fi", 0.0).toFloat(); it.fo = o.optDouble("fo", 0.0).toFloat() }) } catch (e: Exception) {}
                     continue }
                 val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val (f, isImg) = media[k % media.size]
@@ -899,7 +901,8 @@ class EditorActivity : AppCompatActivity() {
                         try { StillClip.make(bm, tw, th, dur, v); val du = probe(v).third.takeIf { it > 0 } ?: dur; Clip(v, 0, du, true).also { it.fileDur = du; it.img = f.absolutePath } } catch (e: Exception) { null } } }
                     else { val pr = probe(f); if (pr.third <= 0) null else { val st = if (pr.third > dur * 2) (pr.third - dur) / 3 else 0L; Clip(f, st, minOf(pr.third, st + dur), false).also { it.fileDur = pr.third } } }
                 c?.let { it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std"); it.fi = o.optDouble("fi", 0.0).toFloat(); it.fo = o.optDouble("fo", 0.0).toFloat()
-                    it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat(); out.add(it) }
+                    it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat()
+                    it.blur = o.optBoolean("blur"); it.kf = o.optString("kf"); it.dn = o.optBoolean("dn"); out.add(it) }
             }
             // the template's own music (made by the app)
             val mf = j.optString("music").takeIf { it.isNotEmpty() }?.let { id -> try { MusicLib.file(this, id).also { f -> audioCache[f.absolutePath] = Snd.readWav(f) } } catch (e: Exception) { null } }
