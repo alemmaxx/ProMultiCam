@@ -48,9 +48,16 @@ jobs:
         run: |
           node android/tools/manual.js public/manual.js android/app/src/main/assets/manual
           cp public/manual/*.jpg android/app/src/main/assets/manual/
+      - name: Release key (from the repository secrets; the test key is used only when they are missing)
+        env:
+          KS: ${{ secrets.PMC_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"; echo "PMC_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"; echo "release key: yes"; else echo "release key: no (test key)"; fi
       - name: Build
         env:
           PMC_VERSION_CODE: ${{ github.run_number }}
+          PMC_KS_PASS: ${{ secrets.PMC_KS_PASS }}
+          PMC_KEY_ALIAS: ${{ secrets.PMC_KEY_ALIAS }}
         run: gradle -p android assembleRelease --no-daemon --stacktrace
       - name: Publish to the apk branch
         if: github.ref == 'refs/heads/main'

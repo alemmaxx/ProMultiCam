@@ -20,9 +20,9 @@ android {
     signingConfigs {
         create("pmc") {
             storeFile = ksFile
-            storePassword = System.getenv("PMC_KS_PASS") ?: "promulticam"
-            keyAlias = System.getenv("PMC_KEY_ALIAS") ?: "pmc"
-            keyPassword = System.getenv("PMC_KS_PASS") ?: "promulticam"
+            storePassword = System.getenv("PMC_KS_PASS")?.takeIf { it.isNotEmpty() } ?: "promulticam"
+            keyAlias = System.getenv("PMC_KEY_ALIAS")?.takeIf { it.isNotEmpty() } ?: "pmc"
+            keyPassword = System.getenv("PMC_KS_PASS")?.takeIf { it.isNotEmpty() } ?: "promulticam"
         }
     }
     buildTypes {
