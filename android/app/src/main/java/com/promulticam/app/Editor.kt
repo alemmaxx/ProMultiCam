@@ -255,7 +255,7 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
             if (chosen) handles(cv, r)
         }
         ed.layers.forEachIndexed { i, l -> item(l.s, l.e, layLane.getOrElse(i) { 0 }, when (l.kind) { "text" -> 0xFF6B4E12.toInt(); "sticker" -> 0xFF6A2A5A.toInt(); "photo" -> 0xFF1F4A66.toInt(); "pip" -> 0xFF5A1F3A.toInt(); else -> 0xFF3F5A22.toInt() },
-            when (l.kind) { "text" -> "T  " + l.text.replace('\n', ' '); "sticker" -> l.text; "photo" -> "🖼  " + t("Photo", "Gambar"); "pip" -> "🎞  " + t("Video", "Video"); else -> "🏷  " + t("Brand", "Jenama") }, (sel as? Sel.L)?.i == i) }
+            when (l.kind) { "text" -> "T  " + l.text.replace('\n', ' '); "sticker" -> l.text; "photo" -> "🖼  " + t("Photo", "Gambar"); "pip" -> "🎞  " + t("Video", "Video"); "deco" -> Deco.icon(l.text) + "  " + Deco.name(l.text); else -> "🏷  " + t("Brand", "Jenama") }, (sel as? Sel.L)?.i == i) }
         ed.sounds.forEachIndexed { i, s -> item(s.s, s.e, sndLane.getOrElse(i) { 0 }, when (s.kind) { "music" -> 0xFF1E5A3A.toInt(); "sfx" -> 0xFF7A4A12.toInt(); "rec" -> 0xFF6A2A2A.toInt(); else -> 0xFF23407A.toInt() },
             when (s.kind) { "music" -> "♪  " + File(s.file).name.substringAfter('_'); "sfx" -> "🔊 " + s.sfx; "rec" -> "🎙  " + t("Voice", "Suara"); else -> "🗣  " + s.text }, (sel as? Sel.S)?.i == i) }
         // play line
@@ -624,6 +624,7 @@ class EditorActivity : AppCompatActivity() {
         tool("♪", t("Audio", "Audio")) { audioTools() }
         tool("T", t("Text", "Teks")) { newText() }
         tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
+        tool("🌸", t("Decor", "Hiasan")) { decoSheet() }
         tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch("image/*") }
         tool("🎞", t("Video on top", "Video atas")) { pickPip.launch("video/*") }
         tool("✨", t("Effects", "Efek")) { if (clips.isNotEmpty()) fxSheet(locate(tl.time).first) }
@@ -668,7 +669,10 @@ class EditorActivity : AppCompatActivity() {
     private fun layerTools(i: Int) {
         page = "layer"; tools.removeAllViews(); val l = layers.getOrNull(i) ?: return; back()
         if (l.kind == "text") { tool("✎", t("Edit", "Ubah")) { textSheet(l) }; tool("Aa", t("Style", "Gaya")) { textSheet(l) } }
-        if (l.kind != "brand") { tool("＋", t("Bigger", "Besar")) { snap(); l.scale = minOf(4f, l.scale * 1.15f); paintOverlay(tl.time, true) }
+        if (l.kind == "deco") { tool("＋", t("More", "Lebih")) { snap(); l.scale = minOf(3f, l.scale * 1.3f); paintOverlay(tl.time, true) }
+            tool("－", t("Less", "Kurang")) { snap(); l.scale = maxOf(0.3f, l.scale / 1.3f); paintOverlay(tl.time, true) }
+            tool("🔄", t("Change", "Tukar")) { decoSheet(l) } }
+        else if (l.kind != "brand") { tool("＋", t("Bigger", "Besar")) { snap(); l.scale = minOf(4f, l.scale * 1.15f); paintOverlay(tl.time, true) }
             tool("－", t("Smaller", "Kecil")) { snap(); l.scale = maxOf(0.3f, l.scale / 1.15f); paintOverlay(tl.time, true) }
             tool("✨", t("Animation", "Animasi"), l.anim != "none") { animSheet(l) }
             tool("◆", "Keyframe", l.kf.isNotBlank()) { layerKf(l) } }
@@ -775,7 +779,8 @@ class EditorActivity : AppCompatActivity() {
             c.addView(f, LinearLayout.LayoutParams(-1, ch))
             val nm = Ui.label(this, g.it.name, 14f, Ui.TEXT, true); nm.maxLines = 1; nm.ellipsize = android.text.TextUtils.TruncateAt.END; c.addView(nm, Ui.lp(this, 6))
             c.addView(Ui.label(this, "@" + g.user, 12f, Ui.SUB), Ui.lp(this, 2))
-            c.setOnClickListener { s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
+            c.setOnClickListener { if (!Auth.isPro) { proOnly(); return@setOnClickListener }
+                s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
             c.setOnLongClickListener {
                 val canDel = g.it.kind == "mine" || (g.sharedId != null && (Auth.isAdmin || g.ownerUid == Auth.uid)) || (g.it.kind == "server" && Auth.isAdmin)
                 if (canDel) AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?")).setPositiveButton(t("Delete", "Padam")) { _, _ ->
@@ -806,6 +811,12 @@ class EditorActivity : AppCompatActivity() {
             main.post { gServer = sv; gShared = sh; if (s.dialog.isShowing) show() } }.start()
         s.dialog.setOnCancelListener { if (clips.isEmpty()) finish() }
         s.dialog.show(); s.dialog.window?.setLayout(-1, -1)
+    }
+    /* templates: everyone can look, only Pro can use them */
+    private fun proOnly() {
+        AlertDialog.Builder(this).setTitle("👑 Pro").setMessage(t("Templates are for Pro users.", "Templat untuk pengguna Pro sahaja."))
+            .setPositiveButton(t("Upgrade to Pro", "Naik taraf ke Pro")) { _, _ -> if (Auth.signedIn) Nav.open(this, "pro") else toast(t("Please log in first", "Sila log masuk dahulu")) }
+            .setNegativeButton(t("Close", "Tutup"), null).show()
     }
     /* this edit as a template (with the built-in song, if one is used) */
     private fun projectTemplate(n: String): org.json.JSONObject {
@@ -1271,6 +1282,27 @@ class EditorActivity : AppCompatActivity() {
         val s = Ui.sheet(this, t("Animation", "Animasi")); snap()
         pills(s.body, "", animNames(), { l.anim }) { l.anim = it; rebuild(l.s) }
         s.dialog.window?.setLayout(-1, Ui.px(this, 240)); s.dialog.show()
+    }
+    /* decorations: petals, bubbles, rain… from here to the end (or the whole video); change it later from its strip */
+    private fun decoSheet(edit: Layer? = null) {
+        if (clips.isEmpty()) return
+        val s = Ui.sheet(this, "🌸 " + t("Decor", "Hiasan")); var whole = false
+        if (edit == null) { val r = Flow(this, Ui.px(this, 6)); lateinit var a: Button; lateinit var b2: Button
+            a = Ui.pill(this, t("From here", "Dari sini"), true) { whole = false; Ui.setPill(this, a, true); Ui.setPill(this, b2, false) }
+            b2 = Ui.pill(this, t("Whole video", "Seluruh video"), false) { whole = true; Ui.setPill(this, a, false); Ui.setPill(this, b2, true) }
+            r.addView(a); r.addView(b2); s.body.addView(r) }
+        val g = android.widget.GridLayout(this); g.columnCount = 3
+        Deco.ALL.forEachIndexed { i, k ->
+            val c = LinearLayout(this); c.orientation = LinearLayout.VERTICAL; c.gravity = Gravity.CENTER; c.background = Ui.round(0xFF22201C.toInt(), Ui.dp(this, 12f), if (edit?.text == k) Ui.GOLD else 0, Ui.px(this, 2))
+            c.setPadding(0, Ui.px(this, 10), 0, Ui.px(this, 10))
+            c.addView(Ui.center(Ui.label(this, Deco.icon(k), 26f))); c.addView(Ui.center(Ui.label(this, Deco.name(k), 12f, Ui.TEXT, true)), Ui.lp(this, 4))
+            c.setOnClickListener { snap()
+                if (edit != null) edit.text = k
+                else { val st = if (whole) 0L else tl.time; val l = Layer("deco", st, total()); if (l.e - l.s < 500_000) { l.s = 0 }; l.text = k; l.scale = 1f; l.anim = "none"; layers.add(l); onSelect(Sel.L(layers.size - 1)) }
+                s.dialog.dismiss(); rebuild(tl.time); paintOverlay(tl.time, true) }
+            val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 3), android.widget.GridLayout.spec(i % 3, 1f)); p.width = 0; p.setMargins(Ui.px(this, 4), Ui.px(this, 4), Ui.px(this, 4), Ui.px(this, 4)); g.addView(c, p) }
+        s.body.addView(g, Ui.lp(this, 8))
+        s.dialog.show()
     }
     private fun stickerSheet() {
         if (clips.isEmpty()) return

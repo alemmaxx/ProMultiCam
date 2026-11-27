@@ -76,7 +76,8 @@ class TextArt(private val c: Context) {
         list.forEach { l0 -> if (active(l0, t)) { val l = l0.at(t)
             sb.append(l.kind).append(l.text).append(l.font).append(l.col).append(l.style).append(l.x).append(l.y).append(l.scale).append(l.file).append('|')
             val a = t - l.s
-            if (l.anim == "shake") sb.append(t / 60_000)
+            if (l.kind == "deco") sb.append(t / 33_000)
+            else if (l.anim == "shake") sb.append(t / 60_000)
             else if (l.anim == "type") { if (a < typeDur(l)) sb.append(a / 40_000) }
             else if (l.anim != "none" && a < 450_000) sb.append(a / 33_000)
         } }
@@ -92,6 +93,9 @@ class TextArt(private val c: Context) {
     }
 
     private fun draw(cv: Canvas, l: Layer, t: Long, W: Int, H: Int): RectF? {
+        if (l.kind == "deco") {   // moving decoration over the whole picture, gently in and out
+            val k = minOf(((t - l.s) / 500_000f), ((l.e - t) / 500_000f)).coerceIn(0f, 1f)
+            Deco.draw(cv, l.text, t, W, H, k, l.scale); return null }
         val m = minOf(W, H).toFloat(); val a = t - l.s
         var alpha = 1f; var sc = 1f; var dy = 0f; var dx = 0f
         val p = (a / 450_000f).coerceIn(0f, 1f)
