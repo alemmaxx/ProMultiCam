@@ -587,7 +587,8 @@ class EditorActivity : AppCompatActivity() {
     fun onStageTap(i: Int) { if (i >= 0) { onSelect(Sel.L(i)); if (layers[i].kind == "text") textSheet(layers[i]) } else if (tl.sel is Sel.L) onSelect(Sel.None) else togglePlay() }
     fun moveLayer(i: Int, dx: Float, dy: Float) { val l = layers.getOrNull(i) ?: return
         if (l.kf.isNotBlank()) { val e = l.at(tl.time); l.kf = Keys.put(l.kf, Kf(tl.time - l.s, e.scale, (e.x + dx).coerceIn(0.05f, 0.95f) - 0.5f, (e.y + dy).coerceIn(0.05f, 0.95f) - 0.5f)) }
-        else { l.x = (l.x + dx).coerceIn(0.05f, 0.95f); l.y = (l.y + dy).coerceIn(0.05f, 0.95f) } onSelect(Sel.L(i)); paintOverlay(tl.time, true); pipSync(tl.time, false) }
+        else { l.x = (l.x + dx).coerceIn(0.05f, 0.95f); l.y = (l.y + dy).coerceIn(0.05f, 0.95f) }
+        onSelect(Sel.L(i)); paintOverlay(tl.time, true); pipSync(tl.time, false) }
     fun scaleLayer(i: Int, f: Float) { val l = layers.getOrNull(i) ?: return; val mx = if (l.kind == "pip") 2.4f else 4f
         if (l.kf.isNotBlank()) { val e = l.at(tl.time); l.kf = Keys.put(l.kf, Kf(tl.time - l.s, (e.scale * f).coerceIn(0.3f, mx), e.x - 0.5f, e.y - 0.5f)) } else l.scale = (l.scale * f).coerceIn(0.3f, mx); paintOverlay(tl.time, true); pipSync(tl.time, false) }
     fun onAddEnd() { tl.time = maxOf(0, total() - 1); askAdd(false) }
