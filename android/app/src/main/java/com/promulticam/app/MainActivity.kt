@@ -66,26 +66,30 @@ class MainActivity : AppCompatActivity() {
         val sv = ScrollView(c); sv.isFillViewport = true; val col = LinearLayout(c); col.orientation = LinearLayout.VERTICAL
         col.setPadding(Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 18), Ui.px(c, 24)); sv.addView(col); root.addView(sv, Ui.fl(-1, -1))
 
-        // top row: logo · language · log in
-        val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL
+        // top row: logo on the left; on the right, language + log in side by side, and Super Admin under them (same width, same height)
+        val top = LinearLayout(c); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.TOP
+        val bh = Ui.px(c, 48)
         val logo = ImageView(c); logo.setImageResource(R.drawable.ic_logo); logo.background = Ui.raised(c, 0xFF1C1B19.toInt(), 0xFF0E0D0B.toInt(), Ui.dp(c, 12f), Ui.LINE); logo.setPadding(Ui.px(c, 4), Ui.px(c, 2), Ui.px(c, 4), Ui.px(c, 6))
-        top.addView(logo, LinearLayout.LayoutParams(Ui.px(c, 50), Ui.px(c, 50)))
+        top.addView(logo, LinearLayout.LayoutParams(bh, bh))
         top.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
+        val right = LinearLayout(c); right.orientation = LinearLayout.VERTICAL
+        val row = LinearLayout(c); row.orientation = LinearLayout.HORIZONTAL
         val langB = Ui.btn(c, if (Ui.ms) "Bahasa Melayu ▾" else "English ▾") { Ui.setLang(c, if (Ui.ms) "en" else "ms"); recreate() }; langB.textSize = 13f
-        top.addView(langB, LinearLayout.LayoutParams(-2, Ui.px(c, 46)))
+        row.addView(langB, LinearLayout.LayoutParams(-2, bh))
         loginBtn = Ui.btn(c, "") { openAccount() }; loginBtn.textSize = 13f
-        // log in, and the Super Admin button right under it (admin only, with a red count)
-        val acc = LinearLayout(c); acc.orientation = LinearLayout.VERTICAL; acc.gravity = Gravity.END
-        acc.addView(loginBtn, LinearLayout.LayoutParams(-2, Ui.px(c, 46)))
+        row.addView(loginBtn, LinearLayout.LayoutParams(0, bh, 1f).apply { leftMargin = Ui.px(c, 8) })
+        right.addView(row)
         if (Auth.isAdmin) {
-            val fr = FrameLayout(c); val sb = Ui.btn(c, "👑 Super Admin") { startActivity(Intent(c, AdminActivity::class.java)) }; sb.textSize = 12f; sb.setTextColor(Ui.GOLD)
-            fr.addView(sb, Ui.fl(-2, Ui.px(c, 42)).apply { topMargin = Ui.px(c, 8); rightMargin = Ui.px(c, 6) })
+            val fr = FrameLayout(c); fr.clipChildren = false
+            val sb = Ui.btn(c, "👑 Super Admin") { startActivity(Intent(c, AdminActivity::class.java)) }; sb.textSize = 13f; sb.setTextColor(Ui.GOLD)
+            fr.addView(sb, Ui.fl(-1, bh))
             val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
             bd.setPadding(Ui.px(c, 5), 0, Ui.px(c, 5), 0); bd.minWidth = Ui.px(c, 22); bd.visibility = View.GONE
-            fr.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END)); adminBadge = bd
-            acc.addView(fr, LinearLayout.LayoutParams(-2, -2).apply { topMargin = Ui.px(c, 2) })
+            fr.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END).apply { topMargin = -Ui.px(c, 6); rightMargin = -Ui.px(c, 4) }); adminBadge = bd
+            right.addView(fr, LinearLayout.LayoutParams(-1, bh).apply { topMargin = Ui.px(c, 10) })
         }
-        top.addView(acc, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = Ui.px(c, 6) })
+        top.addView(right, LinearLayout.LayoutParams(-2, -2))
+        top.clipChildren = false; right.clipChildren = false
         col.addView(top)
 
         col.addView(Ui.label(c, t("MULTI-CAM STUDIO", "STUDIO MULTI-KAMERA"), 12f, Ui.GOLD, true), Ui.lp(c, 10))
