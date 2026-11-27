@@ -119,3 +119,28 @@ object MusicLib {
         }
     }
 }
+
+/* music the super admin uploads (only songs free to use). Kept in the database in pieces; each phone downloads a song once. */
+object SrvMusic {
+    class Song(val id: String, val name: String, val ext: String, val parts: Int, val size: Long)
+    private const val PART = 600_000
+    fun list(): List<Song> = try { Fs.list("music", "at", limit = 300).map { d -> Song(d.id, d.s("name"), d.s("ext").ifEmpty { "mp3" }, d.n("parts").toInt(), d.n("size").toLong()) } } catch (e: Exception) { emptyList() }
+    fun local(c: Context, s: Song) = File(File(c.filesDir, "music").apply { mkdirs() }, "srv_" + s.id + "." + s.ext)
+    /* the song file on this phone (downloads it the first time) */
+    fun file(c: Context, s: Song): File? {
+        val f = local(c, s); if (f.exists() && f.length() > 0) return f
+        val tmp = File(f.parentFile, f.name + ".part")
+        return try { tmp.outputStream().use { o -> for (k in 0 until s.parts) { val d = Fs.get("musicParts/${s.id}_$k") ?: throw Exception("missing"); o.write(android.util.Base64.decode(d.s("d"), android.util.Base64.DEFAULT)) } }
+            tmp.renameTo(f); f } catch (e: Exception) { tmp.delete(); null }
+    }
+    fun upload(c: Context, u: android.net.Uri, name: String, prog: (Int) -> Unit): Boolean = try {
+        val bytes = c.contentResolver.openInputStream(u)!!.use { it.readBytes() }
+        if (bytes.size > 15_000_000) throw Exception("too big")
+        val ext = (c.contentResolver.getType(u) ?: "").let { when { it.contains("mpeg") || it.contains("mp3") -> "mp3"; it.contains("mp4") || it.contains("aac") || it.contains("m4a") -> "m4a"; it.contains("ogg") -> "ogg"; it.contains("wav") -> "wav"; else -> "mp3" } }
+        val id = Fs.newId(); val n = (bytes.size + PART - 1) / PART
+        for (k in 0 until n) { val a = bytes.copyOfRange(k * PART, minOf(bytes.size, (k + 1) * PART))
+            if (!Fs.write("musicParts/${id}_$k", mapOf("d" to android.util.Base64.encodeToString(a, android.util.Base64.NO_WRAP)), merge = false)) throw Exception("write"); prog((k + 1) * 95 / n) }
+        Fs.write("music/$id", mapOf("name" to name, "ext" to ext, "parts" to n.toLong(), "size" to bytes.size.toLong()), now = listOf("at"), merge = false)
+    } catch (e: Exception) { false }
+    fun delete(s: Song): Boolean { for (k in 0 until s.parts) Fs.delete("musicParts/${s.id}_$k"); return Fs.delete("music/${s.id}") }
+}

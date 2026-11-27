@@ -583,7 +583,9 @@ class EditorActivity : AppCompatActivity() {
         player.seekTo(i, maxOf(0L, (m - (builtIn.getOrNull(i) ?: c.inUs)) / 1000)) }
     fun onLive() { ovKey = "?"; paintOverlay(tl.time); showTime(tl.time) }
     fun onEdited() { rebuild(tl.time) }
-    fun onSelect(s: Sel) { tl.sel = s; stage.sel = (s as? Sel.L)?.i ?: -1; tl.invalidate(); stage.invalidate(); refreshTools() }
+    fun onSelect(s: Sel) {
+        if (s is Sel.C && clips.getOrNull(s.i)?.img == "slot") { replaceAt = s.i; pickReplace.launch(arrayOf("video/*", "image/*")) }
+        tl.sel = s; stage.sel = (s as? Sel.L)?.i ?: -1; tl.invalidate(); stage.invalidate(); refreshTools() }
     fun onStageTap(i: Int) { if (i >= 0) { onSelect(Sel.L(i)); if (layers[i].kind == "text") textSheet(layers[i]) } else if (tl.sel is Sel.L) onSelect(Sel.None) else togglePlay() }
     fun moveLayer(i: Int, dx: Float, dy: Float) { val l = layers.getOrNull(i) ?: return
         if (l.kf.isNotBlank()) { val e = l.at(tl.time); l.kf = Keys.put(l.kf, Kf(tl.time - l.s, e.scale, (e.x + dx).coerceIn(0.05f, 0.95f) - 0.5f, (e.y + dy).coerceIn(0.05f, 0.95f) - 0.5f)) }
@@ -614,6 +616,7 @@ class EditorActivity : AppCompatActivity() {
     private fun refreshTools() { when (val s = tl.sel) { is Sel.C -> clipTools(s.i); is Sel.L -> layerTools(s.i); is Sel.S -> soundTools(s.i); else -> if (page == "audio") audioTools() else mainTools() } }
     private fun mainTools() {
         page = "main"; tools.removeAllViews()
+        if (clips.any { it.img == "slot" }) tool("📥", t("Fill all", "Isi semua"), true) { pickFill.launch(arrayOf("video/*", "image/*")) }
         tool("📋", t("Templates", "Templat")) { templateSheet() }
         tool("✂", t("Edit", "Edit")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
         tool("♪", t("Audio", "Audio")) { audioTools() }
@@ -717,19 +720,19 @@ class EditorActivity : AppCompatActivity() {
     /* replace the picture of one clip (keeps its length, effects, switch and colours) */
     private var replaceAt = -1
     private val pickReplace = registerForActivityResult(ActivityResultContracts.OpenDocument()) { u -> val i = replaceAt; replaceAt = -1; if (u != null && i >= 0) replaceClip(i, u) }
-    private fun replaceClip(i: Int, u: Uri) {
+    private fun replaceClip(i: Int, u: Uri, done: () -> Unit = {}) {
         val old = clips.getOrNull(i) ?: return
         val isImg = (contentResolver.getType(u) ?: "").startsWith("image")
         fun put(n: Clip) { n.speed = old.speed; n.vol = old.vol; n.look = old.look; n.bri = old.bri; n.con = old.con; n.sat = old.sat; n.trans = old.trans; n.fx = old.fx
             n.fi = old.fi; n.fo = old.fo; n.fadeVid = old.fadeVid; n.fill = old.fill; n.blur = old.blur; n.kf = old.kf
-            snap(); clips[i] = n; onSelect(Sel.C(i)); rebuild(start(i)); toast(t("Replaced 🔁", "Ditukar 🔁")) }
+            snap(); clips[i] = n; tl.sel = Sel.C(i); rebuild(start(i)); toast(t("Replaced 🔁", "Ditukar 🔁")); done() }
         val w = wait(t("Loading…", "Memuatkan…"))
         Thread {
             val f = copyIn(u, if (isImg) "img_" else "v_", if (isImg) ".jpg" else ".mp4")
-            if (f == null) { main.post { w.dismiss(); toast(t("This file cannot be used", "Fail ini tidak boleh digunakan")) }; return@Thread }
-            if (isImg) main.post { w.dismiss(); makeStill(f.absolutePath, maxOf(0.5f, old.dur / 1e6f * old.speed)) { n -> if (n == null) toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")) else put(n) } }
+            if (f == null) { main.post { w.dismiss(); toast(t("This file cannot be used", "Fail ini tidak boleh digunakan")); done() }; return@Thread }
+            if (isImg) main.post { w.dismiss(); makeStill(f.absolutePath, maxOf(0.5f, old.dur / 1e6f * old.speed)) { n -> if (n == null) { toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")); done() } else put(n) } }
             else { val pr = probe(f); main.post { w.dismiss()
-                if (pr.third <= 0) { toast(t("This video cannot be used", "Video ini tidak boleh digunakan")); return@post }
+                if (pr.third <= 0) { toast(t("This video cannot be used", "Video ini tidak boleh digunakan")); done(); return@post }
                 val want = (old.dur * old.speed).toLong(); val st = if (pr.third > want * 2) (pr.third - want) / 3 else 0L
                 put(Clip(f, st, minOf(pr.third, st + want), false).also { it.fileDur = pr.third }) } }
         }.start()
@@ -775,10 +778,22 @@ class EditorActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle(t("Name", "Nama")).setView(LinearLayout(this).apply { setPadding(Ui.px(this@EditorActivity, 20), Ui.px(this@EditorActivity, 8), Ui.px(this@EditorActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
             .setPositiveButton("OK") { _, _ -> val n = e.text.toString().trim(); if (n.isNotEmpty()) f(n.take(40)) }.setNegativeButton(t("Cancel", "Batal"), null).show()
     }
-    private fun useTemplate(it: Templates.Item) {
-        tplPending = it
-        toast(t("Choose ${it.slots} videos or photos (fewer is fine; they repeat)", "Pilih ${it.slots} video atau gambar (kurang pun boleh; ia diulang)"))
-        pickMany.launch(arrayOf("video/*", "image/*"))
+    private fun useTemplate(it: Templates.Item) { applyTemplate(it, emptyList()) }   // opens at once with empty boxes; tap a box to choose
+    /* an empty box of a template: "+ tap to choose" */
+    private fun slotPic(k: Int, w: Int, h: Int): Bitmap {
+        val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888); val cv = Canvas(b); cv.drawColor(0xFF1C1B19.toInt())
+        val m = minOf(w, h).toFloat(); val p = Paint(Paint.ANTI_ALIAS_FLAG); p.color = Ui.GOLD; p.style = Paint.Style.STROKE; p.strokeWidth = m * 0.012f
+        p.pathEffect = DashPathEffect(floatArrayOf(m * 0.04f, m * 0.025f), 0f); cv.drawRoundRect(RectF(m * 0.08f, m * 0.08f, w - m * 0.08f, h - m * 0.08f), m * 0.05f, m * 0.05f, p)
+        val tp = Paint(Paint.ANTI_ALIAS_FLAG); tp.color = Ui.GOLD; tp.textAlign = Paint.Align.CENTER; tp.isFakeBoldText = true
+        tp.textSize = m * 0.3f; cv.drawText("+", w / 2f, h / 2f - m * 0.02f, tp)
+        tp.textSize = m * 0.07f; cv.drawText(t("Tap to choose", "Tekan untuk pilih"), w / 2f, h / 2f + m * 0.14f, tp)
+        tp.color = Color.WHITE; tp.textSize = m * 0.055f; cv.drawText(t("video or photo ", "video atau gambar ") + (k + 1), w / 2f, h / 2f + m * 0.23f, tp)
+        return b
+    }
+    private val pickFill = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> fillNext(us, 0) }
+    private fun fillNext(us: List<Uri>, k: Int) {
+        val i = clips.indexOfFirst { it.img == "slot" }; if (i < 0 || k >= us.size) { refreshTools(); return }
+        replaceClip(i, us[k]) { fillNext(us, k + 1) }
     }
     /* fill the template's slots with the chosen media, in order */
     private fun applyTemplate(tp: Templates.Item, us: List<Uri>) {
@@ -789,7 +804,12 @@ class EditorActivity : AppCompatActivity() {
                 copyIn(u, if (isImg) "img_" else "v_", if (isImg) ".jpg" else ".mp4")?.let { it to isImg } }
             val a = j.optJSONArray("slots") ?: org.json.JSONArray(); val out = ArrayList<Clip>()
             for (k in 0 until a.length()) {
-                if (media.isEmpty()) break
+                if (media.isEmpty()) {   // no media yet: an empty box to fill in the editor
+                    val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val v = File(work, "slot_" + System.currentTimeMillis() + "_" + k + ".mp4")
+                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw, th, dur, v); val du = probe(v).third.takeIf { it > 0 } ?: dur
+                        out.add(Clip(v, 0, du, true).also { it.fileDur = du; it.img = "slot"; it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std")
+                            it.fi = o.optDouble("fi", 0.0).toFloat(); it.fo = o.optDouble("fo", 0.0).toFloat() }) } catch (e: Exception) {}
+                    continue }
                 val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val (f, isImg) = media[k % media.size]
                 val c: Clip? = if (isImg) { val bm = loadBitmap(f.absolutePath); if (bm == null) null else { val v = File(work, "p_" + System.currentTimeMillis() + "_" + k + ".mp4")
                         try { StillClip.make(bm, tw, th, dur, v); val du = probe(v).third.takeIf { it > 0 } ?: dur; Clip(v, 0, du, true).also { it.fileDur = du; it.img = f.absolutePath } } catch (e: Exception) { null } } }
@@ -805,7 +825,7 @@ class EditorActivity : AppCompatActivity() {
                 dirty = true; clips = out; layers = ArrayList(Templates.layers(j)); sounds = ArrayList(Templates.sounds(j))
                 if (mf != null) { val ms = Sound("music", 0, out.sumOf { it.dur }); ms.file = mf.absolutePath; ms.vol = 0.7f; ms.fi = 0.3f; ms.fo = 1f; sounds.add(0, ms); origVol = 0.35f }
                 setFormat(tw, th); onSelect(Sel.None); rebuild(0)
-                toast(t("Done! Tap a clip → 🔁 Replace to change a picture. Tap a text to change it.", "Siap! Tekan klip → 🔁 Tukar untuk ganti gambar. Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
+                toast(if (us.isEmpty()) t("Tap each box to choose a video or photo, or 📥 Fill all", "Tekan setiap kotak untuk pilih video atau gambar, atau 📥 Isi semua") else t("Done! Tap a clip → 🔁 Replace to change a picture. Tap a text to change it.", "Siap! Tekan klip → 🔁 Tukar untuk ganti gambar. Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
         }.start()
     }
     private fun askAdd(first: Boolean) {
@@ -1220,6 +1240,13 @@ class EditorActivity : AppCompatActivity() {
                 snap(); val s = Sound("music", tl.time.coerceAtMost(maxOf(0, total() - 1_000_000)), total()); s.file = f.absolutePath; s.vol = 0.6f
                 sounds.add(s); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time); toast(t("Tip: lower the original sound if needed", "Tip: perlahankan bunyi asal jika perlu")) } }.start()
     }
+    /* super admin: put a song in the library for everyone */
+    private val pickSrvSong = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) askName { n ->
+        AlertDialog.Builder(this).setMessage(t("Only upload songs that are free to use (no copyright), so users' videos are not muted.", "Muat naik hanya lagu yang bebas digunakan (tiada hak cipta), supaya video pengguna tidak disenyapkan."))
+            .setPositiveButton(t("Upload", "Muat naik")) { _, _ -> val w = wait(t("Uploading… 0%", "Memuat naik… 0%"))
+                Thread { val ok = SrvMusic.upload(this, u, n) { pc -> main.post { w.setMessage(t("Uploading… $pc%", "Memuat naik… $pc%")) } }
+                    main.post { w.dismiss(); toast(if (ok) t("Song added to the library", "Lagu ditambah ke pustaka") else t("Upload failed (max 15 MB)", "Gagal muat naik (maksimum 15 MB)")) } }.start() }
+            .setNegativeButton(t("Cancel", "Batal"), null).show() } }
     /* music: our own built-in songs, or a song from the phone */
     private fun musicSheet() {
         if (clips.isEmpty()) return
@@ -1245,6 +1272,28 @@ class EditorActivity : AppCompatActivity() {
             })
             s.body.addView(r, Ui.lp(this, 8)) }
         s.body.addView(Ui.hint(this, t("Made by the app, so it is safe to post anywhere.", "Dibuat oleh app sendiri, jadi selamat untuk dimuat naik di mana-mana.")))
+        // songs from ProMultiCam (uploaded by the super admin)
+        s.body.addView(Ui.section(this, t("Music library", "Pustaka muzik")))
+        if (Auth.isAdmin) s.body.addView(Ui.btn(this, "⬆  " + t("Upload a song (Super Admin)", "Muat naik lagu (Super Admin)"), true) { s.dialog.dismiss(); pickSrvSong.launch("audio/*") }, Ui.lp(this, 4))
+        val lib = LinearLayout(this); lib.orientation = LinearLayout.VERTICAL; s.body.addView(lib, Ui.lp(this, 6))
+        val ld = Ui.label(this, t("Loading…", "Memuatkan…"), 13f, Ui.SUB); lib.addView(ld)
+        fun getSong(song: SrvMusic.Song, then: (File) -> Unit) { val w = wait(t("Downloading…", "Memuat turun…"))
+            Thread { val f = SrvMusic.file(this, song); main.post { w.dismiss(); if (f == null) toast(t("No internet connection", "Tiada sambungan internet")) else then(f) } }.start() }
+        Thread { val l = SrvMusic.list(); main.post { lib.removeView(ld)
+            if (l.isEmpty()) lib.addView(Ui.label(this, t("None yet", "Belum ada"), 13f, Ui.SUB))
+            l.forEach { song -> val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
+                r.addView(Ui.btn(this, "▶  " + song.name) { stop(); getSong(song) { f -> if (s.dialog.isShowing) try { mp = android.media.MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); start() } } catch (e: Exception) {} } },
+                    LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 8 })
+                r.addView(Ui.btn(this, "+ " + t("Add", "Tambah"), true) { stop(); getSong(song) { f ->
+                    val w = wait(t("Preparing…", "Menyediakan…"))
+                    Thread { val a = Snd.decode(f.absolutePath); audioCache[f.absolutePath] = a
+                        main.post { w.dismiss(); s.dialog.dismiss(); if (a == null || a.isEmpty()) { toast(t("This song cannot be used", "Lagu ini tidak boleh digunakan")); return@post }
+                            snap(); val ss = Sound("music", 0, total()); ss.file = f.absolutePath; ss.vol = 0.6f
+                            sounds.add(ss); onSelect(Sel.S(sounds.size - 1)); rebuild(tl.time); toast(t("Music added", "Muzik ditambah")) } }.start() } })
+                if (Auth.isAdmin) r.addView(Ui.btn(this, "🗑") { AlertDialog.Builder(this).setMessage(t("Delete this song for everyone?", "Padam lagu ini untuk semua?"))
+                    .setPositiveButton(t("Delete", "Padam")) { _, _ -> Thread { val ok = SrvMusic.delete(song); main.post { if (ok) lib.removeView(r) } }.start() }.setNegativeButton(t("Cancel", "Batal"), null).show() },
+                    LinearLayout.LayoutParams(Ui.px(this, 52), -2).apply { leftMargin = 8 })
+                lib.addView(r, Ui.lp(this, 8)) } } }.start()
         s.dialog.show()
     }
     private fun sfxSheet() {
@@ -1338,6 +1387,7 @@ class EditorActivity : AppCompatActivity() {
     /* ---------------- export ---------------- */
     private fun save() {
         if (clips.isEmpty() || busy) return
+        if (clips.any { it.img == "slot" }) { toast(t("Choose a video or photo for every empty box first", "Pilih video atau gambar untuk semua kotak kosong dulu")); return }
         player.pause()
         val o = orig; val sp = getSharedPreferences("pmc", MODE_PRIVATE)
         val sh = Ui.sheet(this, t("Export", "Eksport"))

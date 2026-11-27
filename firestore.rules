@@ -57,6 +57,15 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isSuper();
     }
+    // music library: free-to-use songs uploaded by the super admin, kept in pieces
+    match /music/{id} {
+      allow read: if signedIn();
+      allow write: if isSuper();
+    }
+    match /musicParts/{id} {
+      allow read: if signedIn();
+      allow write: if isSuper();
+    }
     match /promos/{code} {
       allow read, write: if isSuper();
       match /uses/{uid} { allow read: if isSuper(); allow write: if false; }
