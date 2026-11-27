@@ -224,6 +224,10 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                     Focus.tap(c.capturer, x, y, c.front); val r = view.parent as? FrameLayout; if (r != null) Focus.ring(r, x * r.width, y * r.height); Unit }
                 "auto" -> Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true)
                 "lock" -> { if (msg["v"] == false) Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true) }
+                // the Director changes this camera: front/back, torch, brightness
+                "flip" -> { c.flip(); view.setMirror(c.front); Focus.torch = false; toast(t("Camera switched by the Director", "Kamera ditukar oleh Pengarah")) }
+                "light" -> { val on = msg["torch"] == true; val e = (msg["ev"] as? Number)?.toInt() ?: 0
+                    main.postDelayed({ Focus.light(c.capturer, c.front, on, e) }, 50); Unit }
                 else -> {} }; Unit }
             "full" -> { kicked = true; toast(t("Studio full", "Studio penuh")); main.postDelayed({ finish() }, 3000) }
             "kick" -> { kicked = true; toast(t("Removed by the Director", "Dikeluarkan oleh Pengarah")); main.postDelayed({ finish() }, 1500) }

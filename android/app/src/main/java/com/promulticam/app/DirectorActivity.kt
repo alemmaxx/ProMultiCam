@@ -743,6 +743,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val tx = Ui.label(this, s.name, 11f, Color.WHITE, true); tx.setShadowLayer(4f, 0f, 1f, Color.BLACK); tx.tag = "lbl"
         f.addView(tx, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply { leftMargin = d; bottomMargin = d / 2 })
         f.setOnClickListener { tap(s) }; v.setOnClickListener { tap(s) }
+        // long press: control that camera from here
+        f.setOnLongClickListener { camSheet(s); true }; v.setOnLongClickListener { camSheet(s); true }
         tiles.addView(f, maxOf(0, tiles.childCount - 1), LinearLayout.LayoutParams(Ui.dp(this, 60f).toInt(), -1).apply { rightMargin = d })
         s.tile = f; s.tileView = v
         s.track?.addSink(v)
@@ -752,6 +754,28 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun label(s: Src) { (s.tile?.findViewWithTag<TextView>("lbl"))?.text = s.name }
 
     /* full: tap = main angle. split / small frame: tap another = second view, tap the main one = swap */
+    /* change a camera from the Director: front/back, torch, brightness, focus */
+    private fun camSheet(s: Src) {
+        val sh = Ui.sheet(this, "📷 " + s.name)
+        fun send(m: Map<String, Any?>) { if (s.local) { val c = cam ?: return; when (m["op"]) {
+                "flip" -> { c.flip(); Focus.torch = false; sTorch = false }
+                "light" -> Focus.light(c.capturer, c.front, m["torch"] == true, (m["ev"] as? Int) ?: 0)
+                "auto" -> Focus.tap(c.capturer, 0.5f, 0.5f, c.front, true) } }
+            else s.data?.send(mapOf("t" to "cc") + m) }
+        val st = camState.getOrPut(s.id) { intArrayOf(0, 0) }   // [torch 0/1, brightness -2..2]
+        sh.body.addView(Ui.btn(this, "🔄  " + t("Switch front / back", "Tukar depan / belakang")) { st[0] = 0; send(mapOf("op" to "flip")); sh.dialog.dismiss() })
+        val tb = Ui.btn(this, "") {}; fun paintT() { tb.text = "🔦  " + t("Torch: ", "Lampu suluh: ") + if (st[0] == 1) t("ON", "HIDUP") else t("OFF", "MATI") }; paintT()
+        tb.setOnClickListener { st[0] = 1 - st[0]; paintT(); send(mapOf("op" to "light", "torch" to (st[0] == 1), "ev" to st[1])) }
+        sh.body.addView(tb, Ui.lp(this, 8))
+        sh.body.addView(Ui.label(this, t("Brightness", "Kecerahan"), 13f, Ui.SUB, true), Ui.lp(this, 14))
+        val r = Flow(this, Ui.px(this, 6)); val pills = ArrayList<android.widget.Button>()
+        (-2..2).forEach { e -> pills.add(Ui.pill(this, if (e > 0) "+$e" else "$e", e == st[1]) { st[1] = e; pills.forEachIndexed { j, b -> Ui.setPill(this, b, j - 2 == e) }; send(mapOf("op" to "light", "torch" to (st[0] == 1), "ev" to e)) }.also { r.addView(it) }) }
+        sh.body.addView(r, Ui.lp(this, 6))
+        sh.body.addView(Ui.btn(this, "🎯  " + t("Auto focus", "Fokus automatik")) { send(mapOf("op" to "auto")); toast(t("Auto focus", "Fokus automatik")) }, Ui.lp(this, 14))
+        sh.body.addView(Ui.hint(this, t("Tip: long-press a camera to open this.", "Tip: tekan lama pada kamera untuk buka ini.")))
+        sh.dialog.show()
+    }
+    private val camState = HashMap<String, IntArray>(); private var sTorch = false
     private fun tap(s: Src) {
         lastSwitch = System.currentTimeMillis()
         if (layout == "full" || s.track == null) { setMain(s); return }

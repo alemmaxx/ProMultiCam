@@ -19,6 +19,9 @@ import org.webrtc.CameraVideoCapturer
 /* Tap to focus (and set brightness) at a point of the picture, like a phone camera.
    x, y are 0..1 of the picture as it is shown (upright). auto = back to continuous focus. */
 object Focus {
+    /* torch and brightness stay on when focus is changed later */
+    var torch = false; var ev = 0
+    fun light(cap: CameraVideoCapturer, front: Boolean, torchOn: Boolean, evStep: Int): Boolean { torch = torchOn; ev = evStep; return tap(cap, 0.5f, 0.5f, front, true) }
     private fun session(cap: Any): Any? {
         var c: Class<*>? = cap.javaClass
         while (c != null && c != Any::class.java) {
@@ -46,6 +49,10 @@ object Focus {
                 if (ch.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)?.contains(CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_ON) == true)
                     rb.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_ON)
                 rb.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
+                if (torch && ch.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true) rb.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_TORCH)
+                ch.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE)?.let { r -> val st = ch.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP)?.toFloat() ?: 0.33f
+                    // ev = -2..+2 (in half stops of light)
+                    rb.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, Math.round(ev * 0.5f / maxOf(0.05f, st)).coerceIn(r.lower, r.upper)) }
                 val afModes = ch.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) ?: intArrayOf()
                 if (auto) {
                     if (afModes.contains(CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) rb.set(CaptureRequest.CONTROL_AF_MODE, CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
