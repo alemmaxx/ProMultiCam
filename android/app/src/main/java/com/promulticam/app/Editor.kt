@@ -157,6 +157,10 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
                             4 -> a = (a + dUs).coerceIn(0, b - 300_000)
                             5 -> b = (b + dUs).coerceIn(a + 300_000, maxOf(a + 300_000, tot))
                         }
+                        // a video on top can't be longer than its file; trimming its front moves where it starts inside the file
+                        (sl as? Sel.L)?.let { ed.layers[it.i] }?.takeIf { it.kind == "pip" && it.vdur > 0 }?.let { l ->
+                            if (mode == 4) { a = maxOf(a, l.s - l.vin); l.vin = (l.vin + (a - l.s)).coerceIn(0, l.vdur - 300_000) }
+                            b = minOf(b, a + (l.vdur - l.vin)) }
                         if (sl is Sel.L) { ed.layers[sl.i].s = a; ed.layers[sl.i].e = b } else if (sl is Sel.S) { ed.sounds[sl.i].s = a; ed.sounds[sl.i].e = b }
                     }
                 }
@@ -310,7 +314,7 @@ class EditorActivity : AppCompatActivity() {
     private val draftRun = Runnable { saveDraft() }
     private fun openDraft(id: String): Boolean { val d = Drafts.load(this, id) ?: return false
         draftId = id; d.orig.takeIf { it.isNotEmpty() }?.let { File(it) }?.takeIf { it.exists() }?.let { orig = it }
-        clips = d.clips; layers = d.layers; sounds = d.sounds; origVol = d.ov; setFormat(d.W, d.H); dirty = true; rebuild(0); return true }
+        clips = d.clips; layers = d.layers; sounds = d.sounds; origVol = d.ov; setFormat(d.W, d.H); dirty = true; rebuild(0); layers.filter { it.kind == "pip" && (it.text.isEmpty() || !File(it.text).exists()) }.forEach { makeProxy(it) }; return true }
     private val thumbCache = HashMap<String, Bitmap?>(); private val thumbQ = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val audioCache = HashMap<String, FloatArray?>()
     private var mixFile: File? = null; private var mixGen = 0
@@ -448,15 +452,27 @@ class EditorActivity : AppCompatActivity() {
             main.post { w.dismiss(); if (f == null || pr == null || pr.third <= 0) { toast(t("This video cannot be opened", "Video ini tidak boleh dibuka")); return@post }
                 snap(); val l = Layer("pip", tl.time, minOf(total(), tl.time + pr.third)); l.file = f.absolutePath; l.ar = pr.first.toFloat() / pr.second; l.vdur = pr.third; l.x = 0.5f; l.y = 0.32f; l.anim = "none"
                 if (l.e - l.s < 500_000) { l.s = maxOf(0, total() - minOf(pr.third, total())); l.e = total() }
-                layers.add(l); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time); toast(t("Drag to move, two fingers to resize", "Seret untuk alih, dua jari untuk ubah saiz")) } }.start()
+                layers.add(l); onSelect(Sel.L(layers.size - 1)); rebuild(tl.time); toast(t("Drag to move, two fingers to resize", "Seret untuk alih, dua jari untuk ubah saiz")); makeProxy(l) } }.start()
     }
     /* up to 3 videos on top play at the same time, each in its own small player */
+    /* a small 360p copy of a video on top, so the preview stays smooth (saving still uses the real video) */
+    private fun makeProxy(l: Layer) {
+        val src = File(l.file); val out = File(work, "px_" + src.nameWithoutExtension + ".mp4"); if (out.exists()) { l.text = out.absolutePath; return }
+        val h = 360; val w = ((h * l.ar).toInt() / 2 * 2).coerceAtLeast(2)
+        val e = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(src))).setRemoveAudio(true).setEffects(Effects(listOf(), listOf(Presentation.createForWidthAndHeight(w, h, Presentation.LAYOUT_SCALE_TO_FIT)))).build()
+        val tmp = File(work, "px_tmp_" + System.currentTimeMillis() + ".mp4")
+        try { Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264).addListener(object : Transformer.Listener {
+                override fun onCompleted(composition: Composition, exportResult: ExportResult) { tmp.renameTo(out); layers.filter { it.file == l.file }.forEach { it.text = out.absolutePath }; pipFiles.fill(null); pipSync(tl.time, true) }
+                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) { tmp.delete() }
+            }).build().start(e, tmp.absolutePath) } catch (x: Exception) {}
+    }
+    private fun pipSrc(l: Layer) = l.text.takeIf { it.isNotEmpty() && File(it).exists() } ?: l.file
     private fun pipSync(u: Long, hard: Boolean) {
         val act = layers.filter { it.kind == "pip" && u >= it.s && u < it.e }.take(PIPS)
         for (k in 0 until PIPS) {
             val tv = pipTvs[k]; val pp = pplayers[k]; val l = act.getOrNull(k)
             if (l == null || box.width <= 0) { if (tv.visibility == View.VISIBLE) { tv.visibility = View.INVISIBLE; pp.pause() }; continue }
-            if (pipFiles[k] != l.file) { pipFiles[k] = l.file; pp.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(l.file)))); pp.prepare() }
+            val sf = pipSrc(l); if (pipFiles[k] != sf) { pipFiles[k] = sf; pp.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(sf)))); pp.prepare() }
             val kk = box.width.toFloat() / W; val m = minOf(W, H).toFloat(); val w = m * 0.42f * l.scale; val h = w / l.ar
             val lp = tv.layoutParams as FrameLayout.LayoutParams; val nw = (w * kk).toInt(); val nh = (h * kk).toInt(); val nl = ((l.x * W - w / 2) * kk).toInt(); val nt = ((l.y * H - h / 2) * kk).toInt()
             if (lp.width != nw || lp.height != nh || lp.leftMargin != nl || lp.topMargin != nt) { lp.width = nw; lp.height = nh; lp.leftMargin = nl; lp.topMargin = nt; lp.gravity = Gravity.TOP or Gravity.START; tv.layoutParams = lp }
@@ -1033,58 +1049,75 @@ class EditorActivity : AppCompatActivity() {
             EditedMediaItem.Builder(mi).setEffects(Effects(au, fx)).build()
         }
         val seqs = ArrayList<EditedMediaItemSequence>(); seqs.add(EditedMediaItemSequence(items))
-        // video over video: one more picture track; black gaps where nothing shows (made see-through by the compositor)
-        // videos on top, sorted into up to 3 lanes; videos in one lane never overlap
+        // videos on top are added afterwards, one lane per pass (the phone only needs to open 2 videos at a time)
         val lanes = ArrayList<ArrayList<Layer>>()
         if (!noPip) layers.filter { it.kind == "pip" }.sortedBy { it.s }.forEach { l -> val ln = lanes.firstOrNull { it.last().e <= l.s }; if (ln != null) ln.add(l.copy()) else if (lanes.size < PIPS) lanes.add(arrayListOf(l.copy())) }
-        val pips = lanes.flatten()
-        var compSet: androidx.media3.effect.VideoCompositorSettings? = null
-        if (pips.isNotEmpty()) for (lane in lanes) {
-            val pi = ArrayList<EditedMediaItem>(); var at = 0L; val m = minOf(W, H)
-            fun gap(us: Long) { if (us < 50_000) return; val g = File(work, "gap_" + us + ".mp4"); if (!g.exists()) StillClip.make(Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }, 320, 180, us, g)
-                pi.add(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(g))).setRemoveAudio(true).build()) }
-            lane.forEach { l -> gap(l.s - at)
-                val pw = (m * 0.42f * l.scale).toInt() / 2 * 2; val ph = (pw / l.ar).toInt() / 2 * 2
-                val mi = MediaItem.Builder().setUri(Uri.fromFile(File(l.file))).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.vin / 1000).setEndPositionMs((l.vin + l.e - l.s) / 1000).build()).build()
-                pi.add(EditedMediaItem.Builder(mi).setRemoveAudio(true).setEffects(Effects(listOf(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)))).build()); at = l.e }
-            seqs.add(EditedMediaItemSequence(pi))
-        }
-        if (pips.isNotEmpty()) {
-            val ll = lanes.toList(); val ww = W; val hh = H
-            compSet = object : androidx.media3.effect.VideoCompositorSettings {
-                override fun getOutputSize(inputSizes: MutableList<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(ww, hh)
-                override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
-                    if (inputId == 0 || inputId > ll.size) return androidx.media3.effect.OverlaySettings.Builder().build()
-                    val l = ll[inputId - 1].firstOrNull { presentationTimeUs >= it.s && presentationTimeUs < it.e }
-                    return if (l == null) androidx.media3.effect.OverlaySettings.Builder().setAlphaScale(0f).build()
-                    else androidx.media3.effect.OverlaySettings.Builder().setBackgroundFrameAnchor(l.x * 2 - 1, 1 - l.y * 2).build()
-                }
-            }
-        }
         if (wantMix) seqs.add(EditedMediaItemSequence(listOf(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(mixFile!!))).build())))
-        val cb = Composition.Builder(seqs).experimentalSetForceAudioTrack(true); compSet?.let { cb.setVideoCompositorSettings(it) }; val comp = cb.build()
-        val tr = Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
-            .addListener(object : Transformer.Listener {
-                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                    busy = false; dlg.dismiss()
-                    val out: File = if (replace != null) { replace.delete(); tmp.renameTo(replace); replace } else { val nf = Store.newFile(this@EditorActivity, (orig?.name?.substringBefore("_") ?: "Video") + "_edit"); tmp.renameTo(nf); nf }
-                    dirty = false; Drafts.delete(this@EditorActivity, draftId)
-                    if (replace != null) { orig = replace; thumbCache.clear(); thumbWant.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
-                    AlertDialog.Builder(this@EditorActivity).setMessage(t("✅ Saved in the app's Videos.", "✅ Disimpan dalam Video app."))
-                        .setPositiveButton(t("Save to Phone", "Simpan ke Telefon")) { _, _ -> Thread { val ok = Store.saveToPhone(this@EditorActivity, out); main.post { toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Could not save", "Gagal simpan")) } }.start() }
-                        .setNegativeButton(t("Close", "Tutup"), null).show()
+        val comp = Composition.Builder(seqs).experimentalSetForceAudioTrack(true).build()
+        val total = total()
+        fun finish(fin: File) {
+            busy = false; dlg.dismiss()
+            val out: File = if (replace != null) { replace.delete(); fin.renameTo(replace); replace } else { val nf = Store.newFile(this@EditorActivity, (orig?.name?.substringBefore("_") ?: "Video") + "_edit"); fin.renameTo(nf); nf }
+            dirty = false; Drafts.delete(this@EditorActivity, draftId)
+            if (replace != null) { orig = replace; thumbCache.clear(); thumbWant.clear(); undo.clear(); redo.clear(); val du = probe(replace).third; clips = arrayListOf(Clip(replace, 0, du, false).also { it.fileDur = du }); layers.clear(); sounds.clear(); origVol = 1f; onSelect(Sel.None); rebuild(0) }
+            AlertDialog.Builder(this@EditorActivity).setMessage(t("✅ Saved in the app's Videos.", "✅ Disimpan dalam Video app."))
+                .setPositiveButton(t("Save to Phone", "Simpan ke Telefon")) { _, _ -> Thread { val ok = Store.saveToPhone(this@EditorActivity, out); main.post { toast(if (ok) t("Saved to gallery: Movies/ProMultiCam", "Disimpan ke galeri: Movies/ProMultiCam") else t("Could not save", "Gagal simpan")) } }.start() }
+                .setNegativeButton(t("Close", "Tutup"), null).show()
+        }
+        fun fail(e: ExportException, during: File?) {
+            busy = false; dlg.dismiss(); tmp.delete(); during?.delete()
+            if (lanes.isNotEmpty()) { AlertDialog.Builder(this@EditorActivity).setMessage(t("This phone could not put a video on top of another. Export without it?", "Telefon ini tidak dapat letak video atas video. Eksport tanpa video atas?") + "\n\n" + (e.message ?: ""))
+                .setPositiveButton(t("Export without", "Eksport tanpa")) { _, _ -> export(replace, true) }.setNegativeButton(t("Cancel", "Batal"), null).show(); return }
+            AlertDialog.Builder(this@EditorActivity).setMessage(t("Could not make the video: ", "Gagal membuat video: ") + (e.message ?: "")).setPositiveButton("OK", null).show()
+        }
+        var stepTxt = ""
+        fun run(c: Composition, out: File, done: () -> Unit, during: File?) {
+            val tr = Transformer.Builder(this).setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
+                .addListener(object : Transformer.Listener {
+                    override fun onCompleted(composition: Composition, exportResult: ExportResult) { done() }
+                    override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) { fail(exportException, during) }
+                }).build()
+            try { tr.start(c, out.absolutePath) } catch (e: Exception) { busy = false; dlg.dismiss(); toast(t("Could not make the video", "Gagal membuat video") + ": " + e.message); return }
+            val ph = ProgressHolder()
+            fun prog() { if (!busy) return; if (tr.getProgress(ph) == Transformer.PROGRESS_STATE_AVAILABLE) dlg.setMessage(t("Making the video… ", "Membuat video… ") + stepTxt + ph.progress + "%"); main.postDelayed({ prog() }, 400) }
+            prog()
+        }
+        /* one pass: the video so far + one lane of videos on top */
+        fun lanePass(k: Int, input: File) {
+            if (k >= lanes.size) { finish(input); return }
+            stepTxt = "(${k + 2}/${lanes.size + 1}) "
+            val lane = lanes[k]; val ww = W; val hh = H; val m = minOf(W, H)
+            Thread {
+                val pi = ArrayList<EditedMediaItem>(); var at = 0L
+                fun gap(us: Long) { if (us < 50_000) return; val g = File(work, "gap_" + us + ".mp4"); if (!g.exists()) StillClip.make(Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }, 320, 180, us, g)
+                    pi.add(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(g))).setRemoveAudio(true).build()) }
+                try {
+                    lane.forEach { l -> gap(l.s - at)
+                        val len = minOf(l.e - l.s, if (l.vdur > 0) l.vdur - l.vin else Long.MAX_VALUE)
+                        val pw = (m * 0.42f * l.scale).toInt() / 2 * 2; val ph = (pw / l.ar).toInt() / 2 * 2
+                        val mi = MediaItem.Builder().setUri(Uri.fromFile(File(l.file))).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.vin / 1000).setEndPositionMs((l.vin + len) / 1000).build()).build()
+                        pi.add(EditedMediaItem.Builder(mi).setRemoveAudio(true).setEffects(Effects(listOf(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)))).build()); at = l.s + len }
+                    gap(total - at)
+                } catch (e: Exception) {}
+                main.post {
+                    val set = object : androidx.media3.effect.VideoCompositorSettings {
+                        override fun getOutputSize(inputSizes: MutableList<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(ww, hh)
+                        override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.effect.OverlaySettings {
+                            if (inputId == 0) return androidx.media3.effect.OverlaySettings.Builder().build()
+                            val l = lane.firstOrNull { presentationTimeUs >= it.s && presentationTimeUs < it.e }
+                            return if (l == null) androidx.media3.effect.OverlaySettings.Builder().setAlphaScale(0f).build()
+                            else androidx.media3.effect.OverlaySettings.Builder().setBackgroundFrameAnchor(l.x * 2 - 1, 1 - l.y * 2).build()
+                        }
+                    }
+                    val c = Composition.Builder(listOf(EditedMediaItemSequence(listOf(EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(input))).build())), EditedMediaItemSequence(pi)))
+                        .experimentalSetForceAudioTrack(true).setVideoCompositorSettings(set).build()
+                    val out = File(Store.dir(this), "tmp_edit_" + System.currentTimeMillis() + ".mp4")
+                    run(c, out, { input.delete(); lanePass(k + 1, out) }, input)
                 }
-                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                    busy = false; dlg.dismiss(); tmp.delete()
-                    if (pips.isNotEmpty()) { AlertDialog.Builder(this@EditorActivity).setMessage(t("This phone could not put a video on top of another. Export without it?", "Telefon ini tidak dapat letak video atas video. Eksport tanpa video atas?") + "\n\n" + (exportException.message ?: ""))
-                        .setPositiveButton(t("Export without", "Eksport tanpa")) { _, _ -> export(replace, true) }.setNegativeButton(t("Cancel", "Batal"), null).show(); return }
-                    AlertDialog.Builder(this@EditorActivity).setMessage(t("Could not make the video: ", "Gagal membuat video: ") + (exportException.message ?: "")).setPositiveButton("OK", null).show()
-                }
-            }).build()
-        try { tr.start(comp, tmp.absolutePath) } catch (e: Exception) { busy = false; dlg.dismiss(); toast(t("Could not make the video", "Gagal membuat video") + ": " + e.message); return }
-        val ph = ProgressHolder()
-        fun prog() { if (!busy) return; if (tr.getProgress(ph) == Transformer.PROGRESS_STATE_AVAILABLE) dlg.setMessage(t("Making the video… ", "Membuat video… ") + ph.progress + "%"); main.postDelayed({ prog() }, 400) }
-        prog()
+            }.start()
+        }
+        stepTxt = if (lanes.isEmpty()) "" else "(1/${lanes.size + 1}) "
+        run(comp, tmp, { lanePass(0, tmp) }, null)
     }
 
     /* colours of a clip, plus darkening / whitening of the switch effects (time counted from the clip's first picture) */
