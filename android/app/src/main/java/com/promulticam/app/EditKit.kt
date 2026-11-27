@@ -265,16 +265,17 @@ object Snd {
 
 /* ---------------- switch effects between clips and moving effects on a clip (shared by preview and saving) ---------------- */
 object Fx {
-    val TRANS = listOf("none", "fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
-    val EFFECTS = listOf("none", "zoomin", "zoomout", "panl", "panr", "shake", "pulse", "sway", "blink")
+    val TRANS = listOf("none", "fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors", "leak", "bands", "reveal", "tilt")
+    val EFFECTS = listOf("none", "zoomin", "zoomout", "panl", "panr", "shake", "pulse", "sway", "blink", "dutch")
     fun transName(k: String) = when (k) { "none" -> Ui.t("None", "Tiada"); "fade" -> Ui.t("Fade", "Pudar"); "black" -> Ui.t("Dip to black", "Gelap"); "white" -> Ui.t("Dip to white", "Putih")
         "flash" -> Ui.t("Flash", "Kilat"); "slide" -> Ui.t("Slide", "Gelongsor"); "slideup" -> Ui.t("Slide up", "Gelongsor naik"); "zoom" -> "Zoom"; "whip" -> Ui.t("Whip", "Libas")
-        "wipe" -> Ui.t("Wipe", "Sapu"); "circle" -> Ui.t("Circle", "Bulatan"); else -> Ui.t("Doors", "Pintu") }
+        "wipe" -> Ui.t("Wipe", "Sapu"); "circle" -> Ui.t("Circle", "Bulatan"); "leak" -> Ui.t("Light leak", "Cahaya bocor"); "bands" -> Ui.t("3 strips", "3 jalur")
+        "reveal" -> Ui.t("Reveal", "Dedah"); "tilt" -> Ui.t("Tilt", "Condong"); else -> Ui.t("Doors", "Pintu") }
     fun fxName(k: String) = when (k) { "none" -> Ui.t("None", "Tiada"); "zoomin" -> Ui.t("Zoom in", "Zum masuk"); "zoomout" -> Ui.t("Zoom out", "Zum keluar"); "panl" -> Ui.t("Pan left", "Gerak kiri")
-        "panr" -> Ui.t("Pan right", "Gerak kanan"); "shake" -> Ui.t("Shake", "Gegar"); "pulse" -> Ui.t("Pulse", "Denyut"); "sway" -> Ui.t("Sway", "Hayun"); else -> Ui.t("Flash beat", "Kilat rentak") }
+        "panr" -> Ui.t("Pan right", "Gerak kanan"); "shake" -> Ui.t("Shake", "Gegar"); "pulse" -> Ui.t("Pulse", "Denyut"); "sway" -> Ui.t("Sway", "Hayun"); "dutch" -> Ui.t("Tilted", "Senget"); else -> Ui.t("Flash beat", "Kilat rentak") }
     /* half of the switch time, on each side of the join */
-    fun win(k: String): Long = when (k) { "none" -> 0L; "flash", "whip" -> 150_000L; "fade", "zoom" -> 190_000L; "black" -> 240_000L; "slide", "slideup" -> 180_000L; else -> 220_000L }
-    class St { var s = 1f; var tx = 0f; var ty = 0f; var rot = 0f; var dark = 0f; var white = 0f; var mask = ""; var vis = 1f; var maskIn = true }
+    fun win(k: String): Long = when (k) { "none" -> 0L; "flash", "whip" -> 150_000L; "fade", "zoom" -> 190_000L; "black" -> 240_000L; "slide", "slideup" -> 180_000L; "leak", "reveal" -> 280_000L; "bands" -> 320_000L; "tilt" -> 200_000L; else -> 220_000L }
+    class St { var s = 1f; var tx = 0f; var ty = 0f; var rot = 0f; var dark = 0f; var white = 0f; var mask = ""; var vis = 1f; var maskIn = true; var leak = 0f }
     private fun ease(q: Float) = 1 - (1 - q) * (1 - q) * (1 - q)
     /* t: time inside this clip (as played), dur: clip length; inT: effect from the clip before; outT: effect into the next clip */
     fun state(eff: String, inT: String, outT: String, t: Long, dur: Long, fadeIn: Float = 0f, fadeOut: Float = 0f): St {
@@ -290,6 +291,7 @@ object Fx {
             "pulse" -> st.s = 1f + 0.05f * (0.5f + 0.5f * sin(2 * PI * sec * 2).toFloat())
             "sway" -> { st.s = 1.08f; st.rot = 2.5f * sin(2 * PI * sec * 0.5).toFloat() }
             "blink" -> { val f = sec % 1f; if (f < 0.12f) st.white = 0.5f * (1 - f / 0.12f) }
+            "dutch" -> { st.s = 1.18f + 0.06f * p; st.rot = -6f }
         }
         fun apply(k: String, q0: Float, incoming: Boolean) {
             val q = q0.coerceIn(0f, 1f); val e = ease(q); val dir = if (incoming) 1f else -1f
@@ -300,7 +302,9 @@ object Fx {
                 "slideup" -> st.ty += -dir * 2f * (1 - e)
                 "zoom" -> { st.s *= 1 + 0.6f * (1 - q); st.dark = maxOf(st.dark, (1 - q) * 0.5f) }
                 "whip" -> { st.tx += dir * 2f * (1 - e); st.white = maxOf(st.white, (1 - q) * 0.25f) }
-                "wipe", "circle", "doors" -> { st.mask = k; st.vis = q; st.maskIn = incoming }
+                "wipe", "circle", "doors", "bands", "reveal" -> { st.mask = k; st.vis = q; st.maskIn = incoming }
+                "leak" -> { val b = 1 - q; st.leak = maxOf(st.leak, b * (2 - b)) }   // warm light washes over the join
+                "tilt" -> { st.rot += dir * 14f * (1 - e); st.s *= 1 + 0.3f * (1 - e) }
             }
         }
         val wi = win(inT); if (wi > 0 && t < wi) apply(inT, t.toFloat() / wi, true)
@@ -314,6 +318,10 @@ object Fx {
         when (st.mask) {
             "wipe" -> if (st.maskIn) c.drawRect(v * W, 0f, W, H, p) else c.drawRect(0f, 0f, (1 - v) * W, H, p)
             "doors" -> { val w = (1 - v) * W / 2; c.drawRect(0f, 0f, w, H, p); c.drawRect(W - w, 0f, W, H, p) }
+            "reveal" -> { val h = (1 - v) * H / 2; c.drawRect(0f, 0f, W, h, p); c.drawRect(0f, H - h, W, H, p) }
+            "bands" -> for (i in 0..2) {   // three strips come in one after another, from left, right, left
+                val q = ((v - i * 0.2f) / 0.6f).coerceIn(0f, 1f); val y0 = H * i / 3f; val y1 = H * (i + 1) / 3f
+                if (i % 2 == 0) c.drawRect(q * W, y0, W, y1, p) else c.drawRect(0f, y0, (1 - q) * W, y1, p) }
             "circle" -> { val path = android.graphics.Path(); path.fillType = android.graphics.Path.FillType.EVEN_ODD
                 path.addRect(0f, 0f, W, H, android.graphics.Path.Direction.CW); path.addCircle(W / 2, H / 2, v * kotlin.math.hypot(W / 2, H / 2), android.graphics.Path.Direction.CW); c.drawPath(path, p) }
         }

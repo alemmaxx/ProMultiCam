@@ -500,7 +500,9 @@ class EditorActivity : AppCompatActivity() {
         val (i, l) = locate(u); val c = clips[i]
         val st = Fx.state(c.fx, if (i > 0) c.trans else "none", clips.getOrNull(i + 1)?.trans ?: "none", l, c.dur, if (c.fadeVid) c.fi else 0f, if (c.fadeVid) c.fo else 0f)
         if (i == player.currentMediaItemIndex && (c.fi > 0 || c.fo > 0)) player.volume = (c.vol * origVol * c.env(l)).coerceIn(0f, 1f)
-        val white = st.white > st.dark; veil.setBackgroundColor(if (white) Color.WHITE else Color.BLACK); veil.alpha = maxOf(st.dark, st.white)
+        val white = st.white > st.dark
+        if (st.leak > st.dark && st.leak > st.white) { veil.setBackgroundColor(0xFFFF9A5A.toInt()); veil.alpha = st.leak * 0.85f }
+        else { veil.setBackgroundColor(if (white) Color.WHITE else Color.BLACK); veil.alpha = maxOf(st.dark, st.white) }
         mask.st = st; mask.invalidate()
         if (i == player.currentMediaItemIndex) {
             val k = if (c.kf.isBlank()) null else Keys.at(Keys.parse(c.kf), l)
@@ -738,40 +740,111 @@ class EditorActivity : AppCompatActivity() {
         }.start()
     }
     private val pickMany = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> val tp = tplPending; if (tp != null && us.isNotEmpty()) applyTemplate(tp, us) else if (clips.isEmpty()) finish() }
+    /* the template gallery: covers in two columns, who made each one and how many used it */
+    private val covers = HashMap<String, Bitmap>()
     private fun templateSheet() {
-        val s = Ui.sheet(this, t("Templates", "Templat")); val b = s.body
-        b.addView(Ui.hint(this, t("Pick a template, then choose your videos and photos. Everything else is done for you.", "Pilih templat, kemudian pilih video dan gambar anda. Yang lain siap sendiri.")))
-        fun row(it: Templates.Item, parent: LinearLayout) {
-            val c = Ui.card(this); val r = LinearLayout(this); r.gravity = Gravity.CENTER_VERTICAL
-            val tx = LinearLayout(this); tx.orientation = LinearLayout.VERTICAL
-            tx.addView(Ui.label(this, it.name, 15f, Ui.TEXT, true))
-            val song = MusicLib.ALL.firstOrNull { m -> m.id == it.music }
-            tx.addView(Ui.label(this, (if (song != null) "🎵 " + t(song.en, song.ms) + " · " else "") + "${it.slots} " + t("clips", "klip") + " · " + String.format(Locale.US, "%.0fs", it.secs), 12f, Ui.SUB))
-            r.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
-            if (it.kind == "mine" || (it.kind == "server" && Auth.isAdmin)) r.addView(Ui.btn(this, "🗑") { AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?"))
-                .setPositiveButton(t("Delete", "Padam")) { _, _ -> if (it.kind == "mine") { Templates.deleteMine(this, it.id); parent.removeView(c) } else Thread { val ok = Templates.unpublish(it.id); main.post { if (ok) parent.removeView(c) } }.start() }
-                .setNegativeButton(t("Cancel", "Batal"), null).show() }, LinearLayout.LayoutParams(Ui.px(this, 52), -2))
-            c.addView(r); c.setOnClickListener { _ -> s.dialog.dismiss(); useTemplate(it) }
-            parent.addView(c, Ui.lp(this, 6))
+        val s = Ui.sheet(this, t("Templates", "Templat")); val b = s.body; val d = Ui.px(this, 8)
+        // save / share the current edit
+        if (clips.isNotEmpty() && clips.none { it.img == "slot" }) {
+            val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
+            r.addView(Ui.btn(this, "💾 " + t("Save mine", "Simpan saya")) { askName { n -> Templates.saveMine(this, projectTemplate(n)); toast(t("Template saved", "Templat disimpan")); s.dialog.dismiss() } }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = d / 2 })
+            r.addView(Ui.btn(this, "🌍 " + t("Share", "Kongsi"), true) { s.dialog.dismiss(); shareTemplate() }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
+            b.addView(r)
         }
-        // save / publish the current edit
-        if (clips.isNotEmpty()) {
-            b.addView(Ui.btn(this, "💾 " + t("Save this edit as a template", "Simpan suntingan ini sebagai templat")) { askName { n -> Templates.saveMine(this, Templates.fromProject(n, W, H, clips, layers, sounds)); toast(t("Template saved", "Templat disimpan")); s.dialog.dismiss() } }, Ui.lp(this, 8))
-            if (Auth.isAdmin) b.addView(Ui.btn(this, "📢 " + t("Publish to everyone", "Terbitkan kepada semua"), true) { askName { n -> Thread { val ok = Templates.publish(Templates.fromProject(n, W, H, clips, layers, sounds)); main.post { toast(if (ok) t("Published", "Diterbitkan") else t("Failed", "Gagal")); if (ok) s.dialog.dismiss() } }.start() } }, Ui.lp(this, 6))
+        val search = Ui.input(this, "🔍  " + t("Search templates", "Cari templat")); b.addView(search, Ui.lp(this, 8))
+        val tabs = listOf("foryou", "community", "mine") + Templates.CATS.drop(1)
+        fun tabName(k: String) = when (k) { "foryou" -> t("For you", "Untuk anda"); "community" -> t("Community", "Komuniti"); "mine" -> t("Mine", "Saya"); else -> Templates.catName(k) }
+        val tf = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); b.addView(tf, Ui.lp(this, 8))
+        val grid = LinearLayout(this); grid.orientation = LinearLayout.VERTICAL; b.addView(grid, Ui.lp(this, 10))
+        val built = Templates.builtin(); val mine = Templates.mine(this)
+        class G(val it: Templates.Item, val user: String, val uses: Long, val cover: String, val sharedId: String?, val ownerUid: String?)
+        val gBuilt = built.map { G(it, "promulticam", -1, "", null, null) }; var gServer = listOf<G>(); var gShared = listOf<G>()
+        var tab = "foryou"
+        val cw = (resources.displayMetrics.widthPixels - Ui.px(this, 32) - d) / 2; val ch = cw * 16 / 9
+        fun card(g: G): View {
+            val c = LinearLayout(this); c.orientation = LinearLayout.VERTICAL
+            val f = FrameLayout(this); f.background = Ui.round(0xFF22201C.toInt(), Ui.dp(this, 14f)); f.clipToOutline = true
+            val iv = android.widget.ImageView(this); iv.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; f.addView(iv, FrameLayout.LayoutParams(-1, -1))
+            val key = g.sharedId ?: g.it.id
+            covers[key]?.let { iv.setImageBitmap(it) } ?: Thread { val bm = if (g.cover.isNotEmpty()) Shared.bitmap(g.cover) else try { Shared.builtCover(art, g.it) } catch (e: Exception) { null }
+                if (bm != null) { covers[key] = bm; main.post { iv.setImageBitmap(bm) } } }.start()
+            val song = MusicLib.ALL.firstOrNull { m -> m.id == g.it.music }
+            val tag = (if (g.uses >= 0) "✂ " + Shared.count(g.uses) + "   " else "") + (if (song != null) "🎵 " else "") + "${g.it.slots} · " + String.format(Locale.US, "%.0fs", g.it.secs)
+            val tl = Ui.label(this, tag, 11f, Color.WHITE, true); tl.setShadowLayer(4f, 0f, 1f, Color.BLACK); tl.setPadding(d, 0, d, d)
+            f.addView(tl, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START))
+            c.addView(f, LinearLayout.LayoutParams(-1, ch))
+            val nm = Ui.label(this, g.it.name, 14f, Ui.TEXT, true); nm.maxLines = 1; nm.ellipsize = android.text.TextUtils.TruncateAt.END; c.addView(nm, Ui.lp(this, 6))
+            c.addView(Ui.label(this, "@" + g.user, 12f, Ui.SUB), Ui.lp(this, 2))
+            c.setOnClickListener { s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
+            c.setOnLongClickListener {
+                val canDel = g.it.kind == "mine" || (g.sharedId != null && (Auth.isAdmin || g.ownerUid == Auth.uid)) || (g.it.kind == "server" && Auth.isAdmin)
+                if (canDel) AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?")).setPositiveButton(t("Delete", "Padam")) { _, _ ->
+                    when { g.it.kind == "mine" -> { Templates.deleteMine(this, g.it.id); (c.parent as? android.view.ViewGroup)?.removeView(c) }
+                        else -> Thread { val ok = if (g.sharedId != null) Shared.delete(g.sharedId) else Templates.unpublish(g.it.id); main.post { if (ok) c.visibility = View.INVISIBLE } }.start() } }
+                    .setNegativeButton(t("Cancel", "Batal"), null).show()
+                true }
+            return c
         }
-        val mine = Templates.mine(this)
-        if (mine.isNotEmpty()) { b.addView(Ui.section(this, t("My templates", "Templat saya"))); val m = LinearLayout(this); m.orientation = LinearLayout.VERTICAL; mine.forEach { row(it, m) }; b.addView(m) }
-        b.addView(Ui.section(this, t("From ProMultiCam", "Dari ProMultiCam"))); val sv = LinearLayout(this); sv.orientation = LinearLayout.VERTICAL; b.addView(sv)
-        val wait = Ui.label(this, t("Loading…", "Memuatkan…"), 13f, Ui.SUB); sv.addView(wait)
-        Thread { val l = Templates.server(); main.post { sv.removeView(wait); if (l.isEmpty()) sv.addView(Ui.label(this, t("None yet", "Belum ada"), 13f, Ui.SUB)) else l.forEach { row(it, sv) } } }.start()
-        // free built-in templates, by group
-        b.addView(Ui.section(this, t("Free templates", "Templat percuma"))); val all = Templates.builtin()
-        val cf = Flow(this, Ui.px(this, 6)); val cb = ArrayList<Button>(); val bl = LinearLayout(this); bl.orientation = LinearLayout.VERTICAL
-        fun show(cat: String) { bl.removeAllViews(); all.filter { cat == "all" || it.cat == cat }.forEach { row(it, bl) }; cb.forEachIndexed { j, q -> Ui.setPill(this, q, Templates.CATS[j] == cat) } }
-        Templates.CATS.forEach { k -> val q = Ui.pill(this, Templates.catName(k), false) { show(k) }; q.textSize = 12f; cb.add(q); cf.addView(q) }
-        b.addView(cf, Ui.lp(this, 4)); b.addView(bl, Ui.lp(this, 6)); show("all")
+        fun show() {
+            tb.forEachIndexed { j, q -> Ui.setPill(this, q, tabs[j] == tab) }
+            val q = search.text.toString().trim().lowercase()
+            val list = when (tab) { "foryou" -> gShared + gServer + gBuilt; "community" -> gShared + gServer; "mine" -> mine.map { G(it, Profile.name(this) ?: t("me", "saya"), -1, "", null, null) } + gShared.filter { it.ownerUid == Auth.uid }
+                else -> (gShared + gServer + gBuilt).filter { it.it.cat == tab } }.filter { q.isEmpty() || it.it.name.lowercase().contains(q) || it.user.contains(q) }
+            grid.removeAllViews()
+            if (list.isEmpty()) { grid.addView(Ui.label(this, if (tab == "mine") t("Save or share an edit to see it here", "Simpan atau kongsi suntingan untuk lihat di sini") else t("Nothing here yet", "Belum ada"), 13f, Ui.SUB)); return }
+            list.chunked(2).forEach { pair -> val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
+                pair.forEachIndexed { k, g -> r.addView(card(g), LinearLayout.LayoutParams(0, -2, 1f).apply { if (k == 0) rightMargin = d / 2 else leftMargin = d / 2 }) }
+                if (pair.size == 1) r.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { leftMargin = d / 2 })
+                grid.addView(r, Ui.lp(this, 14)) }
+        }
+        tabs.forEach { k -> val p = Ui.pill(this, tabName(k), k == tab) { tab = k; show() }; p.textSize = 12f; tb.add(p); tf.addView(p) }
+        search.addTextChangedListener(object : android.text.TextWatcher { override fun afterTextChanged(e: android.text.Editable?) { show() }
+            override fun beforeTextChanged(a: CharSequence?, b1: Int, c: Int, d1: Int) {}; override fun onTextChanged(a: CharSequence?, b1: Int, c: Int, d1: Int) {} })
+        show()
+        Thread { val sv = Templates.server().map { G(it, "promulticam", -1, "", null, null) }
+            val sh = Shared.list().map { x -> G(Templates.Item("c_" + x.id, x.name, x.j, "shared"), x.user, x.uses, x.cover, x.id, x.uid) }
+            main.post { gServer = sv; gShared = sh; if (s.dialog.isShowing) show() } }.start()
         s.dialog.setOnCancelListener { if (clips.isEmpty()) finish() }
-        s.dialog.show()
+        s.dialog.show(); s.dialog.window?.setLayout(-1, -1)
+    }
+    /* this edit as a template (with the built-in song, if one is used) */
+    private fun projectTemplate(n: String): org.json.JSONObject {
+        val j = Templates.fromProject(n, W, H, clips, layers, sounds)
+        sounds.firstOrNull { it.kind == "music" && File(it.file).name.startsWith("lib_") }?.let { m -> j.put("music", File(m.file).nameWithoutExtension.removePrefix("lib_")) }
+        return j
+    }
+    /* share with everyone: needs a user name; the cover is the first picture with its text */
+    private fun shareTemplate() {
+        if (!Auth.signedIn) { toast(t("Please log in first", "Sila log masuk dahulu")); return }
+        val un = Profile.name(this)
+        if (un == null) { askUsername { shareTemplate() }; return }
+        askName { n ->
+            val cats = Templates.CATS.drop(1)
+            AlertDialog.Builder(this).setTitle(t("Group", "Kumpulan")).setItems(cats.map { Templates.catName(it) }.toTypedArray()) { _, w ->
+                val wt = wait(t("Sharing…", "Berkongsi…"))
+                Thread {
+                    val cover = try { coverNow() } catch (e: Exception) { null }
+                    val ok = cover != null && Shared.share(n, un, cats[w], projectTemplate(n), cover)
+                    main.post { wt.dismiss(); toast(if (ok) t("Shared with everyone 🌍", "Dikongsi kepada semua 🌍") else t("Could not share", "Gagal dikongsi")) } }.start()
+            }.show() }
+    }
+    /* the picture at 1 second (first clip) with the text on it, small */
+    private fun coverNow(): Bitmap {
+        val cw = 360; val chh = cw * H / maxOf(1, W); val b = Bitmap.createBitmap(cw, chh, Bitmap.Config.ARGB_8888); val cv = Canvas(b); cv.drawColor(Color.BLACK)
+        val c = clips[0]; val tt = minOf(1_000_000L, c.dur / 2)
+        val fr = if (c.still && c.img.isNotEmpty()) loadBitmap(c.img) else { val r = android.media.MediaMetadataRetriever(); try { r.setDataSource(c.file.absolutePath); r.getFrameAtTime(c.inUs + (tt * c.speed).toLong(), android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC) } finally { r.release() } }
+        if (fr != null) { val k = maxOf(cw.toFloat() / fr.width, chh.toFloat() / fr.height); val w = fr.width * k; val h = fr.height * k
+            cv.drawBitmap(fr, null, RectF((cw - w) / 2, (chh - h) / 2, (cw + w) / 2, (chh + h) / 2), Paint(Paint.FILTER_BITMAP_FLAG)) }
+        val ov = art.render(layers.filter { it.kind != "pip" }, tt, W, H); cv.drawBitmap(ov, null, RectF(0f, 0f, cw.toFloat(), chh.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG)); ov.recycle()
+        return b
+    }
+    private fun askUsername(then: () -> Unit) {
+        val e = Ui.input(this, "nama_anda"); e.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        AlertDialog.Builder(this).setTitle(t("Choose a user name", "Pilih nama pengguna")).setMessage(t("Shown on templates you share (not your email).", "Dipaparkan pada templat yang anda kongsi (bukan emel)."))
+            .setView(LinearLayout(this).apply { setPadding(Ui.px(this@EditorActivity, 20), Ui.px(this@EditorActivity, 8), Ui.px(this@EditorActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
+            .setPositiveButton("OK") { _, _ -> val n = e.text.toString(); val w = wait(t("Checking…", "Menyemak…"))
+                Thread { val err = Profile.claim(this, n); main.post { w.dismiss(); if (err == null) { toast("@" + Profile.name(this)); then() } else toast(Profile.errText(err)) } }.start() }
+            .setNegativeButton(t("Cancel", "Batal"), null).show()
     }
     private fun askName(f: (String) -> Unit) {
         val e = Ui.input(this, t("Template name", "Nama templat"))
@@ -1534,8 +1607,8 @@ class EditorActivity : AppCompatActivity() {
         override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray {
             if (first < 0) first = presentationTimeUs
             val st = Fx.state(eff, inT, outT, presentationTimeUs - first, dur, fi, fo)
-            val f = (1 - st.dark) * (1 - st.white); val w = st.white
-            val r = FloatArray(16); for (i in 0..2) { for (j in 0..2) r[j * 4 + i] = m[j * 4 + i] * f; r[12 + i] = o[i] * f + w }; r[15] = 1f
+            val f = (1 - st.dark) * (1 - st.white) * (1 - st.leak * 0.55f); val w = st.white; val lk = floatArrayOf(0.95f, 0.5f, 0.28f)
+            val r = FloatArray(16); for (i in 0..2) { for (j in 0..2) r[j * 4 + i] = m[j * 4 + i] * f; r[12 + i] = o[i] * f + w + st.leak * lk[i] * 0.75f }; r[15] = 1f
             return r
         }
     }

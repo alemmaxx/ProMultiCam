@@ -361,7 +361,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(ar, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         // same switch effects as the editor
-        val tr = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); val tIds = Fx.TRANS
+        val tr = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); val tIds = Fx.TRANS.take(12)
         fun cur() = if (trans == "cut") "none" else trans
         for (id in tIds) {
             val pb = Ui.pill(this, Fx.transName(id), cur() == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, tIds[j] == cur()) } }

@@ -174,6 +174,15 @@ class MainActivity : AppCompatActivity() {
                 Auth.isPro && Auth.plan == "trial" -> t("Free Pro: ${Auth.daysLeft} day(s) left", "Pro percuma: ${Auth.daysLeft} hari lagi")
                 Auth.isPro -> t("Pro: ${Auth.daysLeft} day(s) left", "Pro: ${Auth.daysLeft} hari lagi"); else -> t("Basic (free)", "Asas (percuma)") }
             s.body.addView(Ui.label(this, plan, 14f, Ui.GOLD), Ui.lp(this, 4))
+            // public user name (shown on shared templates instead of the email)
+            val un = Ui.label(this, "@" + (Profile.name(this) ?: "—"), 15f, Ui.TEXT, true); s.body.addView(un, Ui.lp(this, 12))
+            Thread { val n = Profile.load(this); runOnUiThread { un.text = "@" + (n ?: "—") } }.start()
+            s.body.addView(Ui.btn(this, "✏️ " + t("Set user name", "Tetapkan nama pengguna")) {
+                val e = Ui.input(this, "nama_anda", Profile.name(this) ?: "")
+                android.app.AlertDialog.Builder(this).setTitle(t("User name", "Nama pengguna")).setMessage(t("3–20 letters: a–z, 0–9, _ or .", "3–20 aksara: a–z, 0–9, _ atau ."))
+                    .setView(LinearLayout(this).apply { setPadding(Ui.px(this@MainActivity, 20), Ui.px(this@MainActivity, 8), Ui.px(this@MainActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
+                    .setPositiveButton("OK") { _, _ -> val n = e.text.toString(); Thread { val err = Profile.claim(this, n); runOnUiThread { if (err == null) { un.text = "@" + Profile.name(this); toast(t("Saved", "Disimpan")) } else toast(Profile.errText(err)) } }.start() }
+                    .setNegativeButton(t("Cancel", "Batal"), null).show() }, Ui.lp(this, 6))
             if (!Auth.isAdmin) s.body.addView(Ui.btn(this, if (Auth.isPro && Auth.plan != "trial") t("Renew", "Sambung langganan") else t("Upgrade to Pro", "Naik taraf ke Pro"), true) { s.dialog.dismiss(); Nav.open(this, "pro") }, Ui.lp(this, 14))
             s.body.addView(Ui.btn(this, t("Log out", "Log keluar")) { Auth.logout(); s.dialog.dismiss(); paintLogin() }, Ui.lp(this, 10))
             s.dialog.show(); return

@@ -62,5 +62,6 @@ object Fs {
     fun delete(path: String): Boolean = commit(listOf(JSONObject().put("delete", "$BASE/$path")))
     fun commit(writes: List<JSONObject>): Boolean =
         http.newCall(req("$URL:commit").post(JSONObject().put("writes", JSONArray(writes)).toString().toRequestBody(js)).build()).execute().use { it.isSuccessful }
+    fun docName(p: String) = "$BASE/$p"
     fun newId() = java.util.UUID.randomUUID().toString().replace("-", "").take(20)
 }

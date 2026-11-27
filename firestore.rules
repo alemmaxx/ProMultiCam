@@ -57,6 +57,25 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isSuper();
     }
+    // public user names (shown on shared templates instead of the email)
+    match /profiles/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && request.resource.data.username is string && request.resource.data.username.matches('^[a-z0-9_.]{3,20}$');
+    }
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && name.matches('^[a-z0-9_.]{3,20}$');
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+    // templates shared by users: anyone signed in can use them; only the count of uses can go up by one
+    match /shared/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.uses == 0
+        && request.resource.data.cover.size() < 300000 && request.resource.data.json.size() < 200000;
+      allow update: if signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses']) && request.resource.data.uses == resource.data.uses + 1;
+      allow delete: if isSuper() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
     // music library: free-to-use songs uploaded by the super admin, kept in pieces
     match /music/{id} {
       allow read: if signedIn();
