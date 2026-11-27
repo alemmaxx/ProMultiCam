@@ -529,7 +529,7 @@ class EditorActivity : AppCompatActivity() {
         val c = clips.getOrNull(player.currentMediaItemIndex)
         val rot = c?.rot ?: 0; val side = rot % 180 != 0
         val ew = if (side) vidH else vidW; val eh = if (side) vidW else vidH
-        val k = minOf(box.width.toFloat() / ew, box.height.toFloat() / eh)
+        val k = if (c?.fill == true) maxOf(box.width.toFloat() / ew, box.height.toFloat() / eh) else minOf(box.width.toFloat() / ew, box.height.toFloat() / eh)
         val lp = tv.layoutParams as FrameLayout.LayoutParams
         val nw = (vidW * k).toInt(); val nh = (vidH * k).toInt()
         if (lp.width != nw || lp.height != nh) { lp.width = nw; lp.height = nh; lp.gravity = Gravity.CENTER; tv.layoutParams = lp }
@@ -623,6 +623,7 @@ class EditorActivity : AppCompatActivity() {
         tool("✨", t("Effects", "Efek"), c.fx != "none") { fxSheet(i) }
         tool("🎨", t("Filters", "Filter"), c.look != "std") { filterSheet(i) }
         tool("☀", t("Adjust", "Laras"), c.bri != 0f || c.con != 0f || c.sat != 0f) { adjustSheet(i) }
+        tool("⛶", t("Fill frame", "Isi bingkai"), c.fill) { snap(); c.fill = !c.fill; rebuild(tl.time); toast(if (c.fill) t("Fills the frame (edges cut)", "Isi bingkai (tepi dipotong)") else t("Whole picture (bars if needed)", "Gambar penuh (jalur jika perlu)")) }
         tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
         tool("⇋", t("Mirror", "Cermin"), c.mirror) { snap(); c.mirror = !c.mirror; rebuild(tl.time) }
         tool("❄", t("Freeze", "Beku")) { freeze() }
@@ -1078,15 +1079,21 @@ class EditorActivity : AppCompatActivity() {
     private fun save() {
         if (clips.isEmpty() || busy) return
         player.pause()
-        val o = orig
-        if (o == null) { export(null); return }
-        AlertDialog.Builder(this).setTitle(t("Export", "Eksport"))
-            .setItems(arrayOf(t("Replace the original video", "Ganti video asal"), t("Save as a new video", "Simpan sebagai video baru"))) { _, w -> export(if (w == 0) o else null) }
-            .setNegativeButton(t("Cancel", "Batal"), null).show()
+        val o = orig; val sp = getSharedPreferences("pmc", MODE_PRIVATE)
+        val sh = Ui.sheet(this, t("Export", "Eksport"))
+        pills(sh.body, t("Quality", "Kualiti"), listOf("720" to "720p", "1080" to "1080p"), { sp.getString("expRes", "1080") ?: "1080" }) { sp.edit().putString("expRes", it).apply() }
+        pills(sh.body, t("Smoothness", "Kelancaran"), listOf("30" to "30 fps", "60" to t("Up to 60 fps", "Sehingga 60 fps")), { sp.getString("expFps", "30") ?: "30" }) { sp.edit().putString("expFps", it).apply() }
+        sh.body.addView(Ui.hint(this, t("720p is smaller and quicker to send. 60 fps only if your videos were recorded at 60.", "720p lebih kecil dan cepat dihantar. 60 fps hanya jika video asal dirakam 60.")))
+        if (o != null) sh.body.addView(Ui.btn(this, t("Replace the original video", "Ganti video asal")) { sh.dialog.dismiss(); export(o) }, Ui.lp(this, 14))
+        sh.body.addView(Ui.btn(this, if (o != null) t("Save as a new video", "Simpan sebagai video baru") else t("Make the video", "Buat video"), true) { sh.dialog.dismiss(); export(null) }, Ui.lp(this, 8))
+        sh.dialog.show()
     }
     private class Speed(val s: Float) : SpeedProvider { override fun getSpeed(timeUs: Long) = s; override fun getNextSpeedChangeTimeUs(timeUs: Long) = C.TIME_UNSET }
     private fun export(replace: File?, noPip: Boolean = false) {
         busy = true
+        // quality chosen in the export box: 720p is two thirds of the full size; 30 fps drops extra pictures
+        val q720 = getSharedPreferences("pmc", MODE_PRIVATE).getString("expRes", "1080") == "720"; val fps30 = getSharedPreferences("pmc", MODE_PRIVATE).getString("expFps", "30") == "30"
+        val ow = if (q720) (W * 2 / 3) / 2 * 2 else W; val oh = if (q720) (H * 2 / 3) / 2 * 2 else H
         val tmp = File(Store.dir(this), "tmp_edit_" + System.currentTimeMillis() + ".mp4")
         val dlg = AlertDialog.Builder(this).setMessage(t("Making the video… 0%", "Membuat video… 0%")).setCancelable(false).show()
         val lays = layers.map { it.copy() }
@@ -1097,16 +1104,17 @@ class EditorActivity : AppCompatActivity() {
             val fx = ArrayList<androidx.media3.common.Effect>()
             if (c.rot != 0 || c.mirror) fx.add(ScaleAndRotateTransformation.Builder().setRotationDegrees(-c.rot.toFloat()).setScale(if (c.mirror) -1f else 1f, 1f).build())
             if (c.speed != 1f) fx.add(SpeedChangeEffect(c.speed))
-            fx.add(Presentation.createForWidthAndHeight(W, H, Presentation.LAYOUT_SCALE_TO_FIT))
+            if (fps30) fx.add(androidx.media3.effect.FrameDropEffect.createDefaultFrameDropEffect(30f))
+            fx.add(Presentation.createForWidthAndHeight(ow, oh, if (c.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
             val inT = c.trans.takeIf { i > 0 } ?: "none"; val outT = clips.getOrNull(i + 1)?.trans ?: "none"
             val moving = c.fx != "none" || inT != "none" || outT != "none"
-            if (moving) fx.add(MotionFx(c.fx, inT, outT, c.dur, W, H))
+            if (moving) fx.add(MotionFx(c.fx, inT, outT, c.dur, ow, oh))
             val vfi = if (c.fadeVid) c.fi else 0f; val vfo = if (c.fadeVid) c.fo else 0f
             if (moving || vfi > 0 || vfo > 0 || c.filter() != "brightness(1.0) contrast(1.0) saturate(1.0)") { val (m, o) = Looks.matrix(c.filter()); fx.add(ColorFx(m, o, c.fx, inT, outT, c.dur, vfi, vfo)) }
             val base = off; val du = c.dur
             val ov = ArrayList<androidx.media3.effect.TextureOverlay>()
-            if (inT in listOf("wipe", "circle", "doors") || outT in listOf("wipe", "circle", "doors")) ov.add(MaskFx(c.fx, inT, outT, c.dur, W, H))
-            if (lays.any { it.e > base && it.s < base + du }) ov.add(LayerFx(art, lays, base, W, H))
+            if (inT in listOf("wipe", "circle", "doors") || outT in listOf("wipe", "circle", "doors")) ov.add(MaskFx(c.fx, inT, outT, c.dur, ow, oh))
+            if (lays.any { it.e > base && it.s < base + du }) ov.add(LayerFx(art, lays, base, ow, oh))
             if (ov.isNotEmpty()) fx.add(OverlayEffect(ImmutableList.copyOf(ov)))
             off += du
             val au = ArrayList<AudioProcessor>()
@@ -1153,7 +1161,7 @@ class EditorActivity : AppCompatActivity() {
         fun lanePass(k: Int, input: File) {
             if (k >= lanes.size) { finish(input); return }
             stepTxt = "(${k + 2}/${lanes.size + 1}) "
-            val lane = lanes[k]; val ww = W; val hh = H; val m = minOf(W, H)
+            val lane = lanes[k]; val ww = ow; val hh = oh; val m = minOf(ow, oh)
             Thread {
                 val pi = ArrayList<EditedMediaItem>(); var at = 0L
                 fun gap(us: Long) { if (us < 50_000) return; val g = File(work, "gap_" + us + ".mp4"); if (!g.exists()) StillClip.make(Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }, 320, 180, us, g)

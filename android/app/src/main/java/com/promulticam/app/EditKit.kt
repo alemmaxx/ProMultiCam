@@ -30,11 +30,11 @@ class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) 
     var speed = 1f; var vol = 1f; var look = "std"; var bri = 0f; var con = 0f; var sat = 0f; var rot = 0; var mirror = false
     var trans = "none"   // the switch effect at the START of this clip (from the clip before)
     var fileDur = Long.MAX_VALUE; var img = ""; var fx = "none"
-    var fi = 0f; var fo = 0f; var fadeVid = true   // fade in / out (seconds) of sound, and of the picture to black
+    var fi = 0f; var fo = 0f; var fadeVid = true; var fill = false   // fade in / out (seconds) of sound, and of the picture to black
     /* sound level at time t (µs) inside the clip: rises at the start, falls at the end, like a hill */
     fun env(t: Long): Float { var g = 1f; if (fi > 0) g = minOf(g, t / (fi * 1e6f)); if (fo > 0) g = minOf(g, (dur - t) / (fo * 1e6f)); return g.coerceIn(0f, 1f) }
     val dur: Long get() = ((outUs - inUs) / speed).toLong()
-    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx; it.fi = fi; it.fo = fo; it.fadeVid = fadeVid }
+    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx; it.fi = fi; it.fo = fo; it.fadeVid = fadeVid; it.fill = fill }
     fun filter(): String { val l = Looks.ALL.firstOrNull { it.id == look }?.f ?: ""; return "$l brightness(${1 + bri}) contrast(${1 + con}) saturate(${1 + sat})".trim() }
 }
 /* things on top of the video: text, sticker, photo, brand */
