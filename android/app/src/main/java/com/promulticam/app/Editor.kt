@@ -639,6 +639,7 @@ class EditorActivity : AppCompatActivity() {
     }
     private fun clipTools(i: Int) {
         page = "clip"; tools.removeAllViews(); val c = clips.getOrNull(i) ?: return; back()
+        tool("🔁", t("Replace", "Tukar")) { replaceAt = i; pickReplace.launch(arrayOf("video/*", "image/*")) }
         tool("✂", t("Split", "Belah")) { split() }
         tool("⏩", t("Speed", "Laju"), c.speed != 1f) { speedSheet(i) }
         tool("〰", t("Fade", "Pudar"), c.fi > 0 || c.fo > 0) { fadeSheet(c, null) }
@@ -713,6 +714,26 @@ class EditorActivity : AppCompatActivity() {
     private var addEnd = false
     /* ---------------- templates ---------------- */
     private var tplPending: Templates.Item? = null
+    /* replace the picture of one clip (keeps its length, effects, switch and colours) */
+    private var replaceAt = -1
+    private val pickReplace = registerForActivityResult(ActivityResultContracts.OpenDocument()) { u -> val i = replaceAt; replaceAt = -1; if (u != null && i >= 0) replaceClip(i, u) }
+    private fun replaceClip(i: Int, u: Uri) {
+        val old = clips.getOrNull(i) ?: return
+        val isImg = (contentResolver.getType(u) ?: "").startsWith("image")
+        fun put(n: Clip) { n.speed = old.speed; n.vol = old.vol; n.look = old.look; n.bri = old.bri; n.con = old.con; n.sat = old.sat; n.trans = old.trans; n.fx = old.fx
+            n.fi = old.fi; n.fo = old.fo; n.fadeVid = old.fadeVid; n.fill = old.fill; n.blur = old.blur; n.kf = old.kf
+            snap(); clips[i] = n; onSelect(Sel.C(i)); rebuild(start(i)); toast(t("Replaced 🔁", "Ditukar 🔁")) }
+        val w = wait(t("Loading…", "Memuatkan…"))
+        Thread {
+            val f = copyIn(u, if (isImg) "img_" else "v_", if (isImg) ".jpg" else ".mp4")
+            if (f == null) { main.post { w.dismiss(); toast(t("This file cannot be used", "Fail ini tidak boleh digunakan")) }; return@Thread }
+            if (isImg) main.post { w.dismiss(); makeStill(f.absolutePath, maxOf(0.5f, old.dur / 1e6f * old.speed)) { n -> if (n == null) toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")) else put(n) } }
+            else { val pr = probe(f); main.post { w.dismiss()
+                if (pr.third <= 0) { toast(t("This video cannot be used", "Video ini tidak boleh digunakan")); return@post }
+                val want = (old.dur * old.speed).toLong(); val st = if (pr.third > want * 2) (pr.third - want) / 3 else 0L
+                put(Clip(f, st, minOf(pr.third, st + want), false).also { it.fileDur = pr.third }) } }
+        }.start()
+    }
     private val pickMany = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> val tp = tplPending; if (tp != null && us.isNotEmpty()) applyTemplate(tp, us) else if (clips.isEmpty()) finish() }
     private fun templateSheet() {
         val s = Ui.sheet(this, t("Templates", "Templat")); val b = s.body
@@ -784,7 +805,7 @@ class EditorActivity : AppCompatActivity() {
                 dirty = true; clips = out; layers = ArrayList(Templates.layers(j)); sounds = ArrayList(Templates.sounds(j))
                 if (mf != null) { val ms = Sound("music", 0, out.sumOf { it.dur }); ms.file = mf.absolutePath; ms.vol = 0.7f; ms.fi = 0.3f; ms.fo = 1f; sounds.add(0, ms); origVol = 0.35f }
                 setFormat(tw, th); onSelect(Sel.None); rebuild(0)
-                toast(t("Done! Tap a text to change it.", "Siap! Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
+                toast(t("Done! Tap a clip → 🔁 Replace to change a picture. Tap a text to change it.", "Siap! Tekan klip → 🔁 Tukar untuk ganti gambar. Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
         }.start()
     }
     private fun askAdd(first: Boolean) {
