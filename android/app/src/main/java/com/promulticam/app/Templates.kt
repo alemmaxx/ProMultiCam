@@ -11,6 +11,7 @@ import java.io.File
 object Templates {
     class Item(val id: String, val name: String, val j: JSONObject, val kind: String) {   // kind: built / server / mine
         val slots get() = j.optJSONArray("slots")?.length() ?: 0
+        val cat get() = j.optString("cat", "life"); val music get() = j.optString("music")
         val secs: Float get() { var s = 0f; val a = j.optJSONArray("slots") ?: return 0f; for (i in 0 until a.length()) s += a.getJSONObject(i).optDouble("dur", 2.0).toFloat(); return s }
     }
     private fun slot(dur: Float, fx: String = "none", trans: String = "none", look: String = "std", fi: Float = 0f, fo: Float = 0f) =
@@ -24,7 +25,7 @@ object Templates {
 
     fun builtin(): List<Item> {
         val L = ArrayList<Item>()
-        fun add(id: String, j: JSONObject) { L.add(Item("b_$id", j.getString("name"), j, "built")) }
+        fun add(id: String, j: JSONObject, cat: String = "life") { if (!j.has("cat")) j.put("cat", cat); L.add(Item("b_$id", j.getString("name"), j, "built")) }
         run { val d = listOf(2f, 1.5f, 1.5f, 1.5f, 2.5f)
             add("food", tpl(t("Food promo", "Promosi Makanan"), listOf(slot(2f, "zoomin", look = "warm"), slot(1.5f, "panl", "slide", "warm"), slot(1.5f, "zoomout", "whip", "warm"), slot(1.5f, "panr", "slide", "warm"), slot(2.5f, "zoomin", "zoom", "warm", fo = 0.6f)),
                 listOf(tx(t("SO TASTY!", "SEDAP!"), 0.2f, 2f, "boxword", "yellow", "pop", 0.2f, scale = 1.4f), tx(t("Special price today", "Harga istimewa hari ini"), 6.6f, 9f, "darkbox", "yellow", "slide")),
@@ -61,8 +62,64 @@ object Templates {
         add("thanks", tpl(t("Thank you ending", "Penutup Terima Kasih"), listOf(slot(3f, "zoomin"), slot(3f, "zoomout", "fade", fo = 1f)),
             listOf(tx(t("Thank you for watching", "Terima kasih kerana menonton"), 0.3f, 3f, "shadow", "white", "fade", 0.5f, scale = 1.1f), tx(t("Follow us for more", "Ikuti kami untuk lagi"), 3.2f, 6f, "boxword", "gold", "pop", 0.75f))))
         add("music", tpl(t("Music video", "Video Muzik"), List(6) { slot(1.5f, if (it % 2 == 0) "sway" else "pulse", if (it == 0) "none" else "flash", "cine") }, listOf()))
+        // older ones: put them in groups
+        val cats = mapOf("food" to "food", "menu" to "food", "flash" to "sale", "review" to "sale", "beforeafter" to "life", "open" to "sale", "steps" to "food", "greet" to "greet",
+            "slides" to "life", "energy" to "music", "new" to "sale", "cine" to "music", "tips" to "life", "count" to "life", "thanks" to "greet", "music" to "music")
+        L.forEach { it.j.put("cat", cats[it.id.removePrefix("b_")] ?: "life") }
+        L.addAll(withMusic())
         return L
     }
+
+    /* templates with our own music: each clip lasts a set number of beats, so every change lands on the beat */
+    private class St(val id: String, val cat: String, val en: String, val ms: String, val song: String, val n: Int, val beats: Int, val fxs: List<String>, val trs: List<String>, val look: String,
+                     val title: Pair<String, String>?, val sub: Pair<String, String>? = null, val each: ((Int) -> Pair<String, String>)? = null, val tStyle: String = "boxword", val tCol: String = "yellow", val tFont: String = "bricolage")
+    private fun withMusic(): List<Item> {
+        val S = listOf(
+            St("quickrecipe", "food", "Quick recipe", "Resepi pantas", "dapur", 6, 4, listOf("zoomin", "panl", "panr"), listOf("slide", "whip"), "warm", "EASY RECIPE" to "RESEPI MUDAH", each = { ("Step ${it + 1}") to ("Langkah ${it + 1}") }, tCol = "gold"),
+            St("yum", "food", "So yummy", "Sedapnya!", "ceria", 8, 2, listOf("pulse", "zoomin"), listOf("flash", "zoom"), "pop", "SO YUMMY!" to "SEDAPNYA!", tStyle = "bubble"),
+            St("weekmenu", "food", "This week's menu", "Menu minggu ini", "santai", 5, 4, listOf("zoomin", "zoomout"), listOf("fade"), "warm", "THIS WEEK" to "MINGGU INI",
+                each = { listOf("Monday" to "Isnin", "Tuesday" to "Selasa", "Wednesday" to "Rabu", "Thursday" to "Khamis", "Friday" to "Jumaat")[it] }, tStyle = "darkbox", tCol = "white"),
+            St("special", "food", "Chef's special", "Hidangan istimewa", "epik", 4, 4, listOf("zoomin", "panl"), listOf("black"), "cine", "Chef's Special" to "Hidangan Istimewa", tStyle = "glow", tCol = "gold", tFont = "lobster"),
+            St("coffee", "food", "Morning coffee", "Kopi pagi", "santai", 4, 4, listOf("zoomin", "sway"), listOf("fade"), "soft", "Morning coffee ☕" to "Kopi pagi ☕", tStyle = "shadow", tCol = "white", tFont = "lobster"),
+            St("dessert", "food", "Cakes & desserts", "Kek & pencuci mulut", "lembut", 5, 4, listOf("zoomin", "zoomout"), listOf("fade", "circle"), "soft", "Sweet treats" to "Manis-manis", tStyle = "glow", tCol = "pink", tFont = "lobster"),
+            St("nightmarket", "food", "Night market", "Pasar malam", "tenaga", 8, 2, listOf("shake", "pulse"), listOf("whip", "flash"), "pop", "NIGHT MARKET" to "PASAR MALAM", tStyle = "neon", tCol = "orange"),
+            St("grand", "sale", "Grand opening", "Pembukaan besar", "tenaga", 8, 2, listOf("zoomin", "pulse"), listOf("flash", "zoom"), "pop", "GRAND OPENING" to "PEMBUKAAN BESAR", "Come and visit!" to "Jemput datang!", tStyle = "d3"),
+            St("discount", "sale", "Big discount", "Diskaun besar", "tenaga", 6, 2, listOf("shake", "pulse"), listOf("flash"), "pop", "50% OFF" to "DISKAUN 50%", "Limited time" to "Masa terhad", tCol = "red"),
+            St("b1f1", "sale", "Buy 1 free 1", "Beli 1 percuma 1", "ceria", 6, 2, listOf("pulse", "zoomin"), listOf("zoom", "slide"), "pop", "BUY 1 FREE 1" to "BELI 1 PERCUMA 1", tStyle = "bubble"),
+            St("launch", "sale", "New launch", "Produk baru", "epik", 5, 4, listOf("zoomin", "sway"), listOf("zoom", "circle"), "cine", "NEW!" to "BARU!", "Get yours now" to "Dapatkan sekarang", tStyle = "d3"),
+            St("testi", "sale", "Happy customers", "Pelanggan gembira", "santai", 4, 4, listOf("zoomin"), listOf("fade"), "soft", "Happy customers" to "Pelanggan gembira", tStyle = "shadow", tCol = "white", tFont = "lobster"),
+            St("order", "sale", "Order now", "Order sekarang", "dapur", 5, 2, listOf("pulse", "zoomin"), listOf("slide", "whip"), "warm", "ORDER NOW" to "ORDER SEKARANG", "Message us today" to "Mesej kami hari ini", tCol = "gold"),
+            St("monthend", "sale", "Month-end sale", "Promosi hujung bulan", "tenaga", 8, 2, listOf("shake", "zoomin"), listOf("flash", "whip"), "pop", "MONTH-END SALE" to "PROMOSI HUJUNG BULAN", tStyle = "neon", tCol = "yellow"),
+            St("bday", "greet", "Happy birthday", "Hari jadi", "ceria", 6, 4, listOf("zoomin", "sway"), listOf("fade", "zoom"), "soft", "Happy Birthday!" to "Selamat Hari Jadi!", tStyle = "glow", tCol = "pink", tFont = "lobster"),
+            St("festive", "greet", "Festive wishes", "Ucapan perayaan", "lembut", 5, 4, listOf("zoomin", "zoomout"), listOf("fade"), "soft", "Happy Holidays" to "Selamat Hari Raya", "From all of us" to "Daripada kami semua", tStyle = "glow", tCol = "gold", tFont = "lobster"),
+            St("thankyou", "greet", "Thank you", "Terima kasih", "lembut", 4, 4, listOf("zoomin"), listOf("fade"), "soft", "Thank you!" to "Terima kasih!", tStyle = "shadow", tCol = "white", tFont = "lobster"),
+            St("celebrate", "greet", "Celebrate", "Sambutan", "epik", 6, 4, listOf("zoomin", "panl"), listOf("black", "fade"), "cine", "Let's celebrate" to "Mari meraikan", tStyle = "retro", tCol = "gold"),
+            St("vlog", "life", "Daily vlog", "Vlog harian", "santai", 6, 4, listOf("zoomin", "panr"), listOf("fade", "slide"), "soft", "My day" to "Hari saya", tStyle = "highlight", tCol = "yellow"),
+            St("trip", "life", "Trip", "Jalan-jalan", "ceria", 8, 4, listOf("panl", "panr", "zoomin"), listOf("slide", "slideup"), "pop", "Holiday time!" to "Masa bercuti!", tStyle = "bubble", tCol = "cyan"),
+            St("ba2", "life", "Before & after", "Sebelum & selepas", "epik", 2, 8, listOf("zoomin"), listOf("wipe"), "std", null, each = { listOf("BEFORE" to "SEBELUM", "AFTER" to "SELEPAS")[it] }, tCol = "white"),
+            St("memories", "life", "Memories", "Kenangan", "lembut", 8, 4, listOf("zoomin", "zoomout"), listOf("fade"), "soft", "Memories" to "Kenangan", tStyle = "glow", tCol = "white", tFont = "lobster"),
+            St("howto", "life", "3-step how-to", "Tutorial 3 langkah", "dapur", 3, 8, listOf("zoomin"), listOf("slide"), "std", null, each = { ("Step ${it + 1}") to ("Langkah ${it + 1}") }, tCol = "gold"),
+            St("top5", "life", "Top 5", "5 terbaik", "ceria", 5, 4, listOf("zoomin", "pulse"), listOf("slideup"), "pop", null, each = { ("#${5 - it}") to ("#${5 - it}") }, tStyle = "d3"),
+            St("weekend", "life", "Weekend", "Hujung minggu", "ceria", 6, 4, listOf("sway", "zoomin"), listOf("slide", "fade"), "pop", "Weekend!" to "Hujung minggu!", tStyle = "bubble", tCol = "orange"),
+            St("story", "life", "Business story", "Kisah usahawan", "epik", 6, 4, listOf("zoomin", "panl"), listOf("black"), "cine", "From a small kitchen…" to "Dari dapur kecil…", "…to many happy customers" to "…kepada ramai pelanggan", tStyle = "retro", tCol = "gold", tFont = "lobster"),
+            St("beat16", "music", "Fast beat", "Rentak laju", "tenaga", 16, 1, listOf("pulse", "shake"), listOf("flash", "whip"), "pop", null),
+            St("cinematic", "music", "Cinematic", "Sinematik", "epik", 6, 4, listOf("zoomin", "panl", "panr"), listOf("black"), "cine", null),
+            St("lofi", "music", "Lo-fi chill", "Lo-fi santai", "santai", 8, 4, listOf("zoomin", "sway"), listOf("fade"), "soft", null),
+            St("quick", "music", "Quick cuts", "Potongan pantas", "ceria", 12, 2, listOf("zoomin", "pulse"), listOf("whip", "zoom", "flash"), "pop", null),
+            St("doors", "music", "Doors & circles", "Pintu & bulatan", "ceria", 8, 4, listOf("zoomin"), listOf("doors", "circle", "wipe"), "pop", null),
+            St("piano", "music", "Soft piano", "Piano lembut", "lembut", 6, 4, listOf("zoomin", "zoomout"), listOf("fade", "white"), "soft", null))
+        return S.map { st ->
+            val bpm = MusicLib.ALL.first { it.id == st.song }.bpm; val beat = 60f / bpm; val d = st.beats * beat
+            val slots = List(st.n) { k -> slot(d, st.fxs[k % st.fxs.size], if (k == 0) "none" else st.trs[k % st.trs.size], st.look, if (k == 0) 0.3f else 0f, if (k == st.n - 1) 0.8f else 0f) }
+            val lays = ArrayList<JSONObject>(); val total = d * st.n
+            st.title?.let { lays.add(tx(t(it.first, it.second), 0.1f, minOf(total, d * 2), st.tStyle, st.tCol, "pop", 0.2f, st.tFont, 1.3f)) }
+            st.each?.let { f -> for (k in 0 until st.n) { val p = f(k); lays.add(tx(t(p.first, p.second), k * d + 0.1f, (k + 1) * d - 0.05f, st.tStyle, st.tCol, "slide", if (st.title != null && k < 2) 0.75f else 0.18f, st.tFont, 1.1f)) } }
+            st.sub?.let { lays.add(tx(t(it.first, it.second), maxOf(0f, total - d * 2), total, "darkbox", "white", "slide", 0.8f)) }
+            Item("b_" + st.id, t(st.en, st.ms), tpl(t(st.en, st.ms), slots, lays).put("cat", st.cat).put("music", st.song), "built")
+        }
+    }
+    val CATS = listOf("all", "food", "sale", "greet", "life", "music")
+    fun catName(k: String) = when (k) { "all" -> t("All", "Semua"); "food" -> t("Food", "Makanan"); "sale" -> t("Sales", "Jualan"); "greet" -> t("Wishes", "Ucapan"); "life" -> t("Life", "Gaya hidup"); else -> t("Music", "Muzik") }
 
     /* ---- saved on the phone ---- */
     private fun dir(c: Context) = File(c.filesDir, "templates").apply { mkdirs() }

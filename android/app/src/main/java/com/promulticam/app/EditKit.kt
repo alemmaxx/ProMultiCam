@@ -31,10 +31,11 @@ class Clip(val file: File, var inUs: Long, var outUs: Long, val still: Boolean) 
     var trans = "none"   // the switch effect at the START of this clip (from the clip before)
     var fileDur = Long.MAX_VALUE; var img = ""; var fx = "none"
     var fi = 0f; var fo = 0f; var fadeVid = true; var fill = false   // fade in / out (seconds) of sound, and of the picture to black
+    var kf = ""; var stab = false; var blur = false; var dn = false   // keyframes, steady, blurred sides, clean sound
     /* sound level at time t (µs) inside the clip: rises at the start, falls at the end, like a hill */
     fun env(t: Long): Float { var g = 1f; if (fi > 0) g = minOf(g, t / (fi * 1e6f)); if (fo > 0) g = minOf(g, (dur - t) / (fo * 1e6f)); return g.coerceIn(0f, 1f) }
     val dur: Long get() = ((outUs - inUs) / speed).toLong()
-    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx; it.fi = fi; it.fo = fo; it.fadeVid = fadeVid; it.fill = fill }
+    fun copy() = Clip(file, inUs, outUs, still).also { it.speed = speed; it.vol = vol; it.look = look; it.bri = bri; it.con = con; it.sat = sat; it.rot = rot; it.mirror = mirror; it.trans = trans; it.fileDur = fileDur; it.img = img; it.fx = fx; it.fi = fi; it.fo = fo; it.fadeVid = fadeVid; it.fill = fill; it.kf = kf; it.stab = stab; it.blur = blur; it.dn = dn }
     fun filter(): String { val l = Looks.ALL.firstOrNull { it.id == look }?.f ?: ""; return "$l brightness(${1 + bri}) contrast(${1 + con}) saturate(${1 + sat})".trim() }
 }
 /* things on top of the video: text, sticker, photo, brand */
@@ -42,7 +43,8 @@ class Layer(var kind: String, var s: Long, var e: Long) {
     var text = ""; var font = "bricolage"; var col = "white"; var style = "boxword"; var anim = "pop"
     var x = 0.5f; var y = 0.78f; var scale = 1f; var file = ""
     var ar = 0.5625f; var vin = 0L; var vdur = 0L   // video over video: width/height, start inside the file, file length
-    fun copy() = Layer(kind, s, e).also { it.text = text; it.font = font; it.col = col; it.style = style; it.anim = anim; it.x = x; it.y = y; it.scale = scale; it.file = file; it.ar = ar; it.vin = vin; it.vdur = vdur }
+    var kf = ""; var key = 0; var keyTol = 0.12f   // keyframes; green screen colour (0 = off) and how much
+    fun copy() = Layer(kind, s, e).also { it.text = text; it.font = font; it.col = col; it.style = style; it.anim = anim; it.x = x; it.y = y; it.scale = scale; it.file = file; it.ar = ar; it.vin = vin; it.vdur = vdur; it.kf = kf; it.key = key; it.keyTol = keyTol }
 }
 /* extra sound: music, sound effect, AI voice */
 class Sound(var kind: String, var s: Long, var e: Long) {
@@ -71,7 +73,7 @@ class TextArt(private val c: Context) {
     /* a key that changes only when the picture changes (so pictures are made again only when needed) */
     fun key(list: List<Layer>, t: Long): String {
         val sb = StringBuilder()
-        list.forEach { l -> if (active(l, t)) {
+        list.forEach { l0 -> if (active(l0, t)) { val l = l0.at(t)
             sb.append(l.kind).append(l.text).append(l.font).append(l.col).append(l.style).append(l.x).append(l.y).append(l.scale).append(l.file).append('|')
             val a = t - l.s
             if (l.anim == "shake") sb.append(t / 60_000)
@@ -85,7 +87,7 @@ class TextArt(private val c: Context) {
     fun render(list: List<Layer>, t: Long, W: Int, H: Int, rects: MutableMap<Int, RectF>? = null): Bitmap {
         val b = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888); val cv = Canvas(b)
         rects?.clear()
-        list.forEachIndexed { i, l -> if (active(l, t)) { val r = draw(cv, l, t, W, H); if (r != null) rects?.put(i, r) } }
+        list.forEachIndexed { i, l -> if (active(l, t)) { val r = draw(cv, l.at(t), t, W, H); if (r != null) rects?.put(i, r) } }
         return b
     }
 
