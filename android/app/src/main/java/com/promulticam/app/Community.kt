@@ -25,22 +25,23 @@ object Profile {
         val n = try { Fs.get("profiles/$u")?.s("username")?.ifEmpty { null } } catch (e: Exception) { null }
         if (n != null) { sp(c).edit().putString("uname_$u", n).apply(); cached = n; cachedUid = u }
         return n ?: name(c) }
-    fun valid(n: String) = Regex("^[a-z0-9_.]{3,20}$").matches(n)
+    fun valid(n: String) = n.isNotEmpty() && n.length <= 30 && !n.contains('/')
+    private fun key(n: String) = n.lowercase().replace(Regex("\\s+"), "").replace('/', '_').replace('.', '_').ifEmpty { "_" }
     /* take a name: null = done, otherwise the problem ("TAKEN", "BAD", "NETWORK") */
     fun claim(c: Context, raw: String): String? {
-        val u = Auth.uid ?: return "NETWORK"; val n = raw.trim().lowercase().removePrefix("@")
+        val u = Auth.uid ?: return "NETWORK"; val n = raw.trim().removePrefix("@").trim()
         if (!valid(n)) return "BAD"
         val old = load(c); if (old == n) return null
         return try {
-            if (!Fs.write("usernames/$n", mapOf("uid" to u), merge = false, create = true)) {
-                if (Fs.get("usernames/$n")?.s("uid") == u) null else return "TAKEN" }
+            if (!Fs.write("usernames/" + key(n), mapOf("uid" to u), merge = false, create = true)) {
+                if (Fs.get("usernames/" + key(n))?.s("uid") == u) null else return "TAKEN" }
             if (!Fs.write("profiles/$u", mapOf("username" to n), now = listOf("at"))) return "NETWORK"
-            if (old != null) Fs.delete("usernames/$old")
+            if (old != null && key(old) != key(n)) Fs.delete("usernames/" + key(old))
             sp(c).edit().putString("uname_$u", n).apply(); cached = n; cachedUid = u; null
         } catch (e: Exception) { "NETWORK" }
     }
     fun errText(e: String) = when (e) { "TAKEN" -> Ui.t("That name is taken. Try another.", "Nama itu sudah diambil. Cuba yang lain.")
-        "BAD" -> Ui.t("3–20 letters: a–z, 0–9, _ or .", "3–20 aksara: a–z, 0–9, _ atau ."); else -> Ui.t("No internet connection", "Tiada sambungan internet") }
+        "BAD" -> Ui.t("Type a name (up to 30)", "Taip nama (maksimum 30)"); else -> Ui.t("No internet connection", "Tiada sambungan internet") }
 }
 
 /* templates shared by users, with a cover picture and how many times they were used */

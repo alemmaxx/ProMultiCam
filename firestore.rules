@@ -60,11 +60,11 @@ service cloud.firestore {
     // public user names (shown on shared templates instead of the email)
     match /profiles/{uid} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid && request.resource.data.username is string && request.resource.data.username.matches('^[a-z0-9_.]{3,20}$');
+      allow write: if signedIn() && request.auth.uid == uid && request.resource.data.username is string && request.resource.data.username.size() > 0 && request.resource.data.username.size() <= 30;
     }
     match /usernames/{name} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && name.matches('^[a-z0-9_.]{3,20}$');
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && name.size() <= 60;
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
       allow update: if false;
     }

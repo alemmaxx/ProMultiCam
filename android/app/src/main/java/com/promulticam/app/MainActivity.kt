@@ -178,8 +178,8 @@ class MainActivity : AppCompatActivity() {
             val un = Ui.label(this, "@" + (Profile.name(this) ?: "—"), 15f, Ui.TEXT, true); s.body.addView(un, Ui.lp(this, 12))
             Thread { val n = Profile.load(this); runOnUiThread { un.text = "@" + (n ?: "—") } }.start()
             s.body.addView(Ui.btn(this, "✏️ " + t("Set user name", "Tetapkan nama pengguna")) {
-                val e = Ui.input(this, "nama_anda", Profile.name(this) ?: "")
-                android.app.AlertDialog.Builder(this).setTitle(t("User name", "Nama pengguna")).setMessage(t("3–20 letters: a–z, 0–9, _ or .", "3–20 aksara: a–z, 0–9, _ atau ."))
+                val e = Ui.input(this, t("Your name", "Nama anda"), Profile.name(this) ?: "")
+                android.app.AlertDialog.Builder(this).setTitle(t("User name", "Nama pengguna"))
                     .setView(LinearLayout(this).apply { setPadding(Ui.px(this@MainActivity, 20), Ui.px(this@MainActivity, 8), Ui.px(this@MainActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
                     .setPositiveButton("OK") { _, _ -> val n = e.text.toString(); Thread { val err = Profile.claim(this, n); runOnUiThread { if (err == null) { un.text = "@" + Profile.name(this); toast(t("Saved", "Disimpan")) } else toast(Profile.errText(err)) } }.start() }
                     .setNegativeButton(t("Cancel", "Batal"), null).show() }, Ui.lp(this, 6))

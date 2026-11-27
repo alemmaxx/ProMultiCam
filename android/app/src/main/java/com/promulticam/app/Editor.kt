@@ -839,8 +839,8 @@ class EditorActivity : AppCompatActivity() {
         return b
     }
     private fun askUsername(then: () -> Unit) {
-        val e = Ui.input(this, "nama_anda"); e.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-        AlertDialog.Builder(this).setTitle(t("Choose a user name", "Pilih nama pengguna")).setMessage(t("Shown on templates you share (not your email).", "Dipaparkan pada templat yang anda kongsi (bukan emel)."))
+        val e = Ui.input(this, t("Your name", "Nama anda"))
+        AlertDialog.Builder(this).setTitle(t("User name", "Nama pengguna"))
             .setView(LinearLayout(this).apply { setPadding(Ui.px(this@EditorActivity, 20), Ui.px(this@EditorActivity, 8), Ui.px(this@EditorActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
             .setPositiveButton("OK") { _, _ -> val n = e.text.toString(); val w = wait(t("Checking…", "Menyemak…"))
                 Thread { val err = Profile.claim(this, n); main.post { w.dismiss(); if (err == null) { toast("@" + Profile.name(this)); then() } else toast(Profile.errText(err)) } }.start() }
