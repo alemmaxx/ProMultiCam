@@ -108,7 +108,7 @@ object Templates {
             St("quick", "music", "Quick cuts", "Potongan pantas", "ceria", 12, 2, listOf("zoomin", "pulse"), listOf("whip", "zoom", "flash"), "pop", null),
             St("doors", "music", "Doors & circles", "Pintu & bulatan", "ceria", 8, 4, listOf("zoomin"), listOf("doors", "circle", "wipe"), "pop", null),
             St("piano", "music", "Soft piano", "Piano lembut", "lembut", 6, 4, listOf("zoomin", "zoomout"), listOf("fade", "white"), "soft", null))
-        return S.map { st ->
+        return stories() + S.map { st ->
             val bpm = MusicLib.ALL.first { it.id == st.song }.bpm; val beat = 60f / bpm; val d = st.beats * beat
             val slots = List(st.n) { k -> slot(d, st.fxs[k % st.fxs.size], if (k == 0) "none" else st.trs[k % st.trs.size], st.look, if (k == 0) 0.3f else 0f, if (k == st.n - 1) 0.8f else 0f) }
             val lays = ArrayList<JSONObject>(); val total = d * st.n
@@ -116,6 +116,22 @@ object Templates {
             st.each?.let { f -> for (k in 0 until st.n) { val p = f(k); lays.add(tx(t(p.first, p.second), k * d + 0.1f, (k + 1) * d - 0.05f, st.tStyle, st.tCol, "slide", if (st.title != null && k < 2) 0.75f else 0.18f, st.tFont, 1.1f)) } }
             st.sub?.let { lays.add(tx(t(it.first, it.second), maxOf(0f, total - d * 2), total, "darkbox", "white", "slide", 0.8f)) }
             Item("b_" + st.id, t(st.en, st.ms), tpl(t(st.en, st.ms), slots, lays).put("cat", st.cat).put("music", st.song), "built")
+        }
+    }
+    /* "story" look: one big title stays on the whole video, quick cuts on the beat, light leaks, tilts and strips */
+    private fun stories(): List<Item> {
+        data class Sy(val id: String, val cat: String, val en: String, val ms: String, val big: String, val small: String, val song: String, val n: Int, val beats: Int)
+        val L = listOf(Sy("wkstory", "life", "Weekend story", "Cerita hujung minggu", "WEEKEND", "Story", "santai", 16, 2),
+            Sy("foodstory", "food", "Food diary", "Diari makan", "FOOD", "Diary", "santai", 14, 2),
+            Sy("tripstory", "life", "Travel diary", "Diari kembara", "TRAVEL", "Diary", "ceria", 16, 4),
+            Sy("shopstory", "sale", "Our shop", "Kedai kami", "OUR SHOP", "Story", "dapur", 12, 4))
+        val trs = listOf("leak", "tilt", "bands", "flash", "reveal", "slide", "leak", "white", "tilt", "zoom")
+        val fxs = listOf("zoomin", "dutch", "panr", "zoomout", "panl", "zoomin")
+        return L.map { y ->
+            val bpm = MusicLib.ALL.first { it.id == y.song }.bpm; val d = y.beats * 60f / bpm; val total = d * y.n
+            val slots = List(y.n) { k -> slot(d, fxs[k % fxs.size], if (k == 0) "none" else trs[k % trs.size], "cine", if (k == 0) 0.4f else 0f, if (k == y.n - 1) 0.9f else 0f) }
+            val lays = listOf(tx(y.big, 0f, total, "shadow", "white", "fade", 0.42f, "playfair", 1.6f), tx(y.small, 0.15f, total, "plain", "yellow", "fade", 0.47f, "dancing", 1.3f))
+            Item("b_" + y.id, t(y.en, y.ms), tpl(t(y.en, y.ms), slots, lays).put("cat", y.cat).put("music", y.song), "built")
         }
     }
     val CATS = listOf("all", "food", "sale", "greet", "life", "music")
