@@ -62,6 +62,7 @@ abstract class PageActivity : AppCompatActivity() {
     protected val main = Handler(Looper.getMainLooper())
     protected val d get() = Ui.px(this, 12)
     abstract val title0: String
+    open val scroll = true   // false: the page fits one screen, no scrolling
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.init(this); Auth.init(this)
@@ -70,8 +71,9 @@ abstract class PageActivity : AppCompatActivity() {
         top.addView(Ui.iconBtn(this, R.drawable.ic_back) { finish() }, LinearLayout.LayoutParams(Ui.px(this, 46), Ui.px(this, 46)))
         top.addView(Ui.label(this, title0, 21f, Ui.TEXT, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(top)
-        val sv = ScrollView(this); body = LinearLayout(this); body.orientation = LinearLayout.VERTICAL; body.setPadding(0, d / 2, 0, d * 2); sv.addView(body)
-        root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d / 2 })
+        body = LinearLayout(this); body.orientation = LinearLayout.VERTICAL; body.setPadding(0, d / 2, 0, if (scroll) d * 2 else 0)
+        if (scroll) { val sv = ScrollView(this); sv.addView(body); root.addView(sv, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d / 2 }) }
+        else root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d / 2 })
         setContentView(root)
         build()
     }
@@ -345,26 +347,41 @@ class ManualActivity : PageActivity() {
 /* ---------------- About ---------------- */
 class AboutActivity : PageActivity() {
     override val title0 get() = t("About", "Tentang")
+    override val scroll = false
     override fun build() {
-        val iv = ImageView(this); iv.setImageResource(R.drawable.ic_logo); body.addView(iv, LinearLayout.LayoutParams(Ui.px(this, 72), Ui.px(this, 72)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = d })
-        body.addView(Ui.center(Ui.label(this, "ProMultiCam", 24f, Ui.TEXT, true)), Ui.lp(this, 8))
-        body.addView(Ui.center(Ui.label(this, t("Many phones. One video.", "Banyak telefon. Satu video."), 15f, Ui.GOLD, true)), Ui.lp(this, 2))
+        // logo + name in one row
+        val hd = LinearLayout(this); hd.orientation = LinearLayout.HORIZONTAL; hd.gravity = Gravity.CENTER_VERTICAL
+        val iv = ImageView(this); iv.setImageResource(R.drawable.ic_logo); hd.addView(iv, LinearLayout.LayoutParams(Ui.px(this, 60), Ui.px(this, 60)))
+        val nm = LinearLayout(this); nm.orientation = LinearLayout.VERTICAL; nm.setPadding(d, 0, 0, 0)
+        nm.addView(Ui.label(this, "ProMultiCam", 22f, Ui.TEXT, true))
+        nm.addView(Ui.label(this, t("Many phones. One video.", "Banyak telefon. Satu video."), 14f, Ui.GOLD, true))
         val v = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { "" }
-        body.addView(Ui.center(Ui.label(this, "App $v", 12f, Ui.SUB)), Ui.lp(this, 2))
-        listOf(
-            "🎬" to t("Turn spare phones into camera angles and switch between them live, like a TV studio.", "Jadikan telefon lain sudut kamera dan tukar sudut secara langsung, macam studio TV."),
-            "🔗" to t("Connect with a 6-digit Studio ID or QR code, over Wi-Fi or mobile data.", "Sambung dengan ID Studio 6 nombor atau kod QR, guna Wi-Fi atau data."),
-            "🎨" to t("Looks, layouts, switch effects, logo, price and contact on the video.", "Gaya warna, susun atur, kesan tukar, logo, harga dan hubungan pada video."),
-            "📝" to t("Teleprompter, title & closing cards, story scenes.", "Teleprompter, kad tajuk & penutup, babak cerita."),
-            "✂️" to t("Edit: cut, text, add videos and photos.", "Edit: potong, teks, tambah video dan gambar."),
-            "🔒" to t("Videos stay on your phone. Nothing is uploaded.", "Video kekal dalam telefon anda. Tiada yang dimuat naik.")
-        ).forEach { (ic, s) ->
-            val c = Ui.card(this); val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
-            r.addView(Ui.label(this, ic, 22f)); r.addView(Ui.label(this, s, 15f, Ui.TEXT).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
-            c.addView(r); body.addView(c, Ui.lp(this, 8))
+        nm.addView(Ui.label(this, "App $v", 12f, Ui.SUB))
+        hd.addView(nm); body.addView(hd, Ui.lp(this, 4))
+        // what it does: 6 small boxes, 2 per row, sharing the space
+        val items = listOf(
+            "🎬" to t("Many phones, switch angles live", "Banyak telefon, tukar sudut langsung"),
+            "🔗" to t("Join by Studio ID or QR", "Sertai guna ID Studio atau QR"),
+            "🎨" to t("Looks, effects, logo & price", "Gaya, kesan, logo & harga"),
+            "📝" to t("Teleprompter & title cards", "Teleprompter & kad tajuk"),
+            "✂️" to t("Editor: cut, text, music", "Editor: potong, teks, muzik"),
+            "🔒" to t("Videos stay on your phone", "Video kekal dalam telefon"))
+        val grid = LinearLayout(this); grid.orientation = LinearLayout.VERTICAL
+        for (r in 0 until 3) {
+            val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL
+            for (k in 0..1) { val (ic, txt) = items[r * 2 + k]
+                val c = Ui.card(this); c.gravity = Gravity.CENTER
+                c.addView(Ui.center(Ui.label(this, ic, 24f)))
+                c.addView(Ui.center(Ui.label(this, txt, 13f, Ui.TEXT, true)), Ui.lp(this, 6))
+                row.addView(c, LinearLayout.LayoutParams(0, -1, 1f).apply { if (k == 0) rightMargin = d / 2 else leftMargin = d / 2 }) }
+            grid.addView(row, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = d })
         }
-        body.addView(Ui.btn(this, "Manual") { Nav.open(this, "manual") }, Ui.lp(this, 14))
-        body.addView(Ui.btn(this, t("Support", "Sokongan")) { Nav.open(this, "support") }, Ui.lp(this, 8))
+        body.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
+        // buttons side by side
+        val bt = LinearLayout(this); bt.orientation = LinearLayout.HORIZONTAL
+        bt.addView(Ui.btn(this, "Manual") { Nav.open(this, "manual") }, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = d / 2 })
+        bt.addView(Ui.btn(this, t("Support", "Sokongan")) { Nav.open(this, "support") }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = d / 2 })
+        body.addView(bt, Ui.lp(this, 14))
     }
 }
 
