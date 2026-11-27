@@ -27,18 +27,24 @@ object Joiner {
                     else if (mime.startsWith("audio/") && aIn < 0) { aIn = i; if (!started) aOut = mux.addTrack(f) }
                 }
                 if (!started) { mux.start(); started = true }
+                // one time base per part (keeps sound and picture together), and the sound is cut where the picture ends,
+                // so the next part follows straight on (no frozen last picture at the join)
+                fun span(tr: Int): Pair<Long, Long> { if (tr < 0) return -1L to -1L; ex.selectTrack(tr); ex.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+                    var f = -1L; var l = -1L; while (ex.sampleTime >= 0) { val t = ex.sampleTime; if (f < 0) f = t; if (t > l) l = t; ex.advance() }; ex.unselectTrack(tr); return f to l }
+                val (vf, vl) = span(vIn); val (af, _) = span(aIn)
+                val base = listOf(vf, af).filter { it >= 0 }.minOrNull() ?: 0L
+                val cut = if (vl >= 0) vl + 34_000 else Long.MAX_VALUE
                 var end = offset
                 for ((inT, outT) in listOf(vIn to vOut, aIn to aOut)) {
                     if (inT < 0 || outT < 0) continue
                     ex.selectTrack(inT); ex.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-                    var first = -1L
                     while (true) {
                         val n = ex.readSampleData(buf, 0); if (n < 0) break
-                        val t = ex.sampleTime; if (first < 0) first = t
-                        info.offset = 0; info.size = n; info.presentationTimeUs = offset + (t - first)
+                        val t = ex.sampleTime; if (t > cut) { ex.advance(); continue }
+                        info.offset = 0; info.size = n; info.presentationTimeUs = offset + (t - base)
                         info.flags = if (ex.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
                         mux.writeSampleData(outT, buf, info)
-                        end = maxOf(end, info.presentationTimeUs + 33_000)
+                        if (inT == vIn || vIn < 0) end = maxOf(end, info.presentationTimeUs + 33_000)
                         ex.advance()
                     }
                     ex.unselectTrack(inT)
