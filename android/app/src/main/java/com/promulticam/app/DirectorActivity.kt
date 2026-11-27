@@ -353,22 +353,26 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         b.addView(Ui.check(this, t("Use this phone's camera", "Guna kamera telefon ini"), sp.getBoolean("selfCam", true)) { v -> sp.edit().putBoolean("selfCam", v).apply(); toast(t("Applies next time you open the Director", "Berkuat kuasa bila buka Pengarah semula")) })
         b.addView(Ui.check(this, t("3s countdown", "Kiraan 3 saat"), sp.getBoolean("count", true)) { v -> sp.edit().putBoolean("count", v).apply() })
         b.addView(Ui.label(this, t("Auto-switch angles", "Tukar sudut automatik"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        fun demo(m: String) = DemoView(this).also { it.mode = m; b.addView(it, LinearLayout.LayoutParams(-1, Ui.px(this, 110)).apply { topMargin = Ui.px(this@DirectorActivity, 6) }) }
+        val dAuto = demo("auto"); dAuto.auto = sp.getInt("auto", 0)
         val ar = LinearLayout(this); ar.orientation = LinearLayout.HORIZONTAL; val ap = ArrayList<Button>()
         for (n in listOf(0, 5, 10, 15)) { val pb = Ui.pill(this, if (n == 0) t("Off", "Tutup") else "${n}s", sp.getInt("auto", 0) == n) {
                 if (n > 0 && !Auth.isPro) { needPro(); return@pill }
-                sp.edit().putInt("auto", n).apply(); ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
+                sp.edit().putInt("auto", n).apply(); dAuto.auto = n; ap.forEachIndexed { j, q -> Ui.setPill(this, q, listOf(0, 5, 10, 15)[j] == n) }; lastSwitch = System.currentTimeMillis() }
             ap.add(pb); ar.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }) }
         b.addView(ar, Ui.lp(this, 6))
         b.addView(Ui.label(this, t("Switch effect", "Kesan tukar"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         // same switch effects as the editor
         val tr = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); val tIds = Fx.TRANS.take(12)
         fun cur() = if (trans == "cut") "none" else trans
+        val dTr = demo("trans"); dTr.trans = cur()
         for (id in tIds) {
-            val pb = Ui.pill(this, Fx.transName(id), cur() == id) { trans = id; prog.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, tIds[j] == cur()) } }
+            val pb = Ui.pill(this, Fx.transName(id), cur() == id) { trans = id; prog.trans = id; dTr.trans = id; tb.forEachIndexed { j, q -> Ui.setPill(this, q, tIds[j] == cur()) } }
             pb.textSize = 12f; tb.add(pb); tr.addView(pb) }
         b.addView(tr, Ui.lp(this, 6))
         // fade at the start and end of each recording (also each Continue / Resume)
         b.addView(Ui.label(this, t("Recording fade", "Pudar rakaman"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val dFade = demo("fade"); dFade.fi = recFi(); dFade.fo = recFo()
         val fr = Flow(this, Ui.px(this, 6)); val fbs = ArrayList<Button>()
         val fadeRows = LinearLayout(this); fadeRows.orientation = LinearLayout.VERTICAL
         fun fmode() = when { recFi() > 0 && recFo() > 0 -> "both"; recFi() > 0 -> "in"; recFo() > 0 -> "out"; else -> "none" }
@@ -381,7 +385,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 override fun onStartTrackingTouch(x: SeekBar?) {}; override fun onStopTrackingTouch(x: SeekBar?) {} })
             r.addView(sb, LinearLayout.LayoutParams(0, -2, 1f)); r.addView(vt, LinearLayout.LayoutParams(Ui.px(this, 48), -2)); r.tag = sb; return r }
         val inR = secRow(t("Fade in", "Pudar masuk"), "recFi"); val outR = secRow(t("Fade out", "Pudar keluar"), "recFo")
-        fun paintF() { val m = fmode(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
+        fun paintF() { val m = fmode(); dFade.fi = recFi(); dFade.fo = recFo(); fbs.forEachIndexed { j, q -> Ui.setPill(this, q, ids[j] == m) }; inR.visibility = if (recFi() > 0) View.VISIBLE else View.GONE; outR.visibility = if (recFo() > 0) View.VISIBLE else View.GONE }
         for ((j, l) in listOf(t("None", "Tiada"), t("Start", "Awal"), t("End", "Akhir"), t("Both", "Kedua")).withIndex()) {
             val pb = Ui.pill(this, l, false) { val wantIn = ids[j] == "in" || ids[j] == "both"; val wantOut = ids[j] == "out" || ids[j] == "both"
                 fun v(r: View) = 0.2f + (r.tag as SeekBar).progress / 10f

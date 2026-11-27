@@ -119,7 +119,7 @@ class MainActivity : AppCompatActivity() {
             Triple(R.drawable.ic_crown, t("Plans", "Pelan")) { Nav.open(this, "pro") },
             Triple(R.drawable.ic_video, t("Videos", "Video")) { startActivity(Intent(c, VideosActivity::class.java)) },
             Triple(R.drawable.ic_pulse, t("Device check", "Semak peranti")) { Nav.open(this, "test") },
-            Triple(R.drawable.ic_chat, t("Support", "Sokongan")) { Nav.open(this, "support") },
+            Triple(R.drawable.ic_studio, "Template") { startActivity(Intent(c, EditorActivity::class.java).putExtra("tpl", true)) },
             Triple(R.drawable.ic_apk, "App Update") { Nav.open(this, "apk") },
             Triple(R.drawable.ic_info, t("About", "Tentang")) { Nav.open(this, "about") }) +
             emptyList<Triple<Int, String, () -> Unit>>()
@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
             tl.setOnClickListener { f() }
             // red badge in the corner (new support messages)
             val cell = FrameLayout(c); cell.addView(tl, Ui.fl(-1, -1))
-            if (ic == R.drawable.ic_chat || ic == R.drawable.ic_apk || l == "Super Admin") { val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
+            if (ic == R.drawable.ic_info || ic == R.drawable.ic_apk || l == "Super Admin") { val bd = Ui.center(Ui.label(c, "", 11f, Color.WHITE, true)); bd.background = Ui.round(0xFFE5483B.toInt(), Ui.dp(c, 99f), Color.WHITE, Ui.px(c, 2))
                 bd.setPadding(Ui.px(c, 5), 0, Ui.px(c, 5), 0); bd.minWidth = Ui.px(c, 22); bd.visibility = View.GONE
                 cell.addView(bd, Ui.fl(-2, Ui.px(c, 22), Gravity.TOP or Gravity.END).apply { topMargin = Ui.px(c, 4); rightMargin = Ui.px(c, 6) })
                 if (l == "Super Admin") adminBadge = bd else if (ic == R.drawable.ic_apk) apkBadge = bd else supBadge = bd }

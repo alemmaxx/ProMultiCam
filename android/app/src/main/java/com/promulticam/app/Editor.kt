@@ -1465,8 +1465,7 @@ class EditorActivity : AppCompatActivity() {
         val o = orig; val sp = getSharedPreferences("pmc", MODE_PRIVATE)
         val sh = Ui.sheet(this, t("Export", "Eksport"))
         pills(sh.body, t("Quality", "Kualiti"), listOf("720" to "720p", "1080" to "1080p"), { sp.getString("expRes", "1080") ?: "1080" }) { sp.edit().putString("expRes", it).apply() }
-        pills(sh.body, t("Smoothness", "Kelancaran"), listOf("30" to "30 fps", "60" to t("Up to 60 fps", "Sehingga 60 fps")), { sp.getString("expFps", "30") ?: "30" }) { sp.edit().putString("expFps", it).apply() }
-        sh.body.addView(Ui.hint(this, t("720p is smaller and quicker to send. 60 fps only if your videos were recorded at 60.", "720p lebih kecil dan cepat dihantar. 60 fps hanya jika video asal dirakam 60.")))
+        pills(sh.body, t("Smoothness", "Kelancaran"), listOf("30" to "30 fps", "60" to "60 fps"), { sp.getString("expFps", "30") ?: "30" }) { sp.edit().putString("expFps", it).apply() }
         if (o != null) sh.body.addView(Ui.btn(this, t("Replace the original video", "Ganti video asal")) { sh.dialog.dismiss(); export(o) }, Ui.lp(this, 14))
         sh.body.addView(Ui.btn(this, if (o != null) t("Save as a new video", "Simpan sebagai video baru") else t("Make the video", "Buat video"), true) { sh.dialog.dismiss(); export(null) }, Ui.lp(this, 8))
         sh.dialog.show()
