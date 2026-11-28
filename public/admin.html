@@ -242,7 +242,7 @@ $('thList').onclick=e=>{const b=e.target.closest('.th');if(b)openThread(b.datase
 function openThread(id){
   thCur=id;renderThreads();document.querySelector('.sup-wrap').classList.add('open');
   const th=threads.find(x=>x.id===id)||{};
-  $('thPane').innerHTML=`<div style="display:flex;align-items:center;gap:8px"><button class="btn btn-sm" id="thBack">←</button><b style="flex:1">${esc(th.email||id)}</b></div><div class="msgs" id="msgs"></div><div style="display:flex;gap:8px"><textarea class="input" id="rep" rows="2" maxlength="2000" placeholder="Balas…" style="flex:1"></textarea><button class="btn btn-gold" id="repBtn">Hantar</button></div>`;
+  $('thPane').innerHTML=`<div style="display:flex;align-items:center;gap:8px"><button class="btn btn-sm" id="thBack">←</button><b style="flex:1">${esc(th.email||id)}</b></div><div class="msgs" id="msgs"></div><div style="display:flex;gap:8px"><button class="btn" id="repPic" title="Hantar gambar">📷</button><input type="file" id="repFile" accept="image/*" hidden><textarea class="input" id="rep" rows="2" maxlength="2000" placeholder="Balas…" style="flex:1"></textarea><button class="btn btn-gold" id="repBtn">Hantar</button></div>`;
   $('thBack').onclick=()=>{document.querySelector('.sup-wrap').classList.remove('open');};
   if(thUnsub)thUnsub();
   thUnsub=F.onSnapshot(F.query(F.collection(db,`supportChats/${id}/messages`),F.orderBy('at','asc'),F.limitToLast(300)),s=>{
@@ -251,6 +251,14 @@ function openThread(id){
     box.scrollTop=box.scrollHeight;
   });
   if(th.unreadAdmin)F.updateDoc(F.doc(db,'supportChats/'+id),{unreadAdmin:false}).catch(()=>{});
+  const sendMsg=async(v,img)=>{const m={from:'admin',text:v,at:F.serverTimestamp()};if(img)m.img=img;
+    await F.addDoc(F.collection(db,`supportChats/${id}/messages`),m);
+    await F.updateDoc(F.doc(db,'supportChats/'+id),{lastMsg:(v||'📷 Gambar').slice(0,300),lastAt:F.serverTimestamp(),lastFrom:'admin',unreadUser:true,unreadAdmin:false});};
+  $('repPic').onclick=()=>$('repFile').click();
+  $('repFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;$('repPic').disabled=true;
+    try{const b64=await new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);let side=1100,q=.75,out='';
+      do{const k=Math.min(1,side/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);out=c.toDataURL('image/jpeg',q).split(',')[1];side-=200;q-=.08;}while(out.length>600000&&side>300);ok(out);};im.onerror=no;im.src=u;});
+      await sendMsg($('rep').value.trim(),b64);$('rep').value='';}catch(err){toast('Gagal: '+(err&&err.message||''));}$('repPic').disabled=false;};
   $('repBtn').onclick=async()=>{const v=$('rep').value.trim();if(!v)return;$('repBtn').disabled=true;
     try{await F.addDoc(F.collection(db,`supportChats/${id}/messages`),{from:'admin',text:v,at:F.serverTimestamp()});
       await F.updateDoc(F.doc(db,'supportChats/'+id),{lastMsg:v.slice(0,300),lastAt:F.serverTimestamp(),lastFrom:'admin',unreadUser:true,unreadAdmin:false});$('rep').value='';}
