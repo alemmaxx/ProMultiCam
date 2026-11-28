@@ -230,6 +230,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             if (s.local) { cam?.flip(); Focus.torch = false } else s.data?.send(mapOf("t" to "cc", "op" to "flip"))
             camState[s.id]?.set(0, 0); toast(t("Front / back camera", "Kamera depan / belakang")) }
         stage.addView(flipB, Ui.fl(Ui.px(c, 48), Ui.px(c, 48), Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d })
+        // photo: a still of the picture on screen, or a full-size HD photo from the camera
+        val shotB = android.widget.ImageView(c); shotB.setImageResource(R.drawable.ic_camera); shotB.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+        shotB.background = Ui.round(0x88000000.toInt(), Ui.dp(c, 99f)); shotB.setPadding(d, d, d, d)
+        shotB.setOnClickListener { photoSheet() }
+        stage.addView(shotB, Ui.fl(Ui.px(c, 48), Ui.px(c, 48), Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d + Ui.px(c, 58) })
         // zoom: upright slider on the right, like the web
         zoomTx = Ui.label(c, "1.0×", 13f, Ui.GOLD, true)
         // zoom with two fingers on the picture; the level shows for a moment
@@ -643,6 +648,58 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         col.addView(bx, Ui.lp(this, 6))
         return col
     }
+    /* ---------- photos ---------- */
+    private fun photoSheet() {
+        val s = mainSrc
+        val sh = Ui.sheet(this, t("Take a photo", "Ambil gambar"))
+        sh.body.addView(Ui.hint(this, t("Tap a camera box first to choose the angle. Photos go to the gallery: Pictures/ProMultiCam.",
+            "Tekan kotak kamera dulu untuk pilih sudut. Gambar masuk galeri: Pictures/ProMultiCam.")))
+        sh.body.addView(Ui.check(this, t("Put my brand / logo on the photo", "Letak jenama / logo pada gambar"), sp.getBoolean("phBrand", true)) { v -> sp.edit().putBoolean("phBrand", v).apply() }, Ui.lp(this, 8))
+        sh.body.addView(Ui.btn(this, t("📸 Photo of the screen (instant)", "📸 Gambar skrin (segera)"), true) { sh.dialog.dismiss(); snapScreen() }, Ui.lp(this, 10))
+        sh.body.addView(Ui.hint(this, t("Same look as the video, about 2 MP.", "Gaya sama macam video, lebih kurang 2 MP.")))
+        sh.body.addView(Ui.btn(this, t("✨ HD photo from ", "✨ Gambar HD dari ") + (s?.name ?: t("camera", "kamera"))) { sh.dialog.dismiss(); askHd() }, Ui.lp(this, 12))
+        sh.body.addView(Ui.hint(this, t("Full camera size (12 MP or more). That angle pauses for about 2 seconds.",
+            "Saiz penuh kamera (12 MP ke atas). Sudut itu berhenti lebih kurang 2 saat.")))
+        sh.dialog.show()
+    }
+    private fun brandForPhoto(): android.graphics.Bitmap? = if (sp.getBoolean("phBrand", true) && brand.on) prog.ovShown else null
+    private fun snapScreen() {
+        if (mainSrc?.track == null) { toast(t("No camera yet", "Belum ada kamera")); return }
+        val ov = brandForPhoto()
+        prog.snap { b ->
+            val ok = b != null && run {
+                val out = if (ov != null) b.copy(android.graphics.Bitmap.Config.ARGB_8888, true).also { m -> android.graphics.Canvas(m).drawBitmap(ov, null, android.graphics.Rect(0, 0, m.width, m.height), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)) } else b
+                Photo.save(this, Photo.jpg(out), brand.title.ifEmpty { "Photo" }) }
+            main.post { toast(if (ok) t("📸 Saved to the gallery", "📸 Disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) }
+        }
+    }
+    private val phParts = HashMap<String, Array<ByteArray?>>()
+    private var phWait: Runnable? = null
+    private fun askHd() {
+        val s = mainSrc ?: run { toast(t("No camera yet", "Belum ada kamera")); return }
+        toast(t("✨ Taking HD photo…", "✨ Mengambil gambar HD…"))
+        if (s.local) { val c = cam ?: return; Photo.still(this, c, 1920, 1080) { j -> gotHd(j) }; return }
+        val d = s.data ?: run { toast(t("This camera is not connected", "Kamera ini tidak bersambung")); return }
+        d.send(mapOf("t" to "photo"))
+        phWait?.let { main.removeCallbacks(it) }
+        phWait = Runnable { toast(t("No HD photo from this camera — use Photo of the screen.", "Tiada gambar HD dari kamera ini — guna Gambar skrin.")) }.also { main.postDelayed(it, 25000) }
+    }
+    private fun onPhoto(s: Src, m: Map<String, Any?>) {
+        if (m["fail"] == true) { phWait?.let { main.removeCallbacks(it) }; toast(t("HD photo failed — try again.", "Gambar HD gagal — cuba lagi.")); return }
+        val n = (m["n"] as? Number)?.toInt() ?: return; val i = (m["i"] as? Number)?.toInt() ?: return; val d = m["d"] as? ByteArray ?: return
+        val key = s.id + ":" + m["id"]
+        val a = phParts.getOrPut(key) { arrayOfNulls(n) }; if (i !in a.indices) return
+        a[i] = d; phWait?.let { main.removeCallbacks(it); main.postDelayed(it, 25000) }
+        if (a.all { it != null }) { phParts.remove(key); phWait?.let { main.removeCallbacks(it) }
+            val o = java.io.ByteArrayOutputStream(); a.forEach { o.write(it!!) }; gotHd(o.toByteArray()) }
+    }
+    private fun gotHd(j: ByteArray?) {
+        if (j == null) { toast(t("HD photo failed — try again.", "Gambar HD gagal — cuba lagi.")); return }
+        val ov = brandForPhoto(); val f = look.f; val w = W; val h = H; val nm = brand.title.ifEmpty { "Photo" }
+        Thread { val ok = try { Photo.save(this, Photo.styled(j, f, ov, w, h), nm) } catch (e: Throwable) { false }
+            main.post { toast(if (ok) t("✨ HD photo saved to the gallery", "✨ Gambar HD disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) } }.start()
+    }
+
     private fun refreshOverlay() {
         fadeGen++
         brand.speaker = mainSrc?.name ?: ""
@@ -782,6 +839,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 sendLive(); toast(s.name + t(" joined", " menyertai"))
             }
             "probe" -> link.send(mapOf("t" to "info", "name" to t("Director", "Pengarah"), "cams" to srcs.size, "code" to code))
+            "ph" -> onPhoto(s, msg)
             "stat" -> { val b = (msg["batt"] as? Number)?.toInt() ?: -1; if (b in 0..15 && msg["charging"] != true) toast(s.name + ": " + t("battery ", "bateri ") + b + "%") }
         }
     }

@@ -55,7 +55,11 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     }
 
     fun setLook(f: String) { h.post { look.setLook(f) } }
-    fun setOverlay(b: Bitmap?) { ovPending = b ?: Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888) }
+    fun setOverlay(b: Bitmap?) { ovShown = b; ovPending = b ?: Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888) }
+    @Volatile var ovShown: Bitmap? = null
+    /* the next finished picture (look applied, no brand) as a bitmap, upright */
+    @Volatile private var snapCb: ((Bitmap?) -> Unit)? = null
+    fun snap(cb: (Bitmap?) -> Unit) { snapCb = cb }
     fun clearSecond() { h.post { second?.release(); second = null } }
     fun resize(w: Int, h0: Int) { W = w; H = h0; h.post { makeFbos() } }
 
@@ -183,6 +187,10 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
             GLES20.glDisable(GLES20.GL_BLEND); GLES20.glDisable(GLES20.GL_SCISSOR_TEST)
             GLES20.glViewport(0, 0, W, H)
         } else if (p >= 1f) hasFrozen = false
+        snapCb?.let { cb -> snapCb = null
+            val bb = java.nio.ByteBuffer.allocateDirect(W * H * 4).order(java.nio.ByteOrder.nativeOrder())
+            GLES20.glReadPixels(0, 0, W, H, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, bb)
+            val w = W; val hh = H; Thread { cb(try { Photo.fromGl(bb, w, hh) } catch (e: Throwable) { null }) }.start() }
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
         GLES20.glFlush()
 

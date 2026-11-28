@@ -219,6 +219,8 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             "welcome" -> status.text = t("Connected to ", "Bersambung ke ") + (msg["name"] ?: t("Director", "Pengarah"))
             "live" -> onAir.visibility = if (msg["on"] == true) View.VISIBLE else View.GONE
             "tp" -> tp(msg)
+            "photo" -> cam?.let { c -> toast(t("📸 HD photo…", "📸 Gambar HD…"))
+                Photo.still(this, c, 1280, 720) { j -> if (j == null) link.send(mapOf("t" to "ph", "fail" to true)) else sendPhoto(link, j) } }
             "cc" -> cam?.let { c -> when (msg["op"]) {
                 "at" -> { val v = msg["v"] as? Map<*, *>; val x = (v?.get("x") as? Number)?.toFloat() ?: 0.5f; val y = (v?.get("y") as? Number)?.toFloat() ?: 0.5f
                     Focus.tap(c.capturer, x, y, c.front); val r = view.parent as? FrameLayout; if (r != null) Focus.ring(r, x * r.width, y * r.height); Unit }
@@ -292,5 +294,17 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun startScan() { cam?.track?.addSink(qrSink); scanning = true; setup.visibility = View.GONE; scanBox.visibility = View.VISIBLE }
     private fun stopScan() { scanning = false; cam?.track?.removeSink(qrSink); scanBox.visibility = View.GONE; if (live.visibility != View.VISIBLE) setup.visibility = View.VISIBLE }
 
+    /* the HD photo goes to the Director in small pieces */
+    private fun sendPhoto(link: PeerLink, j: ByteArray) {
+        Thread {
+            val sz = 48 * 1024; val n = (j.size + sz - 1) / sz; val id = System.currentTimeMillis()
+            for (i in 0 until n) {
+                var w = 0; while (link.buffered() > 1_000_000 && w < 400) { Thread.sleep(15); w++ }
+                if (link.closed) return@Thread
+                link.send(mapOf("t" to "ph", "id" to id, "i" to i, "n" to n, "d" to j.copyOfRange(i * sz, minOf(j.size, (i + 1) * sz))))
+            }
+            main.post { toast(t("📸 HD photo sent", "📸 Gambar HD dihantar")) }
+        }.start()
+    }
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 }

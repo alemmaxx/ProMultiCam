@@ -68,6 +68,7 @@ class PeerLink(
         if (d.state() == DataChannel.State.OPEN) main.post { cb.onOpen(this) }
     }
 
+    fun buffered(): Long = try { dc?.bufferedAmount() ?: 0L } catch (e: Exception) { 0L }
     fun send(msg: Map<String, Any?>): Boolean {
         val d = dc ?: return false
         if (d.state() != DataChannel.State.OPEN) return false
