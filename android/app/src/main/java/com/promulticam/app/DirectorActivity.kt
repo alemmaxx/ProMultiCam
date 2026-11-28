@@ -567,6 +567,11 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t("Join my ProMultiCam studio as a camera (code $code): ", "Sertai studio ProMultiCam saya sebagai kamera (kod $code): ") + url +
                 "\n\n" + t("Smoother video with the Android app:", "Video lebih lancar dengan app Android:") + " https://promulticam.web.app/apk.html"), t("Share", "Kongsi")))
         }, Ui.lp(this, 12))
+        // a computer screen as an angle (computer only)
+        b.addView(Ui.section(this, "💻 " + t("Computer screen", "Skrin komputer")))
+        b.addView(Ui.card(this).apply {
+            addView(Ui.label(this@DirectorActivity, t("For computers only (Chrome, Edge or Firefox).", "Untuk komputer sahaja (Chrome, Edge atau Firefox)."), 14f, Ui.GOLD, true))
+            addView(Ui.label(this@DirectorActivity, t("On the computer open promulticam.web.app → Camera → type Studio ID $code → Send screen.", "Di komputer buka promulticam.web.app → Camera → taip ID Studio $code → Send screen."), 14f, Ui.TEXT), Ui.lp(this@DirectorActivity, 4)) }, Ui.lp(this, 6))
         b.addView(Ui.section(this, t("Connected", "Bersambung")))
         srcs.forEach { x -> b.addView(Ui.label(this, "• " + x.name + if (x === mainSrc) "  ★" else "", 15f, Ui.TEXT), Ui.lp(this, 4)) }
         s.dialog.show()
