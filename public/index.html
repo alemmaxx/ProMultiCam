@@ -646,6 +646,11 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       <label class="lbl adv" id="descRow"><span data-i18n="descL"></span><input class="input" id="descTxt" maxlength="40" data-i18n-ph="descPh"></label>
       <label class="lbl adv" id="menuRow"><span data-i18n="menuL"></span><textarea class="input" id="menuTxt" rows="4" maxlength="200" data-i18n-ph="menuPh" style="resize:vertical;min-height:90px;padding:10px 12px;line-height:1.4"></textarea></label>
       <span class="hint adv" id="spkHint" data-i18n="spkHint"></span>
+      <div class="adv" id="ftRow" style="display:none;flex-direction:column;gap:6px"><span class="hint" data-i18n="ftHint"></span><div id="ftLines" style="display:flex;flex-direction:column;gap:6px"></div>
+        <label class="check"><input type="checkbox" id="ftBoxOn" onchange="ftFromUI()"><span data-i18n="ftBox"></span></label>
+        <textarea class="input" id="ftBoxTxt" rows="3" maxlength="300" data-i18n-ph="ftBoxPh" oninput="ftFromUI()" style="resize:vertical;min-height:70px;padding:10px 12px;line-height:1.4"></textarea>
+        <label class="lbl"><span data-i18n="ftSize"></span><select class="input" id="ftBoxZ" onchange="ftFromUI()"><option value="0.8">S</option><option value="1" selected>M</option><option value="1.3">L</option></select></label>
+        <input type="hidden" id="ftData"></div>
       <span class="sec" data-i18n="brand" style="margin-top:6px"></span>
       <div style="display:flex;gap:10px;align-items:center">
         <div class="logo-prev" id="logoPrev"></div>
@@ -1839,13 +1844,13 @@ function wrapLines(txt,maxW,max){const words=String(txt).split(/\s+/).filter(Boo
   if(cur)out.push(cur);return out.map((l,i)=>i===out.length-1?fitText(l,maxW):l).slice(0,max);}
 function fitText(txt,maxW){if(ctx.measureText(txt).width<=maxW)return txt;while(txt.length>1&&ctx.measureText(txt+'…').width>maxW)txt=txt.slice(0,-1);return txt+'…';}
 /* ================= OVERLAY DESIGNS: 10 styles x 4 colours x 10 fonts (Pro) ================= */
-const OV_STYLES=['card','band','promo','menu','flash','minimal','polaroid','gold','panel','speaker'];
+const OV_STYLES=['card','band','promo','menu','flash','minimal','polaroid','gold','panel','speaker','free'];
 const OV_COLORS={gold:{c:'#d9b44a',ink:'#1b1503'},red:{c:'#d6453a',ink:'#ffffff'},green:{c:'#2f9e5b',ink:'#ffffff'},white:{c:'#ffffff',ink:'#111111'}};
 const OV_FONTS={
   bricolage:{fam:'"Bricolage Grotesque"',w:800},poppins:{fam:'Poppins',w:700},montserrat:{fam:'Montserrat',w:800},
   bebas:{fam:'"Bebas Neue"',w:400,caps:true},anton:{fam:'Anton',w:400},playfair:{fam:'"Playfair Display"',w:700},
   lobster:{fam:'Lobster',w:400,script:true},pacifico:{fam:'Pacifico',w:400,script:true},dancing:{fam:'"Dancing Script"',w:700,script:true},marker:{fam:'"Permanent Marker"',w:400,script:true}};
-const OV_DEF_FONT={card:'bricolage',band:'poppins',promo:'anton',menu:'montserrat',flash:'anton',minimal:'poppins',polaroid:'pacifico',gold:'playfair',panel:'poppins',speaker:'montserrat'};
+const OV_DEF_FONT={card:'bricolage',band:'poppins',promo:'anton',menu:'montserrat',flash:'anton',minimal:'poppins',polaroid:'pacifico',gold:'playfair',panel:'poppins',speaker:'montserrat',free:'anton'};
 function ovStyle(){const v=$('ovStyle')?$('ovStyle').value:'card';return isPro()&&OV_STYLES.includes(v)?v:'card';}
 function ovCol(){const v=$('ovColor')?$('ovColor').value:'gold';return OV_COLORS[isPro()?v:'gold']||OV_COLORS.gold;}
 function ovFontKey(){const v=$('ovFont')?$('ovFont').value:'';return isPro()&&OV_FONTS[v]?v:'bricolage';}
@@ -1868,7 +1873,49 @@ function renderOvUI(){
   [...$('ovFont').options].forEach(o=>o.textContent=t('font_'+o.value));if(!$('ovFont').value)$('ovFont').value='bricolage';
   $('shopRow').style.display=['band','menu','minimal','polaroid','gold','panel'].includes(cur)?'flex':'none';
   $('descRow').style.display=cur==='panel'?'flex':'none';$('menuRow').style.display=cur==='menu'?'flex':'none';$('spkHint').style.display=cur==='speaker'?'block':'none';
+  $('ftRow').style.display=cur==='free'?'flex':'none';if(cur==='free')ftUI();
 }
+/* "Free text" style: up to 6 lines dragged anywhere on the picture, each with its own look, plus an info box (same as the app) */
+const FT_LOOKS=[['#ffffff','#1a1a1a'],['rgba(21,18,16,.94)','#ffd84a'],['#ffd84a','#1a1a1a'],['#e5483b','#ffffff'],['','#ffffff'],['#d9b44a','#1a1405']];
+let FT_R={};
+function ftGet(){let d=null;try{d=JSON.parse($('ftData').value||'null');}catch(e){}d=d||{};d.l=Array.isArray(d.l)?d.l:[];for(let i=0;i<6;i++)d.l[i]=Object.assign({t:'',s:i?1:0,z:1,x:.5,y:.12+(i+1)*.07},d.l[i]||{});d.b=Object.assign({on:false,t:'',z:1,x:.25,y:.55},d.b||{});return d;}
+function ftSet(d){$('ftData').value=JSON.stringify(d);}
+function ftUI(){
+  const box=$('ftLines');if(!box)return;const d=ftGet();
+  if(!box.children.length){for(let i=0;i<6;i++){const r=document.createElement('div');r.style.cssText='display:flex;gap:6px';
+    r.innerHTML='<input class="input ft-t" maxlength="40" style="flex:1;min-width:0"><select class="input ft-s" style="width:auto;max-width:120px"></select><select class="input ft-z" style="width:auto"><option value="0.75">S</option><option value="1">M</option><option value="1.35">L</option><option value="1.8">XL</option></select>';
+    const sl=r.querySelector('.ft-s');FT_LOOKS.forEach((_,k)=>{const o=document.createElement('option');o.value=k;o.textContent=t('ftL'+k);sl.appendChild(o);});
+    r.querySelector('.ft-t').placeholder=t('ftLine',{n:i+1});r.querySelectorAll('input,select').forEach(e=>e.addEventListener(e.tagName==='INPUT'?'input':'change',ftFromUI));box.appendChild(r);}}
+  [...box.children].forEach((r,i)=>{const l=d.l[i];r.querySelector('.ft-t').value=l.t;r.querySelector('.ft-s').value=l.s;r.querySelector('.ft-z').value=String(l.z);});
+  $('ftBoxOn').checked=!!d.b.on;$('ftBoxTxt').value=d.b.t;$('ftBoxZ').value=String(d.b.z);$('ftBoxTxt').style.display=d.b.on?'':'none';
+}
+function ftFromUI(){const d=ftGet();[...$('ftLines').children].forEach((r,i)=>{d.l[i].t=r.querySelector('.ft-t').value;d.l[i].s=+r.querySelector('.ft-s').value;d.l[i].z=+r.querySelector('.ft-z').value;});
+  d.b.on=$('ftBoxOn').checked;d.b.t=$('ftBoxTxt').value;d.b.z=+$('ftBoxZ').value;$('ftBoxTxt').style.display=d.b.on?'':'none';ftSet(d);}
+function drawFree(W,H,S,m,barH){
+  const d=ftGet(),out={};drawLogoAt(W-m-Math.round(S*0.15),m+barH,Math.round(S*0.15));
+  d.l.forEach((l,i)=>{const tx=String(l.t||'').trim();if(!tx)return;const [bc,tc]=FT_LOOKS[l.s%FT_LOOKS.length];
+    let fs=S*0.062*(l.z||1);ctx.font=fT(fs);let tw=ctx.measureText(capT(tx)).width;while(tw>W*.94&&fs>8){fs*=.94;ctx.font=fT(fs);tw=ctx.measureText(capT(tx)).width;}
+    const pad=fs*.42,bw=tw+pad*2,bh=fs*1.45,x=Math.min(Math.max(0,l.x*W-bw/2),W-bw),y=Math.min(Math.max(0,l.y*H-bh/2),H-bh);
+    ctx.save();if(bc){ctx.fillStyle=bc;rr(x,y,bw,bh,bh*.22);ctx.fill();}else shadowOn(S);
+    ctx.fillStyle=tc;ctx.textBaseline='middle';ctx.fillText(capT(tx),x+pad,y+bh*.52);ctx.restore();out['l'+i]=[x,y,bw,bh];});
+  const b=d.b,lines=String(b.t||'').split('\n').map(x=>x.trim()).filter(Boolean).slice(0,8);
+  if(b.on&&lines.length){const fs=S*0.04*(b.z||1),pad=fs*.8,maxW=W*.6;ctx.font=`600 ${Math.round(fs)}px Poppins,"Bricolage Grotesque",sans-serif`;
+    const rows=[];lines.forEach(ln=>{let cur='';ln.split(' ').forEach(w=>{const ts=cur?cur+' '+w:w;if(ctx.measureText(ts).width>maxW-pad*2&&cur){rows.push(cur);cur=w;}else cur=ts;});if(cur)rows.push(cur);});
+    const lh=fs*1.3,bw=Math.min(maxW,Math.max(...rows.map(r=>ctx.measureText(r).width))+pad*2),bh=lh*rows.length+pad*1.3;
+    const x=Math.min(Math.max(0,b.x*W-bw/2),W-bw),y=Math.min(Math.max(0,b.y*H-bh/2),H-bh);
+    ctx.fillStyle='rgba(74,58,62,.7)';rr(x,y,bw,bh,S*.03);ctx.fill();ctx.fillStyle='#fff';rows.forEach((r,k)=>ctx.fillText(r,x+pad,y+pad*.65+lh*(k+.78)));out.b=[x,y,bw,bh];}
+  FT_R={W,H,r:out};
+}
+/* drag the free-text lines and the info box on the Director's picture */
+(function(){let drag=null;
+  const pt=e=>{const st=$('stage'),R=st.getBoundingClientRect(),W=st.width,H=st.height,sc=Math.min(R.width/W,R.height/H),ox=R.left+(R.width-W*sc)/2,oy=R.top+(R.height-H*sc)/2;return [(e.clientX-ox)/sc,(e.clientY-oy)/sc,W,H];};
+  document.addEventListener('pointerdown',e=>{if(e.target.id!=='stage'||ovStyle()!=='free'||!FT_R.r)return;const [x,y,W,H]=pt(e);if(W!==FT_R.W||H!==FT_R.H)return;
+    const hit=k=>{const q=FT_R.r[k];return q&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3];};
+    const k=hit('b')?'b':Object.keys(FT_R.r).find(k=>k!=='b'&&hit(k));if(!k)return;const q=FT_R.r[k];drag={k,dx:x-(q[0]+q[2]/2),dy:y-(q[1]+q[3]/2)};e.preventDefault();});
+  document.addEventListener('pointermove',e=>{if(!drag)return;const [x,y,W,H]=pt(e),d=ftGet(),o=drag.k==='b'?d.b:d.l[+drag.k.slice(1)];
+    o.x=Math.min(.98,Math.max(.02,(x-drag.dx)/W));o.y=Math.min(.98,Math.max(.02,(y-drag.dy)/H));ftSet(d);});
+  document.addEventListener('pointerup',()=>{if(drag){drag=null;try{saveSettings(true);}catch(e){}}});
+})();
 function videoRect(W,H){
   if(cleanRec&&recorder&&recorder.state!=='inactive'&&!window._edDrawing)return {x:0,y:0,w:W,h:H};
   const st=ovStyle(),P=H>W;
@@ -1883,7 +1930,7 @@ function menuItems(){return ($('menuTxt')?$('menuTxt').value:'').split('\n').map
 const OVC={c:null,k:''};
 function drawOverlaysCached(W,H){
   const v=id=>{const e=$(id);return e?e.value:'';};
-  const k=[W,H,isPro(),look.id,v('titleTxt'),v('priceTxt'),v('phoneTxt'),v('shopTxt'),v('descTxt'),v('menuTxt'),v('ovStyle'),v('ovColor'),v('ovFont'),v('logoPos'),logoImg?logoImg.src.length+':'+(logoImg.complete?1:0):'',document.fonts?document.fonts.size+document.fonts.status:'',LANG].join('|');
+  const k=[W,H,isPro(),look.id,v('titleTxt'),v('priceTxt'),v('phoneTxt'),v('shopTxt'),v('descTxt'),v('menuTxt'),v('ftData'),v('ovStyle'),v('ovColor'),v('ovFont'),v('logoPos'),logoImg?logoImg.src.length+':'+(logoImg.complete?1:0):'',document.fonts?document.fonts.size+document.fonts.status:'',LANG].join('|');
   if(OVC.k!==k||!OVC.c){if(!OVC.c)OVC.c=document.createElement('canvas');const c=OVC.c;if(c.width!==W||c.height!==H){c.width=W;c.height=H;}const g=c.getContext('2d');g.clearRect(0,0,W,H);
     const keep=ctx;try{ctx=g;ctx.filter='none';drawOverlays(W,H);}catch(e){}finally{ctx=keep;}OVC.k=k;}
   const F=ctx.filter;ctx.filter='none';ctx.drawImage(OVC.c,0,0);ctx.filter=F;
@@ -1958,6 +2005,7 @@ function drawOverlays(W,H){
       ctx.fillStyle='#c8c4bb';ctx.font=fI(S/34,600);ctx.fillText(fitText(phone,pw-pad*2),x,by-S*0.02);}
     return;
   }
+  if(st==='free'){drawFree(W,H,S,m,barH);return;}
   if(st==='speaker'){
     drawLogoAt(W-m-Math.round(S*0.16),m+barH,Math.round(S*0.16));
     const src=sources.find(x=>x.id===mainId);const who=src?src.name:'';if(!who&&!title)return;
@@ -2470,7 +2518,7 @@ function trimLogo(c,g,im){
   return o.toDataURL('image/png');
 }
 /* settings: save & restore */
-const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optDirect:'c',optCount:'c',optHD:'c',optLogoBg:'c'};
+const SET_IDS={optClean:'c',ovStyle:'v',ovColor:'v',ovFont:'v',shopTxt:'v',descTxt:'v',menuTxt:'v',ftData:'v',optStory:'c',optIntro:'c',optOutro:'c',introSub:'v',outroTxt:'v',tpSpeed:'v',tpSize:'v',aspectSel:'v',qualSel:'v',autoSel:'v',musicSel:'v',musicVol:'v',logoPos:'v',optFade:'c',optNoise:'c',optDirect:'c',optCount:'c',optHD:'c',optLogoBg:'c'};
 function saveSettings(quiet){
   const o={};for(const [id,k] of Object.entries(SET_IDS)){const e=$(id);if(e)o[id]=k==='c'?e.checked:e.value;}
   lsSet('pmc_settings',JSON.stringify(o));
