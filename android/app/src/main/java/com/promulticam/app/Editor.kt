@@ -391,7 +391,8 @@ class EditorActivity : AppCompatActivity() {
         else if (f != null && f.exists()) { orig = f; draftId = "f_" + f.nameWithoutExtension; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0)
             if (Drafts.exists(this, draftId)) AlertDialog.Builder(this).setMessage(t("You have an unfinished edit of this video. Continue it?", "Ada suntingan belum siap untuk video ini. Sambung?"))
                 .setPositiveButton(t("Continue", "Sambung")) { _, _ -> openDraft(draftId) }.setNegativeButton(t("Start again", "Mula semula")) { _, _ -> Drafts.delete(this, draftId) }.show() }
-        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ if (!isFinishing) { if (intent.getBooleanExtra("tpl", false)) templateSheet() else askAdd(true) } }, 300) }
+        else { draftId = "n_" + System.currentTimeMillis(); if (intent.getBooleanExtra("tpl", false)) main.post { if (!isFinishing) templateSheet() }   // gallery at once, over the editor
+            else main.postDelayed({ if (!isFinishing) askAdd(true) }, 300) }
         mainTools()
     }
     override fun onDestroy() { player.release(); mplayer.release(); pplayers.forEach { it.release() }; tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
@@ -749,7 +750,7 @@ class EditorActivity : AppCompatActivity() {
     }
     private val pickMany = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> val tp = tplPending; if (tp != null && us.isNotEmpty()) applyTemplate(tp, us) else if (clips.isEmpty()) finish() }
     /* the template gallery: covers in two columns, who made each one and how many used it */
-    private val covers = HashMap<String, Bitmap>()
+    private val covers = HashMap<String, Bitmap>(); private var tplChose: (() -> Unit)? = null
     private fun templateSheet() {
         val s = Ui.sheet(this, t("Templates", "Templat")); val b = s.body; val d = Ui.px(this, 8)
         // save / share the current edit
@@ -785,7 +786,7 @@ class EditorActivity : AppCompatActivity() {
             val nm = Ui.label(this, g.it.name, 14f, Ui.TEXT, true); nm.maxLines = 1; nm.ellipsize = android.text.TextUtils.TruncateAt.END; c.addView(nm, Ui.lp(this, 6))
             c.addView(Ui.label(this, "@" + g.user, 12f, Ui.SUB), Ui.lp(this, 2))
             c.setOnClickListener { if (!Auth.isPro) { proOnly(); return@setOnClickListener }
-                s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
+                tplChose?.invoke(); s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
             c.setOnLongClickListener {
                 val canDel = g.it.kind == "mine" || (g.sharedId != null && (Auth.isAdmin || g.ownerUid == Auth.uid)) || (g.it.kind == "server" && Auth.isAdmin)
                 if (canDel) AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?")).setPositiveButton(t("Delete", "Padam")) { _, _ ->
@@ -814,7 +815,10 @@ class EditorActivity : AppCompatActivity() {
         Thread { val sv = Templates.server().map { G(it, "promulticam", -1, "", null, null) }
             val sh = Shared.list().map { x -> G(Templates.Item("c_" + x.id, x.name, x.j, "shared"), x.user, x.uses, x.cover, x.id, x.uid) }
             main.post { gServer = sv; gShared = sh; if (s.dialog.isShowing) show() } }.start()
-        s.dialog.setOnCancelListener { if (clips.isEmpty()) finish() }
+        // closing the gallery (back or ✕) with nothing chosen goes straight back to where you came from
+        var chosen = false
+        s.dialog.setOnDismissListener { if (!chosen && clips.isEmpty()) finish() }
+        tplChose = { chosen = true }
         s.dialog.show(); s.dialog.window?.setLayout(-1, -1)
     }
     /* templates: everyone can look, only Pro can use them */
