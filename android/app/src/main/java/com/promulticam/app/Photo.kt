@@ -141,10 +141,23 @@ object Photo {
         return Bitmap.createBitmap(b, 0, 0, w, h, Matrix().apply { postScale(1f, -1f) }, false)
     }
 
+    /* photos are kept inside the app first (preview, then save / share / delete) */
+    fun dir(ctx: Context): File = File(ctx.filesDir, "photos").apply { mkdirs() }
+    fun keep(ctx: Context, jpeg: ByteArray, title: String): File? = try {
+        val t = title.trim().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_').take(32).ifEmpty { "Photo" }
+        File(dir(ctx), String.format(Locale.US, "%s_%s.jpg", t, SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date()))).also { it.writeBytes(jpeg) }
+    } catch (e: Exception) { null }
+    fun list(ctx: Context): List<File> = (dir(ctx).listFiles { f -> f.name.endsWith(".jpg") } ?: emptyArray()).sortedByDescending { it.lastModified() }
+    fun thumb(f: File, side: Int): Bitmap? = try {
+        val o = BitmapFactory.Options(); o.inJustDecodeBounds = true; BitmapFactory.decodeFile(f.absolutePath, o)
+        var s = 1; while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= side) s *= 2
+        BitmapFactory.decodeFile(f.absolutePath, BitmapFactory.Options().apply { inSampleSize = s })
+    } catch (e: Exception) { null }
+
     /* save into the phone's gallery: Pictures/ProMultiCam */
     fun save(ctx: Context, jpeg: ByteArray, title: String): Boolean = try {
         val t = title.trim().replace(Regex("[^\\p{L}\\p{N}]+"), "_").trim('_').take(32).ifEmpty { "Photo" }
-        val name = String.format(Locale.US, "%s_%s.jpg", t, SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date()))
+        val name = if (title.endsWith(".jpg")) title else String.format(Locale.US, "%s_%s.jpg", t, SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US).format(Date()))
         if (Build.VERSION.SDK_INT >= 29) {
             val cv = ContentValues().apply { put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                 put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ProMultiCam"); put(MediaStore.Images.Media.IS_PENDING, 1) }

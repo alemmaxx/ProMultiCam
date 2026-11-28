@@ -236,6 +236,12 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         shotB.setOnClickListener { askHd() }   // one tap: HD photo straight to the gallery
         shotB.setOnLongClickListener { photoSheet(); true }   // hold: choose screen photo / brand on or off
         stage.addView(shotB, Ui.fl(Ui.px(c, 48), Ui.px(c, 48), Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d + Ui.px(c, 58) })
+        // the last photo, small, like a phone camera: tap to look, then save / share / delete
+        phThumb = android.widget.ImageView(c); phThumb.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+        phThumb.background = Ui.round(0xFF000000.toInt(), Ui.dp(c, 10f), Ui.GOLD, Ui.px(c, 2)); phThumb.setPadding(Ui.px(c, 2), Ui.px(c, 2), Ui.px(c, 2), Ui.px(c, 2)); phThumb.clipToOutline = true
+        phThumb.setOnClickListener { photoViewer(0) }
+        stage.addView(phThumb, Ui.fl(Ui.px(c, 54), Ui.px(c, 54), Gravity.BOTTOM or Gravity.START).apply { leftMargin = d; bottomMargin = d })
+        refreshThumb()
         // zoom: upright slider on the right, like the web
         zoomTx = Ui.label(c, "1.0×", 13f, Ui.GOLD, true)
         // zoom with two fingers on the picture; the level shows for a moment
@@ -653,8 +659,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun photoSheet() {
         val s = mainSrc
         val sh = Ui.sheet(this, t("Take a photo", "Ambil gambar"))
-        sh.body.addView(Ui.hint(this, t("One tap on 📷 takes an HD photo of the angle on screen. Photos go to the gallery: Pictures/ProMultiCam.",
-            "Tekan sekali 📷 untuk gambar HD sudut di skrin. Gambar masuk galeri: Pictures/ProMultiCam.")))
+        sh.body.addView(Ui.hint(this, t("One tap on 📷 takes an HD photo of the angle on screen. It is kept in the app: tap the small picture at the bottom left to save it to the phone, share or delete.",
+            "Tekan sekali 📷 untuk gambar HD sudut di skrin. Gambar disimpan dalam app dulu: tekan gambar kecil di bawah kiri untuk simpan ke telefon, kongsi atau padam.")))
         sh.body.addView(Ui.check(this, t("Put my brand / logo on the photo", "Letak jenama / logo pada gambar"), sp.getBoolean("phBrand", true)) { v -> sp.edit().putBoolean("phBrand", v).apply() }, Ui.lp(this, 8))
         sh.body.addView(Ui.btn(this, t("📸 Photo of the screen (instant)", "📸 Gambar skrin (segera)"), true) { sh.dialog.dismiss(); snapScreen() }, Ui.lp(this, 10))
         sh.body.addView(Ui.hint(this, t("Same look as the video, about 2 MP.", "Gaya sama macam video, lebih kurang 2 MP.")))
@@ -663,6 +669,49 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             "Saiz penuh kamera (12 MP ke atas). Sudut itu berhenti lebih kurang 2 saat.")))
         sh.dialog.show()
     }
+    private lateinit var phThumb: android.widget.ImageView
+    private fun refreshThumb() {
+        Thread { val f = Photo.list(this).firstOrNull(); val b = f?.let { Photo.thumb(it, 160) }
+            main.post { if (b != null) { phThumb.setImageBitmap(b); phThumb.visibility = View.VISIBLE } else { phThumb.setImageDrawable(null); phThumb.visibility = View.GONE } } }.start()
+    }
+    private fun kept(jpeg: ByteArray?): Boolean {
+        val f = jpeg?.let { Photo.keep(this, it, brand.title.ifEmpty { "Photo" }) } ?: return false
+        main.post { refreshThumb(); phThumb.animate().scaleX(1.25f).scaleY(1.25f).setDuration(140).withEndAction { phThumb.animate().scaleX(1f).scaleY(1f).setDuration(160).start() }.start() }
+        return f.exists()
+    }
+    /* look at the photos kept in the app; save to the phone, share or delete each one */
+    private fun photoViewer(start: Int) {
+        var files = Photo.list(this); if (files.isEmpty()) return
+        var i = start.coerceIn(0, files.size - 1)
+        val dlg = android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val col = LinearLayout(this); col.orientation = LinearLayout.VERTICAL; col.setBackgroundColor(Color.BLACK)
+        val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL; val d = Ui.px(this, 12); top.setPadding(d, d, d, 0)
+        val cnt = Ui.label(this, "", 15f, Color.WHITE, true); top.addView(cnt, LinearLayout.LayoutParams(0, -2, 1f))
+        top.addView(Ui.btn(this, "✕") { dlg.dismiss() }, LinearLayout.LayoutParams(Ui.px(this, 52), Ui.px(this, 52)))
+        col.addView(top)
+        val iv = android.widget.ImageView(this); iv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        col.addView(iv, LinearLayout.LayoutParams(-1, 0, 1f))
+        fun show() { files = Photo.list(this); if (files.isEmpty()) { dlg.dismiss(); refreshThumb(); return }
+            i = i.coerceIn(0, files.size - 1); cnt.text = "${i + 1} / ${files.size}"; val f = files[i]
+            Thread { val b = Photo.thumb(f, 1600); main.post { iv.setImageBitmap(b) } }.start() }
+        // swipe left / right for the other photos
+        var x0 = 0f
+        iv.setOnTouchListener { _, e -> when (e.action) { android.view.MotionEvent.ACTION_DOWN -> x0 = e.x
+            android.view.MotionEvent.ACTION_UP -> { val dx = e.x - x0; if (dx < -80 && i < files.size - 1) { i++; show() } else if (dx > 80 && i > 0) { i--; show() } } }; true }
+        val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.setPadding(d, d, d, d)
+        row.addView(Ui.btn(this, t("Save to Phone", "Simpan ke telefon"), true) { val f = files[i]
+            Thread { val ok = Photo.save(this, f.readBytes(), f.name); main.post { toast(if (ok) t("Saved to the gallery", "Disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) } }.start() },
+            LinearLayout.LayoutParams(0, Ui.px(this, 52), 1.4f))
+        row.addView(Ui.btn(this, t("Share", "Kongsi")) { val f = files[i]
+            try { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, Store.uri(this, f)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), t("Share", "Kongsi"))) } catch (e: Exception) {} },
+            LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { leftMargin = d / 2 })
+        row.addView(Ui.btn(this, t("Delete", "Padam")) { val f = files[i]
+            AlertDialog.Builder(this).setMessage(t("Delete this photo?", "Padam gambar ini?")).setPositiveButton(t("Delete", "Padam")) { _, _ -> f.delete(); show(); refreshThumb() }
+                .setNegativeButton(t("Cancel", "Batal"), null).show() },
+            LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { leftMargin = d / 2 })
+        col.addView(row)
+        dlg.setContentView(col); show(); dlg.show()
+    }
     private fun brandForPhoto(): android.graphics.Bitmap? = if (sp.getBoolean("phBrand", true) && brand.on) prog.ovShown else null
     private fun snapScreen() {
         if (mainSrc?.track == null) { toast(t("No camera yet", "Belum ada kamera")); return }
@@ -670,8 +719,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         prog.snap { b ->
             val ok = b != null && run {
                 val out = if (ov != null) b.copy(android.graphics.Bitmap.Config.ARGB_8888, true).also { m -> android.graphics.Canvas(m).drawBitmap(ov, null, android.graphics.Rect(0, 0, m.width, m.height), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)) } else b
-                Photo.save(this, Photo.jpg(out), brand.title.ifEmpty { "Photo" }) }
-            main.post { toast(if (ok) t("📸 Saved to the gallery", "📸 Disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) }
+                kept(Photo.jpg(out)) }
+            main.post { if (!ok) toast(t("Could not take the photo", "Gambar tak dapat diambil")) }
         }
     }
     private val phParts = HashMap<String, Array<ByteArray?>>()
@@ -699,9 +748,9 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     }
     private fun gotHd(j: ByteArray?) {
         if (j == null) { snapScreen(); return }
-        val ov = brandForPhoto(); val f = look.f; val w = W; val h = H; val nm = brand.title.ifEmpty { "Photo" }
-        Thread { val ok = try { Photo.save(this, Photo.styled(j, f, ov, w, h), nm) } catch (e: Throwable) { false }
-            main.post { toast(if (ok) t("✨ HD photo saved to the gallery", "✨ Gambar HD disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) } }.start()
+        val ov = brandForPhoto(); val f = look.f; val w = W; val h = H
+        Thread { val ok = try { kept(Photo.styled(j, f, ov, w, h)) } catch (e: Throwable) { false }
+            main.post { if (!ok) toast(t("Could not take the photo", "Gambar tak dapat diambil")) } }.start()
     }
 
     private fun refreshOverlay() {

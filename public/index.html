@@ -897,6 +897,13 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
     </div>
   </div>
 </div>
+<div class="sheet-wrap" id="phSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet" style="height:88vh;max-height:88vh">
+    <div class="row-between"><h3 id="phCount"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('phSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div style="flex:1;min-height:0;display:flex;align-items:center;gap:6px"><button class="btn btn-sm" onclick="phView(phI-1)" aria-label="Previous">‹</button><img id="phImg" alt="" style="flex:1;min-width:0;max-height:100%;object-fit:contain;border-radius:10px"><button class="btn btn-sm" onclick="phView(phI+1)" aria-label="Next">›</button></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1.4" onclick="phSave()" data-i18n="saveToPhone"></button><button class="btn" style="flex:1" onclick="phShare()" data-i18n="phShare"></button><button class="btn" style="flex:1" onclick="phDel()" data-i18n="phDel"></button></div>
+  </div>
+</div>
 <div class="sheet-wrap" id="loungeSheet" onclick="if(event.target===this)closeLounge()">
   <div class="sheet" style="height:85vh;max-height:85vh">
     <div class="row-between"><h3 data-i18n="lgT"></h3><button class="icon-btn" aria-label="Close" onclick="closeLounge()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -1147,13 +1154,23 @@ async function savedBlob(dir,type){
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 /* iPhone/iPad: the share sheet has "Save Video" straight into Photos; other phones download (Gallery picks up Downloads) */
 const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+/* photos stay in the app first: a small picture on the Director; tap it to save to the phone, share or delete */
+const PHOTOS=[];let phI=0;
+function phThumb(pop){let el=$('phThumb');
+  if(!el){el=document.createElement('img');el.id='phThumb';el.alt='';el.style.cssText='position:absolute;left:12px;bottom:calc(var(--ovb,0px) + 12px);width:54px;height:54px;object-fit:cover;border:2px solid var(--gold);border-radius:10px;z-index:6;cursor:pointer;background:#000;transition:transform .15s';el.onclick=()=>phView(0);$('stageFull').appendChild(el);}
+  if(!PHOTOS.length){el.style.display='none';return;}el.src=PHOTOS[0].u;el.style.display='block';if(pop){el.style.transform='scale(1.25)';setTimeout(()=>el.style.transform='',160);}}
+function phView(i){if(!PHOTOS.length){closeSheet('phSheet');phThumb();return;}phI=Math.max(0,Math.min(i,PHOTOS.length-1));
+  $('phImg').src=PHOTOS[phI].u;$('phCount').textContent=(phI+1)+' / '+PHOTOS.length;openSheet('phSheet');}
+function phSave(){const x=PHOTOS[phI];if(x){saveToPhone(x.b,x.n);toast(t('phSaved'),2500);}}
+async function phShare(){const x=PHOTOS[phI];if(!x)return;try{const f=new File([x.b],x.n,{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return;}}catch(e){if(e&&e.name==='AbortError')return;}phSave();}
+function phDel(){const x=PHOTOS[phI];if(!x||!confirm(t('phDelQ')))return;URL.revokeObjectURL(x.u);PHOTOS.splice(phI,1);phThumb();phView(phI);}
 /* photo of the Director's picture, with the same look as the video */
 function snapPhoto(){
   try{const W=stage.width,H=stage.height,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
     const f=stage.style.filter;x.filter=f&&f!=='none'?f:'none';x.drawImage(stage,0,0);x.filter='none';
     if(stageOv.classList.contains('on'))x.drawImage(stageOv,0,0,W,H);
     let nm='Photo';try{nm=fileBase()||'Photo';}catch(e){}const d=new Date(),p=n=>String(n).padStart(2,'0');
-    c.toBlob(b=>{if(!b){toast(t('phFail'));return;}saveToPhone(b,nm+'_'+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.jpg');toast(t('phSaved'),3000);},'image/jpeg',0.94);
+    c.toBlob(b=>{if(!b){toast(t('phFail'));return;}PHOTOS.unshift({b,u:URL.createObjectURL(b),n:nm+'_'+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.jpg'});phThumb(true);},'image/jpeg',0.94);
   }catch(e){toast(t('phFail'));}
 }
 async function saveToPhone(blob,name){
