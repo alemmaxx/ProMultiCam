@@ -247,7 +247,7 @@ function openThread(id){
   if(thUnsub)thUnsub();
   thUnsub=F.onSnapshot(F.query(F.collection(db,`supportChats/${id}/messages`),F.orderBy('at','asc'),F.limitToLast(300)),s=>{
     const box=$('msgs');if(!box)return;
-    box.innerHTML=s.docs.map(d=>{const m=d.data();const t=m.at?.toMillis?new Date(m.at.toMillis()).toLocaleString('ms-MY'):'';return `<div class="m ${m.from==='admin'?'ad':'us'}">${esc(m.text)}<small>${t}</small></div>`;}).join('');
+    box.innerHTML=s.docs.map(d=>{const m=d.data();const t=m.at?.toMillis?new Date(m.at.toMillis()).toLocaleString('ms-MY'):'';return `<div class="m ${m.from==='admin'?'ad':'us'}">${m.img&&/^[A-Za-z0-9+/=]+$/.test(m.img)?`<img src="data:image/jpeg;base64,${m.img}" alt="" style="display:block;max-width:100%;max-height:320px;border-radius:10px;margin-bottom:4px;cursor:zoom-in" onclick="fetch(this.src).then(r=>r.blob()).then(b=>window.open(URL.createObjectURL(b),'_blank'))">`:''}${esc(m.text||'')}<small>${t}</small></div>`;}).join('');
     box.scrollTop=box.scrollHeight;
   });
   if(th.unreadAdmin)F.updateDoc(F.doc(db,'supportChats/'+id),{unreadAdmin:false}).catch(()=>{});

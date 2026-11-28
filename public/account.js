@@ -42,11 +42,12 @@ try {
       const q = F.query(F.collection(db, `supportChats/${u.uid}/messages`), F.orderBy('at', 'asc'), F.limitToLast(200));
       return F.onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().at?.toMillis?.() || Date.now() }))), () => cb([]));
     },
-    chatSend: async (text, topic) => {
+    chatSend: async (text, topic, img) => {
       const u = auth.currentUser; if (!u) throw new Error('auth');
-      text = String(text || '').trim().slice(0, 2000); if (!text) return;
-      await F.addDoc(F.collection(db, `supportChats/${u.uid}/messages`), { from: 'user', text, at: F.serverTimestamp() });
-      const d = { uid: u.uid, email: u.email || '', lastMsg: text.slice(0, 300), lastAt: F.serverTimestamp(), lastFrom: 'user', unreadAdmin: true, unreadUser: false }; if (topic) d.topic = String(topic).slice(0, 20);
+      text = String(text || '').trim().slice(0, 2000); if (!text && !img) return;
+      const m = { from: 'user', text, at: F.serverTimestamp() }; if (img) m.img = img;
+      await F.addDoc(F.collection(db, `supportChats/${u.uid}/messages`), m);
+      const d = { uid: u.uid, email: u.email || '', lastMsg: (text || '📷 Gambar').slice(0, 300), lastAt: F.serverTimestamp(), lastFrom: 'user', unreadAdmin: true, unreadUser: false }; if (topic) d.topic = String(topic).slice(0, 20);
       await F.setDoc(F.doc(db, `supportChats/${u.uid}`), d, { merge: true });
     },
     chatMarkRead: async () => {
