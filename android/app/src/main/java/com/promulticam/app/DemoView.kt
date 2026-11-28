@@ -48,8 +48,8 @@ class DemoView(c: Context) : View(c) {
                 val per = 1.6f; val k = (now / per).toInt(); val x = now % per; val dur = 0.55f
                 val old = k % 3; val new = (k + 1) % 3
                 if (x < per - dur || trans == "none") { cam(cv, if (x < per - dur) old else new, 0f, 0f, W, H) }
-                else draw(cv, old, new, ((x - (per - dur)) / dur).coerceIn(0f, 1f), W, H)
-                caption(cv, Fx.transName(trans))
+                else draw(cv, old, new, ((x - (per - dur)) / dur).coerceIn(0f, 1f), W, H, if (trans == "auto") AUTO[(k * 7) % AUTO.size] else trans)
+                caption(cv, if (trans == "auto") "🎲 Auto · " + Fx.transName(AUTO[(k * 7) % AUTO.size]) else Fx.transName(trans))
             }
         }
         cv.restore(); postInvalidateOnAnimation()
@@ -57,7 +57,8 @@ class DemoView(c: Context) : View(c) {
     private fun caption(cv: Canvas, s: String) { tp.alpha = 230; tp.textSize = height * 0.1f; tp.setShadowLayer(4f, 0f, 1f, Color.BLACK); cv.drawText(s, width / 2f, height * 0.9f, tp); tp.clearShadowLayer() }
 
     /* the same switches as the recording (old picture over the new one) */
-    private fun draw(cv: Canvas, a: Int, b: Int, p0: Float, W: Float, H: Float) {
+    private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
+    private fun draw(cv: Canvas, a: Int, b: Int, p0: Float, W: Float, H: Float, trans: String) {
         val e = p0 * p0 * (3 - 2 * p0)
         cam(cv, b, 0f, 0f, W, H)
         when (trans) {

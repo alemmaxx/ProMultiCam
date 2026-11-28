@@ -60,11 +60,14 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     fun resize(w: Int, h0: Int) { W = w; H = h0; h.post { makeFbos() } }
 
     /* a switch happened: keep the last picture to fade from */
-    fun switched() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = true; transAt = SystemClock.uptimeMillis() } } }
+    /* the effect for this switch: "auto" picks a different one each time */
+    private var eff = "fade"; private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
+    private fun pickEff() { eff = if (trans == "auto") AUTO.filter { it != eff }.random() else trans }
+    fun switched() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = true; transAt = SystemClock.uptimeMillis(); pickEff() } } }
 
     /* continue / resume: keep the last recorded picture, then play the switch effect from it into the new part */
     fun holdLast() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = false } } }
-    fun fadeIn() { h.post { if (fbW > 0) { hasFrozen = true; transAt = SystemClock.uptimeMillis() } } }
+    fun fadeIn() { h.post { if (fbW > 0) { hasFrozen = true; transAt = SystemClock.uptimeMillis(); pickEff() } } }
     fun fromStill(b: Bitmap) {
         h.post {
             val e = egl0 ?: return@post; e.makeCurrent(); if (fbW != W || fbH != H) makeFbos()
@@ -210,8 +213,8 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     private fun clip(x: Int, y: Int, w: Int, hh: Int) { GLES20.glEnable(GLES20.GL_SCISSOR_TEST); GLES20.glScissor(x, y, maxOf(0, w), maxOf(0, hh)) }
     private fun transDraw(p: Float) {
         val e = p * p * (3 - 2 * p)   // smooth start and end
-        when (trans) {
-            "black", "white" -> { if (p < 0.5f) old(0, 0, W, H); solid(trans == "white", if (p < 0.5f) p * 2 else (1 - p) * 2) }
+        when (eff) {
+            "black", "white" -> { if (p < 0.5f) old(0, 0, W, H); solid(eff == "white", if (p < 0.5f) p * 2 else (1 - p) * 2) }
             "flash" -> { if (p < 0.15f) old(0, 0, W, H); solid(true, if (p < 0.15f) p / 0.15f else (1 - p) / 0.85f) }
             "slide" -> old((-e * W).toInt(), 0, W, H)
             "slideup" -> old(0, (e * H).toInt(), W, H)
