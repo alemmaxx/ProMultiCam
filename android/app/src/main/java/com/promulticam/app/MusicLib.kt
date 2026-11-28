@@ -20,7 +20,7 @@ object MusicLib {
     private const val R = Snd.RATE
 
     /* the song as a WAV file (made once, then kept) */
-    fun file(c: Context, id: String): File {
+    @Synchronized fun file(c: Context, id: String): File {
         val d = File(c.filesDir, "music").apply { mkdirs() }; val f = File(d, "lib_$id.wav")
         if (f.exists() && f.length() > 1000) return f
         val a = make(id); write(a, File(d, "tmp_$id.wav")); File(d, "tmp_$id.wav").renameTo(f); return f

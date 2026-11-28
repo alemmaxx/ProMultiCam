@@ -13,10 +13,10 @@ import java.io.File
 
 /* a photo becomes a short video clip (with silent sound), so it sits on the timeline like any video */
 object StillClip {
-    fun make(src: Bitmap, W0: Int, H0: Int, durUs: Long, out: File) {
+    fun make(src: Bitmap, W0: Int, H0: Int, durUs: Long, out: File, fps: Int = 30) {
         var W = W0; var H = H0; val big = maxOf(W, H); if (big > 1920) { W = W * 1920 / big; H = H * 1920 / big }
         W = W / 2 * 2; H = H / 2 * 2
-        val fps = 30; val n = maxOf(1, (durUs * fps / 1_000_000).toInt())
+        val n = maxOf(1, (durUs * fps / 1_000_000).toInt())
         val vf = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface); setInteger(MediaFormat.KEY_BIT_RATE, 3_000_000)
             setInteger(MediaFormat.KEY_FRAME_RATE, fps); setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) }

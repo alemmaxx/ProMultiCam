@@ -391,15 +391,19 @@ class EditorActivity : AppCompatActivity() {
         else if (f != null && f.exists()) { orig = f; draftId = "f_" + f.nameWithoutExtension; val (w, h, du) = probe(f); setFormat(w, h); clips.add(Clip(f, 0, du, false).also { it.fileDur = du }); rebuild(0)
             if (Drafts.exists(this, draftId)) AlertDialog.Builder(this).setMessage(t("You have an unfinished edit of this video. Continue it?", "Ada suntingan belum siap untuk video ini. Sambung?"))
                 .setPositiveButton(t("Continue", "Sambung")) { _, _ -> openDraft(draftId) }.setNegativeButton(t("Start again", "Mula semula")) { _, _ -> Drafts.delete(this, draftId) }.show() }
-        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ if (intent.getBooleanExtra("tpl", false)) templateSheet() else askAdd(true) }, 300) }
+        else { draftId = "n_" + System.currentTimeMillis(); main.postDelayed({ if (!isFinishing) { if (intent.getBooleanExtra("tpl", false)) templateSheet() else askAdd(true) } }, 300) }
         mainTools()
     }
     override fun onDestroy() { player.release(); mplayer.release(); pplayers.forEach { it.release() }; tts?.shutdown(); thumbQ.shutdownNow(); readers.values.forEach { try { it.release() } catch (e: Exception) {} }; saveDraft()
         if (!busy) { val keep = Drafts.used(this); work.listFiles()?.forEach { if (it.absolutePath !in keep) it.delete() } }; super.onDestroy() }
-    override fun onPause() { super.onPause(); if (player.isPlaying) player.pause(); saveDraft() }
+    override fun onPause() { super.onPause(); fg = false; if (player.isPlaying) player.pause(); try { mplayer.pause() } catch (e: Exception) {}; previewStop?.invoke(); saveDraft() }
+    override fun onResume() { super.onResume(); fg = true }
+    /* nothing plays or pops up while the app is in the background */
+    private var fg = true; private var previewStop: (() -> Unit)? = null
+    private fun playFg() { if (fg) player.play() }
 
     private fun sbtn(l: String, gold: Boolean = false, f: () -> Unit): Button { val b = Ui.btn(this, l, gold, f); b.textSize = 14f; b.maxLines = 1; b.setPadding(Ui.px(this, 12), Ui.px(this, 2), Ui.px(this, 12), Ui.px(this, 6)); b.minHeight = 0; b.minimumHeight = 0; b.minWidth = 0; b.minimumWidth = 0; return b }
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun toast(s: String) { if (fg) Toast.makeText(this, s, Toast.LENGTH_SHORT).show() }
 
     private fun probe(f: File): Triple<Int, Int, Long> = try {
         val r = MediaMetadataRetriever(); r.setDataSource(f.absolutePath)
@@ -486,13 +490,13 @@ class EditorActivity : AppCompatActivity() {
         }
     }
     private var tick = 0
-    private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (tl.time >= total() - 60_000) seekTo(0); player.play() } }
+    private fun togglePlay() { if (clips.isEmpty()) return; if (player.isPlaying) player.pause() else { if (tl.time >= total() - 60_000) seekTo(0); playFg() } }
     fun onScrub(u: Long) { scrubbing = true; if (player.isPlaying) player.pause(); seekTo(u); showTime(u); veilAt(u); main.removeCallbacks(endScrub); main.postDelayed(endScrub, 250) }
     private val endScrub = Runnable { scrubbing = false }
     private fun syncMusic(u: Long, hard: Boolean) {
         if (sounds.isEmpty() || mixFile == null) { if (mplayer.isPlaying) mplayer.pause(); return }
         if (hard || abs(mplayer.currentPosition * 1000 - u) > 150_000) mplayer.seekTo(u / 1000)
-        if (player.isPlaying && !mplayer.isPlaying) mplayer.play()
+        if (player.isPlaying && !mplayer.isPlaying) mplayFg()
     }
     /* switch effects and clip effects in the preview (the same maths as when saving) */
     private fun veilAt(u: Long) {
@@ -599,7 +603,7 @@ class EditorActivity : AppCompatActivity() {
     fun onTrans(i: Int) {
         val c = clips[i]; val opts = Fx.TRANS.map { it to Fx.transName(it) }
         AlertDialog.Builder(this).setTitle(t("Switch effect", "Kesan tukar"))
-            .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == c.trans }) { dl, w -> snap(); c.trans = opts[w].first; dl.dismiss(); val at = maxOf(0, start(i) - 700_000); rebuild(at); main.postDelayed({ if (!player.isPlaying) player.play() }, 150) }
+            .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == c.trans }) { dl, w -> snap(); c.trans = opts[w].first; dl.dismiss(); val at = maxOf(0, start(i) - 700_000); rebuild(at); main.postDelayed({ if (!player.isPlaying) playFg() }, 150) }
             .setNeutralButton(t("Use for all", "Guna untuk semua")) { _, _ -> snap(); val v = c.trans.takeIf { it != "none" } ?: "fade"; clips.forEachIndexed { k, q -> if (k > 0) q.trans = v }; rebuild(tl.time) }
             .show()
     }
@@ -756,6 +760,7 @@ class EditorActivity : AppCompatActivity() {
             b.addView(r)
         }
         val search = Ui.input(this, "🔍  " + t("Search templates", "Cari templat")); b.addView(search, Ui.lp(this, 8))
+        Thread { MusicLib.ALL.forEach { m -> try { MusicLib.file(this, m.id) } catch (e: Exception) {} } }.start()
         val tabs = listOf("foryou", "community", "mine") + Templates.CATS.drop(1)
         fun tabName(k: String) = when (k) { "foryou" -> t("For you", "Untuk anda"); "community" -> t("Community", "Komuniti"); "mine" -> t("Mine", "Saya"); else -> Templates.catName(k) }
         val tf = Flow(this, Ui.px(this, 6)); val tb = ArrayList<Button>(); b.addView(tf, Ui.lp(this, 8))
@@ -890,7 +895,7 @@ class EditorActivity : AppCompatActivity() {
             for (k in 0 until a.length()) {
                 if (media.isEmpty()) {   // no media yet: an empty box to fill in the editor
                     val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val v = File(work, "slot_" + System.currentTimeMillis() + "_" + k + ".mp4")
-                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw, th, (dur * o.optDouble("speed", 1.0)).toLong(), v); val du = probe(v).third.takeIf { it > 0 } ?: dur
+                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw / 3, th / 3, (dur * o.optDouble("speed", 1.0)).toLong(), v, 10); val du = probe(v).third.takeIf { it > 0 } ?: dur
                         out.add(Clip(v, 0, du, true).also { it.fileDur = du; it.img = "slot"; it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std")
                             it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat()
                             it.blur = o.optBoolean("blur"); it.kf = o.optString("kf"); it.dn = o.optBoolean("dn")
@@ -912,7 +917,7 @@ class EditorActivity : AppCompatActivity() {
                 dirty = true; clips = out; layers = ArrayList(Templates.layers(j)); sounds = ArrayList(Templates.sounds(j))
                 if (mf != null) { val ms = Sound("music", 0, out.sumOf { it.dur }); ms.file = mf.absolutePath; ms.vol = 0.7f; ms.fi = 0.3f; ms.fo = 1f; sounds.add(0, ms); origVol = 0.35f }
                 setFormat(tw, th); onSelect(Sel.None); rebuild(0)
-                toast(if (us.isEmpty()) t("Tap each box to choose a video or photo, or 📥 Fill all", "Tekan setiap kotak untuk pilih video atau gambar, atau 📥 Isi semua") else t("Done! Tap a clip → 🔁 Replace to change a picture. Tap a text to change it.", "Siap! Tekan klip → 🔁 Tukar untuk ganti gambar. Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) player.play() }, 300) }
+                toast(if (us.isEmpty()) t("Tap each box to choose a video or photo, or 📥 Fill all", "Tekan setiap kotak untuk pilih video atau gambar, atau 📥 Isi semua") else t("Done! Tap a clip → 🔁 Replace to change a picture. Tap a text to change it.", "Siap! Tekan klip → 🔁 Tukar untuk ganti gambar. Tekan teks untuk ubah.")); main.postDelayed({ if (!player.isPlaying) playFg() }, 300) }
         }.start()
     }
     private fun askAdd(first: Boolean) {
@@ -1095,7 +1100,7 @@ class EditorActivity : AppCompatActivity() {
                 r.setAudioSamplingRate(48000); r.setAudioEncodingBitRate(128000); r.setAudioChannels(1); r.setOutputFile(f.absolutePath); r.prepare(); r.start() }
             catch (e: Exception) { r.release(); toast(t("The microphone is busy", "Mikrofon sedang digunakan")); return@btn }
             rec = r; if (mute) { player.volume = 0f; mplayer.volume = 0f }
-            if (!player.isPlaying) player.play()
+            if (!player.isPlaying) playFg()
             go.text = "⏹  " + t("Stop", "Berhenti"); st.text = "🔴 " + t("Recording… tap Stop when done", "Merakam… tekan Berhenti bila siap")
         }
         b.addView(go, LinearLayout.LayoutParams(-1, Ui.px(this, 64)).apply { topMargin = Ui.px(this@EditorActivity, 10) })
@@ -1219,7 +1224,7 @@ class EditorActivity : AppCompatActivity() {
     }
     private fun fxSheet(i: Int) {
         val c = clips[i]; val s = Ui.sheet(this, t("Effects", "Efek")); snap()
-        pills(s.body, (if (c.still) t("Photo ", "Gambar ") else t("Clip ", "Klip ")) + (i + 1), Fx.EFFECTS.map { it to Fx.fxName(it) }, { c.fx }) { v -> c.fx = v; tl.invalidate(); rebuild(start(i)); main.postDelayed({ if (!player.isPlaying) player.play() }, 150) }
+        pills(s.body, (if (c.still) t("Photo ", "Gambar ") else t("Clip ", "Klip ")) + (i + 1), Fx.EFFECTS.map { it to Fx.fxName(it) }, { c.fx }) { v -> c.fx = v; tl.invalidate(); rebuild(start(i)); main.postDelayed({ if (!player.isPlaying) playFg() }, 150) }
         s.body.addView(Ui.btn(this, t("Use for all photos", "Guna untuk semua gambar")) { clips.forEach { if (it.still) it.fx = c.fx }; tl.invalidate(); toast("✓") }, Ui.lp(this, 12))
         s.body.addView(Ui.btn(this, t("Use for all clips", "Guna untuk semua klip")) { clips.forEach { it.fx = c.fx }; tl.invalidate(); toast("✓") }, Ui.lp(this, 8))
         s.body.addView(Ui.hint(this, t("Switch effects: tap the small square between two clips.", "Kesan tukar: tekan petak kecil antara dua klip.")))
@@ -1360,7 +1365,8 @@ class EditorActivity : AppCompatActivity() {
         if (clips.isEmpty()) return
         val s = Ui.sheet(this, t("Music", "Muzik")); var mp: android.media.MediaPlayer? = null
         fun stop() { try { mp?.release() } catch (e: Exception) {}; mp = null }
-        s.dialog.setOnDismissListener { stop() }
+        previewStop = { stop() }
+        s.dialog.setOnDismissListener { stop(); previewStop = null }
         s.body.addView(Ui.btn(this, "📁  " + t("From my phone", "Dari telefon saya"), true) { s.dialog.dismiss(); pickMusic.launch("audio/*") })
         s.body.addView(Ui.label(this, t("Built-in music (free to use)", "Muzik terbina (bebas guna)"), 13f, Ui.SUB, true), Ui.lp(this, 14))
         MusicLib.ALL.forEach { song -> val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL
@@ -1466,7 +1472,7 @@ class EditorActivity : AppCompatActivity() {
         Thread { val f = File(work, "mix_$gen.wav"); val ok = try { Snd.mix(list, tot, f, audioCache); true } catch (e: Exception) { false }
             main.post { if (gen != mixGen || !ok) { f.delete(); return@post }
                 val old = mixFile; mixFile = f; mplayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(f))); mplayer.prepare(); mplayer.seekTo(tl.time / 1000)
-                if (player.isPlaying) mplayer.play(); if (old != null && old != f) old.delete() } }.start()
+                if (player.isPlaying) mplayFg(); if (old != null && old != f) old.delete() } }.start()
     }
 
     /* ---------------- cover picture ---------------- */
