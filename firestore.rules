@@ -57,6 +57,15 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isSuper();
     }
+    // community chat: signed-in users write their own short messages; owner or super admin can delete
+    match /lounge/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500 && request.resource.data.user is string
+        && request.resource.data.keys().hasOnly(['uid', 'user', 'text', 'at']);
+      allow update: if false;
+      allow delete: if isSuper() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
     // public user names (shown on shared templates instead of the email)
     match /profiles/{uid} {
       allow read: if signedIn();

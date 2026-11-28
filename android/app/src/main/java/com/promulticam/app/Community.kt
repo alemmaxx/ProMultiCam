@@ -25,8 +25,10 @@ object Profile {
         val n = try { Fs.get("profiles/$u")?.s("username")?.ifEmpty { null } } catch (e: Exception) { null }
         if (n != null) { sp(c).edit().putString("uname_$u", n).apply(); cached = n; cachedUid = u }
         return n ?: name(c) }
-    fun valid(n: String) = n.isNotEmpty() && n.length <= 30 && !n.contains('/')
-    private fun key(n: String) = n.lowercase().replace(Regex("\\s+"), "").replace('/', '_').replace('.', '_').ifEmpty { "_" }
+    fun valid(n: String) = n.isNotEmpty() && n.length <= 30 && !n.contains('/') && !Mod.bad(n)
+    /* true = free (or already mine), false = someone has it, null = no internet */
+    fun available(raw: String): Boolean? { val n = raw.trim().removePrefix("@").trim(); return try { val d = Fs.get("usernames/" + key(n)); d == null || d.s("uid") == Auth.uid } catch (e: Exception) { null } }
+    fun key(n: String) = n.lowercase().replace(Regex("\\s+"), "").replace('/', '_').replace('.', '_').ifEmpty { "_" }
     /* take a name: null = done, otherwise the problem ("TAKEN", "BAD", "NETWORK") */
     fun claim(c: Context, raw: String): String? {
         val u = Auth.uid ?: return "NETWORK"; val n = raw.trim().removePrefix("@").trim()

@@ -77,6 +77,9 @@ class MainActivity : AppCompatActivity() {
         val right = LinearLayout(c); right.orientation = LinearLayout.VERTICAL
         val row = LinearLayout(c); row.orientation = LinearLayout.HORIZONTAL
         val langB = Ui.btn(c, if (Ui.ms) "Bahasa Melayu ▾" else "English ▾") { Ui.setLang(c, if (Ui.ms) "en" else "ms"); recreate() }; langB.textSize = 13f
+        // community chat
+        val chatB = Ui.btn(c, "💬") { Nav.open(this, "lounge") }; chatB.textSize = 16f; chatB.minWidth = 0; chatB.minimumWidth = 0
+        row.addView(chatB, LinearLayout.LayoutParams(bh, bh).apply { rightMargin = Ui.px(c, 8) })
         row.addView(langB, LinearLayout.LayoutParams(-2, bh))
         loginBtn = Ui.btn(c, "") { openAccount() }; loginBtn.textSize = 13f
         row.addView(loginBtn, LinearLayout.LayoutParams(0, bh, 1f).apply { leftMargin = Ui.px(c, 8) })
@@ -177,12 +180,7 @@ class MainActivity : AppCompatActivity() {
             // public user name (shown on shared templates instead of the email)
             val un = Ui.label(this, "@" + (Profile.name(this) ?: "—"), 15f, Ui.TEXT, true); s.body.addView(un, Ui.lp(this, 12))
             Thread { val n = Profile.load(this); runOnUiThread { un.text = "@" + (n ?: "—") } }.start()
-            s.body.addView(Ui.btn(this, "✏️ " + t("Set user name", "Tetapkan nama pengguna")) {
-                val e = Ui.input(this, t("Your name", "Nama anda"), Profile.name(this) ?: "")
-                android.app.AlertDialog.Builder(this).setTitle(t("User name", "Nama pengguna"))
-                    .setView(LinearLayout(this).apply { setPadding(Ui.px(this@MainActivity, 20), Ui.px(this@MainActivity, 8), Ui.px(this@MainActivity, 20), 0); addView(e, LinearLayout.LayoutParams(-1, -2)) })
-                    .setPositiveButton("OK") { _, _ -> val n = e.text.toString(); Thread { val err = Profile.claim(this, n); runOnUiThread { if (err == null) { un.text = "@" + Profile.name(this); toast(t("Saved", "Disimpan")) } else toast(Profile.errText(err)) } }.start() }
-                    .setNegativeButton(t("Cancel", "Batal"), null).show() }, Ui.lp(this, 6))
+            s.body.addView(Ui.btn(this, "✏️ " + t("Set user name", "Tetapkan nama pengguna")) { NameBox.show(AppCompatActivityLike(this)) { un.text = "@" + (Profile.name(this) ?: "—"); toast(t("Saved", "Disimpan")) } }, Ui.lp(this, 6))
             if (!Auth.isAdmin) s.body.addView(Ui.btn(this, if (Auth.isPro && Auth.plan != "trial") t("Renew", "Sambung langganan") else t("Upgrade to Pro", "Naik taraf ke Pro"), true) { s.dialog.dismiss(); Nav.open(this, "pro") }, Ui.lp(this, 14))
             s.body.addView(Ui.btn(this, t("Log out", "Log keluar")) { Auth.logout(); s.dialog.dismiss(); paintLogin() }, Ui.lp(this, 10))
             s.dialog.show(); return

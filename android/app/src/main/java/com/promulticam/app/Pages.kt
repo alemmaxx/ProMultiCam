@@ -45,12 +45,12 @@ import java.util.Locale
 object Nav {
     fun open(a: AppCompatActivity, what: String, file: String? = null) {
         val cls = when (what) {
-            "pro" -> PlansActivity::class.java; "support" -> SupportActivity::class.java; "test" -> TestActivity::class.java
+            "pro" -> PlansActivity::class.java; "support" -> SupportActivity::class.java; "lounge" -> LoungeActivity::class.java; "test" -> TestActivity::class.java
             "manual" -> ManualActivity::class.java; "about" -> AboutActivity::class.java; "apk" -> ApkActivity::class.java
             "edit", "media" -> EditorActivity::class.java
             else -> return
         }
-        if ((what == "support" || what == "pro") && !Auth.signedIn) { Toast.makeText(a, t("Please log in first", "Sila log masuk dahulu"), Toast.LENGTH_SHORT).show(); return }
+        if ((what == "support" || what == "pro" || what == "lounge") && !Auth.signedIn) { Toast.makeText(a, t("Please log in first", "Sila log masuk dahulu"), Toast.LENGTH_SHORT).show(); return }
         a.startActivity(Intent(a, cls).putExtra("f", file ?: ""))
     }
 }
