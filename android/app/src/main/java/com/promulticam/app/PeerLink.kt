@@ -112,8 +112,8 @@ class PeerLink(
     fun gotAnswer(payload: JSONObject) {
         val sdp = payload.optJSONObject("sdp")?.optString("sdp") ?: return
         pc.setRemoteDescription(object : Rtc.Sdp() {
-            override fun onSetSuccess() { main.post { remoteSet = true; pending.forEach { pc.addIceCandidate(it) }; pending.clear() } }
-        }, SessionDescription(SessionDescription.Type.ANSWER, sdp))
+            override fun onSetSuccess() { main.post { remoteSet = true; pending.forEach { pc.addIceCandidate(it) }; pending.clear(); pc.senders.forEach { s -> if (s.track()?.kind() == "video") Rtc.tune(s) } } }
+        }, SessionDescription(SessionDescription.Type.ANSWER, if (type == "media") Rtc.fastStart(sdp) else sdp))
     }
 
     fun gotCandidate(payload: JSONObject) {

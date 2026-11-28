@@ -3284,7 +3284,7 @@ function tuneSender(now){
       if(!snd.track||snd.track.kind!=='video')continue;
       try{const prm=snd.getParameters();if(!prm.encodings||!prm.encodings.length)prm.encodings=[{}];
         prm.encodings[0].maxBitrate=sHi?(sVia==='data'?2500000:6000000):(sVia==='data'?1500000:4000000);prm.encodings[0].maxFramerate=30;prm.encodings[0].scaleResolutionDownBy=sHi?1:1.25;
-        prm.degradationPreference=sHi?'maintain-resolution':'balanced';await snd.setParameters(prm);}catch(e){}
+        prm.degradationPreference='maintain-framerate';await snd.setParameters(prm);}catch(e){}
     }
   };
   if(now)go();else{setTimeout(go,1500);setTimeout(go,5000);}

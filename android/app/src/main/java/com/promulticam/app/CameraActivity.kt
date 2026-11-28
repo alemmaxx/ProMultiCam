@@ -208,7 +208,7 @@ class CameraActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         link.send(mapOf("t" to "rot", "v" to 0))
         val s = sig ?: return
         val m = PeerLink(s, target, PeerLink.newId("mc_"), "media", this)
-        cam?.let { m.pc.addTrack(it.track, listOf("pmc")) }
+        cam?.let { Rtc.tune(m.pc.addTrack(it.track, listOf("pmc"))) }
         mic?.let { m.pc.addTrack(it, listOf("pmc")) }
         mediaLink = m
         m.offer(JSONObject().put("name", label()).put("via", via()))

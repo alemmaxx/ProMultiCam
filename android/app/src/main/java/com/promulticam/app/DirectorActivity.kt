@@ -233,7 +233,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         // photo: a still of the picture on screen, or a full-size HD photo from the camera
         val shotB = android.widget.ImageView(c); shotB.setImageResource(R.drawable.ic_camera); shotB.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
         shotB.background = Ui.round(0x88000000.toInt(), Ui.dp(c, 99f)); shotB.setPadding(d, d, d, d)
-        shotB.setOnClickListener { photoSheet() }
+        shotB.setOnClickListener { askHd() }   // one tap: HD photo straight to the gallery
+        shotB.setOnLongClickListener { photoSheet(); true }   // hold: choose screen photo / brand on or off
         stage.addView(shotB, Ui.fl(Ui.px(c, 48), Ui.px(c, 48), Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d + Ui.px(c, 58) })
         // zoom: upright slider on the right, like the web
         zoomTx = Ui.label(c, "1.0×", 13f, Ui.GOLD, true)
@@ -652,8 +653,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun photoSheet() {
         val s = mainSrc
         val sh = Ui.sheet(this, t("Take a photo", "Ambil gambar"))
-        sh.body.addView(Ui.hint(this, t("Tap a camera box first to choose the angle. Photos go to the gallery: Pictures/ProMultiCam.",
-            "Tekan kotak kamera dulu untuk pilih sudut. Gambar masuk galeri: Pictures/ProMultiCam.")))
+        sh.body.addView(Ui.hint(this, t("One tap on 📷 takes an HD photo of the angle on screen. Photos go to the gallery: Pictures/ProMultiCam.",
+            "Tekan sekali 📷 untuk gambar HD sudut di skrin. Gambar masuk galeri: Pictures/ProMultiCam.")))
         sh.body.addView(Ui.check(this, t("Put my brand / logo on the photo", "Letak jenama / logo pada gambar"), sp.getBoolean("phBrand", true)) { v -> sp.edit().putBoolean("phBrand", v).apply() }, Ui.lp(this, 8))
         sh.body.addView(Ui.btn(this, t("📸 Photo of the screen (instant)", "📸 Gambar skrin (segera)"), true) { sh.dialog.dismiss(); snapScreen() }, Ui.lp(this, 10))
         sh.body.addView(Ui.hint(this, t("Same look as the video, about 2 MP.", "Gaya sama macam video, lebih kurang 2 MP.")))
@@ -677,24 +678,27 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private var phWait: Runnable? = null
     private fun askHd() {
         val s = mainSrc ?: run { toast(t("No camera yet", "Belum ada kamera")); return }
-        toast(t("✨ Taking HD photo…", "✨ Mengambil gambar HD…"))
-        if (s.local) { val c = cam ?: return; Photo.still(this, c, 1920, 1080) { j -> gotHd(j) }; return }
-        val d = s.data ?: run { toast(t("This camera is not connected", "Kamera ini tidak bersambung")); return }
-        d.send(mapOf("t" to "photo"))
+        if (s.track == null && !s.local) { toast(t("No camera yet", "Belum ada kamera")); return }
+        toast(t("📸 HD photo…", "📸 Gambar HD…"))
+        if (s.local) { val c = cam ?: run { snapScreen(); return }; Photo.still(this, c, 1920, 1080) { j -> gotHd(j) }; return }
+        val d = s.data ?: run { snapScreen(); return }
+        if (!d.send(mapOf("t" to "photo"))) { snapScreen(); return }
         phWait?.let { main.removeCallbacks(it) }
-        phWait = Runnable { toast(t("No HD photo from this camera — use Photo of the screen.", "Tiada gambar HD dari kamera ini — guna Gambar skrin.")) }.also { main.postDelayed(it, 25000) }
+        // no answer (e.g. a camera on the website): take the photo from the screen instead
+        phWait = Runnable { phWait = null; snapScreen() }.also { main.postDelayed(it, 10000) }
     }
     private fun onPhoto(s: Src, m: Map<String, Any?>) {
-        if (m["fail"] == true) { phWait?.let { main.removeCallbacks(it) }; toast(t("HD photo failed — try again.", "Gambar HD gagal — cuba lagi.")); return }
+        if (m["fail"] == true) { phWait?.let { main.removeCallbacks(it) }; phWait = null; snapScreen(); return }
         val n = (m["n"] as? Number)?.toInt() ?: return; val i = (m["i"] as? Number)?.toInt() ?: return; val d = m["d"] as? ByteArray ?: return
         val key = s.id + ":" + m["id"]
         val a = phParts.getOrPut(key) { arrayOfNulls(n) }; if (i !in a.indices) return
-        a[i] = d; phWait?.let { main.removeCallbacks(it); main.postDelayed(it, 25000) }
-        if (a.all { it != null }) { phParts.remove(key); phWait?.let { main.removeCallbacks(it) }
+        a[i] = d; phWait?.let { main.removeCallbacks(it) }
+        phWait = Runnable { phWait = null; phParts.remove(key); toast(t("HD photo failed — try again.", "Gambar HD gagal — cuba lagi.")) }.also { main.postDelayed(it, 20000) }
+        if (a.all { it != null }) { phParts.remove(key); phWait?.let { main.removeCallbacks(it) }; phWait = null
             val o = java.io.ByteArrayOutputStream(); a.forEach { o.write(it!!) }; gotHd(o.toByteArray()) }
     }
     private fun gotHd(j: ByteArray?) {
-        if (j == null) { toast(t("HD photo failed — try again.", "Gambar HD gagal — cuba lagi.")); return }
+        if (j == null) { snapScreen(); return }
         val ov = brandForPhoto(); val f = look.f; val w = W; val h = H; val nm = brand.title.ifEmpty { "Photo" }
         Thread { val ok = try { Photo.save(this, Photo.styled(j, f, ov, w, h), nm) } catch (e: Throwable) { false }
             main.post { toast(if (ok) t("✨ HD photo saved to the gallery", "✨ Gambar HD disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) } }.start()
@@ -868,6 +872,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val d = Ui.dp(this, 6f).toInt()
         val f = FrameLayout(this); f.background = Ui.round(Ui.CARD, Ui.dp(this, 10f)); f.setPadding(d / 2, d / 2, d / 2, d / 2)
         val v = SurfaceViewRenderer(this); v.init(Rtc.egl.eglBaseContext, null); v.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+        v.setFpsReduction(15f)   // the small boxes only need 15 fps: leaves the phone free for the main 30 fps picture
         v.setZOrderMediaOverlay(true)
         f.addView(v, FrameLayout.LayoutParams(-1, -1))
         val tx = Ui.label(this, s.name, 11f, Color.WHITE, true); tx.setShadowLayer(4f, 0f, 1f, Color.BLACK); tx.tag = "lbl"

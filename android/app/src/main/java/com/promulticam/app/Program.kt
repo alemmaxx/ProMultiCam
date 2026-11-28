@@ -94,7 +94,9 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         val l = CountDownLatch(1)
         h.post {
             pv?.release(); pv = null
-            if (s != null) try { pv = EglBase.create(egl0!!.eglBaseContext, EglBase.CONFIG_PLAIN).also { it.createSurface(s) }; pvW = w; pvH = hh } catch (e: Exception) { pv = null }
+            if (s != null) try { pv = EglBase.create(egl0!!.eglBaseContext, EglBase.CONFIG_PLAIN).also { it.createSurface(s)
+                // do not wait for the screen refresh when showing the picture: the recording must never wait for the screen
+                try { it.makeCurrent(); android.opengl.EGL14.eglSwapInterval(android.opengl.EGL14.eglGetCurrentDisplay(), 0); egl0?.makeCurrent() } catch (e: Exception) {} }; pvW = w; pvH = hh } catch (e: Exception) { pv = null }
             l.countDown()
         }
         l.await(1500, TimeUnit.MILLISECONDS)

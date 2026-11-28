@@ -54,6 +54,33 @@ object Rtc {
         /* keep a steady 30 fps (the camera would slow to 15–20 fps in dim light); tried a few times while the camera starts */
         fun lock30() { val h = android.os.Handler(android.os.Looper.getMainLooper()); for (d in longArrayOf(1200, 3000, 6000)) h.postDelayed({ try { Focus.tap(capturer, 0.5f, 0.5f, front, true) } catch (e: Exception) {} }, d) }
     }
+    /* steady 30 fps from a camera phone: keep the frame rate (drop sharpness first if the network is weak) and allow enough data */
+    fun tune(s: org.webrtc.RtpSender?) {
+        s ?: return
+        try {
+            val p = s.parameters
+            p.degradationPreference = org.webrtc.RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE
+            p.encodings.forEach { e -> e.maxFramerate = 30; e.maxBitrateBps = 5_000_000; e.minBitrateBps = 1_200_000 }
+            s.parameters = p
+        } catch (e: Exception) {}
+    }
+    /* start the picture at a good quality instead of creeping up from a low one */
+    fun fastStart(sdp: String): String {
+        val nl = if (sdp.contains("\r\n")) "\r\n" else "\n"
+        val lines = sdp.split(nl)
+        val pts = lines.mapNotNull { Regex("^a=rtpmap:(\\d+) (VP8|VP9|H264)/90000").find(it)?.groupValues?.get(1) }.toSet()
+        if (pts.isEmpty()) return sdp
+        val withFmtp = lines.mapNotNull { Regex("^a=fmtp:(\\d+) ").find(it)?.groupValues?.get(1) }.toSet()
+        val add = "x-google-start-bitrate=2500;x-google-min-bitrate=1200;x-google-max-bitrate=5000"
+        val out = ArrayList<String>()
+        for (ln in lines) {
+            val f = Regex("^a=fmtp:(\\d+) ").find(ln)?.groupValues?.get(1)
+            out.add(if (f != null && f in pts && !ln.contains("x-google-")) "$ln;$add" else ln)
+            val r = Regex("^a=rtpmap:(\\d+) ").find(ln)?.groupValues?.get(1)
+            if (r != null && r in pts && r !in withFmtp) out.add("a=fmtp:$r $add")   // e.g. VP8 has no fmtp line of its own
+        }
+        return out.joinToString(nl)
+    }
     fun camera(ctx: Context, front: Boolean, w: Int, h: Int, id: String): Cam? {
         val en = Camera2Enumerator(ctx)
         val name = en.deviceNames.firstOrNull { en.isFrontFacing(it) == front } ?: en.deviceNames.firstOrNull() ?: return null
