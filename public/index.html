@@ -1648,8 +1648,8 @@ function onDirTurn(need){
   setLand();setTimeout(()=>{document.querySelectorAll('.tile video').forEach(sizeTileVid);rotateHint();},350);
 }
 /* ---------- live switch transitions (only drawn for ~0.3–0.5 s after a switch) ---------- */
-const TRANS={cut:{ms:1},fade:{ms:380},black:{ms:480},white:{ms:420},slide:{ms:360},slideup:{ms:360},zoom:{ms:380},whip:{ms:300},wipe:{ms:420},circle:{ms:460},doors:{ms:460}};
-const TRANS_AUTO=['fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors'];let transPick='fade';
+const TRANS={cut:{ms:1},fade:{ms:380},black:{ms:480},white:{ms:420},slide:{ms:360},slideup:{ms:360},zoom:{ms:380},whip:{ms:300},wipe:{ms:420},circle:{ms:460},doors:{ms:460},leak:{ms:520},bands:{ms:480},reveal:{ms:460},tilt:{ms:420}};
+const TRANS_AUTO=['fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors','leak','bands','reveal','tilt'];let transPick='fade';
 function transNext(){let k;do{k=TRANS_AUTO[Math.floor(Math.random()*TRANS_AUTO.length)];}while(k===transPick&&TRANS_AUTO.length>1);transPick=k;return k;}
 function transKind(){const v=$('transSel').value;if(v==='auto')return transPick;return TRANS[v]&&v!=='cut'?v:'fade';}
 function drawTrans(k,p,A,B,X,Y,W,H,c){c=c||ctx;
@@ -1668,6 +1668,10 @@ function drawTrans(k,p,A,B,X,Y,W,H,c){c=c||ctx;
   else if(k==='circle'){A(X,Y,W,H);const r=Math.hypot(W,H)/2*e;c.save();c.beginPath();c.arc(X+W/2,Y+H/2,Math.max(1,r),0,Math.PI*2);c.clip();B(X,Y,W,H);c.restore();
     c.filter='none';c.strokeStyle=ovCol().c;c.lineWidth=Math.max(2,Math.min(W,H)*0.008);c.beginPath();c.arc(X+W/2,Y+H/2,Math.max(1,r),0,Math.PI*2);c.stroke();c.filter=F;}
   else if(k==='doors'){B(X,Y,W,H);const d=W/2*e;c.save();c.beginPath();c.rect(X,Y,W/2-d,H);c.clip();A(X-d,Y,W,H);c.restore();c.save();c.beginPath();c.rect(X+W/2+d,Y,W/2-d,H);c.clip();A(X+d,Y,W,H);c.restore();}
+  else if(k==='leak'){A(X,Y,W,H);c.globalAlpha=e;B(X,Y,W,H);c.globalAlpha=1;veil('#ff9e40',(1-Math.abs(2*p-1))*0.7);}
+  else if(k==='bands'){B(X,Y,W,H);for(let i=0;i<3;i++){const q=Math.max(0,Math.min(1,e*1.6-i*0.3)),off=(i%2?1:-1)*q*W;c.save();c.beginPath();c.rect(X,Y+i*H/3,W,H/3+1);c.clip();A(X+off,Y,W,H);c.restore();}}
+  else if(k==='reveal'){B(X,Y,W,H);const h=(1-e)*H/2;c.save();c.beginPath();c.rect(X,Y,W,h);c.rect(X,Y+H-h,W,h);c.clip();A(X,Y,W,H);c.restore();}
+  else if(k==='tilt'){B(X,Y,W,H);clip();c.globalAlpha=1-e;c.translate(X+W/2,Y+H/2);c.rotate(-0.24*e);const s=1+0.35*e;c.scale(s,s);A(-W/2,-H/2,W,H);c.restore();c.globalAlpha=1;}
   else B(X,Y,W,H);
 }
 /* recording file size: Small / Normal / High */
@@ -1684,7 +1688,7 @@ function transDemo(){
 }
 function transSync(v){const s=$('transSel');if(!s||!s.options.length)return;if(v&&TRANS[v])s.value=v;if(!$('optFade').checked)s.value='cut';else if(s.value==='cut')s.value='fade';}
 function initTrans(){const s=$('transSel');if(s.options.length)return;
-  ['auto','cut','fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors'].forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=t('tr_'+k);s.appendChild(o);});
+  ['auto','cut','fade','black','white','slide','slideup','zoom','whip','wipe','circle','doors','leak','bands','reveal','tilt'].forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=t('tr_'+k);s.appendChild(o);});
   s.value=lsGet('pmc_trans','fade');if(!s.value)s.value='fade';
   if($('recSize'))$('recSize').value=lsGet('pmc_rsize','1');
   const sync=()=>{$('optFade').checked=s.value!=='cut';lsSet('pmc_trans',s.value);};
