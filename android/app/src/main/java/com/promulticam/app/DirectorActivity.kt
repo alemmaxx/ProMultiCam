@@ -672,7 +672,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private lateinit var phThumb: android.widget.ImageView
     private fun refreshThumb() {
         Thread { val f = Photo.list(this).firstOrNull(); val b = f?.let { Photo.thumb(it, 160) }
-            main.post { if (b != null) { phThumb.setImageBitmap(b); phThumb.visibility = View.VISIBLE } else { phThumb.setImageDrawable(null); phThumb.visibility = View.GONE } } }.start()
+            main.post { if (b != null) { phThumb.setImageBitmap(b); phThumb.visibility = if (enc != null) View.GONE else View.VISIBLE } else { phThumb.setImageDrawable(null); phThumb.visibility = View.GONE } } }.start()
     }
     private fun kept(jpeg: ByteArray?): Boolean {
         val f = jpeg?.let { Photo.keep(this, it, brand.title.ifEmpty { "Photo" }) } ?: return false
@@ -1016,7 +1016,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val e = Encoder(W, H, pfd.fileDescriptor, audio, sp.getInt("fsize", 1))
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
-        enc = e; prog.attachEncoder(e)
+        enc = e; prog.attachEncoder(e); phThumb.visibility = View.GONE   // the small photo hides while recording
         fadeIn(e)
         if (resumeFile != null && useStill()) { if (stillReady) prog.fadeIn() else { stillReady = false } }
         if (sp.getBoolean("intro", false)) { prog.setOverlay(brand.card(W, H, false, sp.getString("introSub", "") ?: "")); main.postDelayed({ if (enc === e && !ending) refreshOverlay() }, 3000) }
@@ -1102,7 +1102,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         prog.detachEncoder { e.stop { ok -> main.post { finishRec(ok) } } }
     }
     private fun finishRec(ok: Boolean) {
-        enc = null; ending = false; refreshOverlay()
+        enc = null; ending = false; refreshOverlay(); refreshThumb()
         try { recPfd?.close() } catch (e: Exception) {}
         recPfd = null
         val part = recFile; recFile = null

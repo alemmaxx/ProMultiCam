@@ -59,7 +59,7 @@ object Photo {
                 val sensor = ch.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
                 @Suppress("DEPRECATION") val rot = when ((ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation) {
                     Surface.ROTATION_90 -> 90; Surface.ROTATION_180 -> 180; Surface.ROTATION_270 -> 270; else -> 0 }
-                val jpegRot = if (cam.front) (sensor + rot) % 360 else (sensor - rot + 360) % 360
+                val jpegRot = if (cam.front) (sensor - rot + 360) % 360 else (sensor + rot) % 360   // rot = how the screen is turned (opposite of how the phone is turned)
                 val reader = ImageReader.newInstance(size.width, size.height, ImageFormat.JPEG, 1)
                 reader.setOnImageAvailableListener({ r ->
                     val img = r.acquireLatestImage()
@@ -77,7 +77,7 @@ object Photo {
                                         set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE) }
                                     val shot = dev.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply { addTarget(reader.surface)
                                         set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                                        set(CaptureRequest.JPEG_ORIENTATION, jpegRot); set(CaptureRequest.JPEG_QUALITY, 95.toByte()) }
+                                        set(CaptureRequest.JPEG_ORIENTATION, 0); set(CaptureRequest.JPEG_QUALITY, 95.toByte()) }   // some phones ignore this: we turn it ourselves below
                                     // the warm-up frames are dropped: only the last picture is kept
                                     reader.setOnImageAvailableListener({ r -> r.acquireLatestImage()?.close() }, h)
                                     s.setRepeatingRequest(pre.build(), null, h)
@@ -87,7 +87,8 @@ object Photo {
                                             reader.setOnImageAvailableListener({ r ->
                                                 val img = r.acquireLatestImage()
                                                 val b = img?.planes?.get(0)?.buffer?.let { bb -> ByteArray(bb.remaining()).also { bb.get(it) } }
-                                                img?.close(); try { dev.close() } catch (e: Exception) {}; reader.close(); finish(b)
+                                                img?.close(); try { dev.close() } catch (e: Exception) {}; reader.close()
+                                                finish(b?.let { try { upright(it, jpegRot, cam.front) } catch (e: Throwable) { it } })
                                             }, h)
                                             s.capture(shot.build(), null, h)
                                         } catch (e: Exception) { dev.close(); finish(null) }
@@ -103,6 +104,14 @@ object Photo {
                 h.postDelayed({ finish(null) }, 8000)
             } catch (e: Exception) { finish(null) }
         }.start()
+    }
+
+    /* the sensor picture turned the way the phone is held (we asked the camera for the plain sensor picture) */
+    fun upright(jpeg: ByteArray, deg: Int, front: Boolean): ByteArray {
+        if (deg % 360 == 0) return jpeg
+        val b = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) ?: return jpeg
+        val r = Bitmap.createBitmap(b, 0, 0, b.width, b.height, Matrix().apply { postRotate(deg.toFloat()) }, true); b.recycle()
+        return ByteArrayOutputStream().also { r.compress(Bitmap.CompressFormat.JPEG, 95, it) }.toByteArray()
     }
 
     /* a JPEG turned upright, with the look's colours and (optional) the brand on top */
