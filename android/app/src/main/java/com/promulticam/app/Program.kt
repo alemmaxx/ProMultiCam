@@ -54,7 +54,28 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         }
     }
 
-    fun setLook(f: String) { h.post { look.setLook(f) } }
+    fun setLook(f: String) { h.post { lookTo = null; lookF = f; look.setLook(f) } }
+    /* change the style slowly (about 1.5 s) instead of in one jump */
+    fun setLookSmooth(f: String) { h.post { if (f == lookF) return@post; lookFrom = lookF; lookTo = f; lookAt = SystemClock.uptimeMillis() } }
+    private var lookF = ""; private var lookFrom = ""; private var lookTo: String? = null; private var lookAt = 0L
+    /* a tiny copy of the camera picture (before any style) for Auto to judge the scene */
+    @Volatile private var statCb: ((ByteArray) -> Unit)? = null
+    fun sample(cb: (ByteArray) -> Unit) { statCb = cb }
+    private var stFbo = 0; private var stTex = 0
+    private fun stat(f: VideoFrame) {
+        val cb = statCb ?: return; statCb = null
+        if (stFbo == 0) { val a = IntArray(1); GLES20.glGenTextures(1, a, 0); stTex = a[0]; GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, stTex)
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 32, 32, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR); GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glGenFramebuffers(1, a, 0); stFbo = a[0]; GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, stFbo)
+            GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, stTex, 0); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0) }
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, stFbo)
+        try { fd2Stat.drawFrame(f, plain, null, 0, 0, 32, 32) } catch (e: Exception) {}
+        val bb = java.nio.ByteBuffer.allocateDirect(32 * 32 * 4).order(java.nio.ByteOrder.nativeOrder())
+        GLES20.glReadPixels(0, 0, 32, 32, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, bb)
+        val out = ByteArray(32 * 32 * 4); bb.rewind(); bb.get(out); Thread { cb(out) }.start()
+    }
+    private val fd2Stat = VideoFrameDrawer()
     fun setOverlay(b: Bitmap?) { ovShown = b; ovPending = b ?: Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888) }
     @Volatile var ovShown: Bitmap? = null
     /* the next finished picture (look applied, no brand) as a bitmap, upright */
@@ -161,6 +182,8 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
         e.makeCurrent()
         if (fbW != W || fbH != H) makeFbos()
         ovPending?.let { b -> uploadOverlay(b); ovPending = null }
+        if (statCb != null) stat(f)
+        lookTo?.let { to -> val p = ((SystemClock.uptimeMillis() - lookAt) / 1500f).coerceIn(0f, 1f); look.blend(lookFrom, to, p * p * (3 - 2 * p)); if (p >= 1f) { lookF = to; lookTo = null } }
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[cur])
         GLES20.glViewport(0, 0, W, H); GLES20.glClearColor(0f, 0f, 0f, 1f); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         look.alpha = 1f

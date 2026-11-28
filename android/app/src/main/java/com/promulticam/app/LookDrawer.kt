@@ -13,8 +13,11 @@ class LookDrawer : RendererCommon.GlDrawer {
     @Volatile var co: FloatArray = floatArrayOf(0f, 0f, 0f, 0f)
     var alpha = 1f
     @Volatile var sharp = 0f; @Volatile var lift = 0f   // detail boost and lighter shadows
+    /* move part of the way from one style to another (0..1): used when Auto changes the style, so it never jumps */
+    fun blend(a: String, b: String, t: Float) { val (m1, o1) = Looks.matrix(a); val (m2, o2) = Looks.matrix(b); val x = LookDrawer(); x.setLook(a); val y = LookDrawer(); y.setLook(b)
+        cm = FloatArray(16) { m1[it] + (m2[it] - m1[it]) * t }; co = FloatArray(4) { o1[it] + (o2[it] - o1[it]) * t }; sharp = x.sharp + (y.sharp - x.sharp) * t; lift = x.lift + (y.lift - x.lift) * t }
     fun setLook(f: String) { val (m, o) = Looks.matrix(f); cm = m; co = o
-        sharp = Regex("sharp\\(([0-9.]+)\\)").find(f)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
+        sharp = Regex("sharp\\(([0-9.]+)\\)").find(f)?.groupValues?.get(1)?.toFloatOrNull() ?: -(Regex("soft\\(([0-9.]+)\\)").find(f)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f)
         lift = Regex("lift\\(([0-9.]+)\\)").find(f)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f }
 
     private class Prog(val id: Int, val pos: Int, val tc: Int, val texMat: Int, val cm: Int, val co: Int, val al: Int, val s: IntArray, val sh: Int, val px: Int, val lf: Int)
@@ -54,7 +57,8 @@ class LookDrawer : RendererCommon.GlDrawer {
         GLES20.glUniform4fv(p.co, 1, co, 0)
         GLES20.glUniform1f(p.al, alpha)
         GLES20.glUniform1f(p.sh, sharp); GLES20.glUniform1f(p.lf, lift)
-        GLES20.glUniform2f(p.px, if (fw > 0) 1f / fw else 0.001f, if (fh > 0) 1f / fh else 0.001f)
+        val k = if (sharp < 0f) 2f else 1f   // softening reaches a little further (smoother skin, less grain)
+        GLES20.glUniform2f(p.px, if (fw > 0) k / fw else 0.001f, if (fh > 0) k / fh else 0.001f)
     }
 
     private fun build(frag: String, samplers: Array<String>): Prog {
@@ -81,13 +85,13 @@ uniform mat4 cm; uniform vec4 co; uniform float al; uniform float sh; uniform ve
 vec4 look(vec3 c){ c = pow(max(c, 0.0), vec3(1.0 - lf * 0.45));
   vec3 r = clamp((cm * vec4(c, 1.0)).rgb + co.rgb, 0.0, 1.0); return vec4(r * al, al); }"""
         private const val FRAG_OES = "#extension GL_OES_EGL_image_external : require\nprecision mediump float; varying vec2 tc; uniform samplerExternalOES tex;" + LOOK +
-            "\nvoid main(){ vec3 c = texture2D(tex, tc).rgb; if (sh > 0.0) { vec3 n = texture2D(tex, tc + vec2(px.x, 0.0)).rgb + texture2D(tex, tc - vec2(px.x, 0.0)).rgb + texture2D(tex, tc + vec2(0.0, px.y)).rgb + texture2D(tex, tc - vec2(0.0, px.y)).rgb;" +
-            " c = clamp(c + sh * (c - n * 0.25), 0.0, 1.0); } gl_FragColor = look(c); }"
+            "\nvoid main(){ vec3 c = texture2D(tex, tc).rgb; if (sh != 0.0) { vec3 n = texture2D(tex, tc + vec2(px.x, 0.0)).rgb + texture2D(tex, tc - vec2(px.x, 0.0)).rgb + texture2D(tex, tc + vec2(0.0, px.y)).rgb + texture2D(tex, tc - vec2(0.0, px.y)).rgb;" +
+            " c = sh > 0.0 ? clamp(c + sh * (c - n * 0.25), 0.0, 1.0) : mix(c, n * 0.25, -sh); } gl_FragColor = look(c); }"
         private const val FRAG_RGB = "precision mediump float; varying vec2 tc; uniform sampler2D tex;" + LOOK +
-            "\nvoid main(){ vec3 c = texture2D(tex, tc).rgb; if (sh > 0.0) { vec3 n = texture2D(tex, tc + vec2(px.x, 0.0)).rgb + texture2D(tex, tc - vec2(px.x, 0.0)).rgb + texture2D(tex, tc + vec2(0.0, px.y)).rgb + texture2D(tex, tc - vec2(0.0, px.y)).rgb;" +
-            " c = clamp(c + sh * (c - n * 0.25), 0.0, 1.0); } gl_FragColor = look(c); }"
+            "\nvoid main(){ vec3 c = texture2D(tex, tc).rgb; if (sh != 0.0) { vec3 n = texture2D(tex, tc + vec2(px.x, 0.0)).rgb + texture2D(tex, tc - vec2(px.x, 0.0)).rgb + texture2D(tex, tc + vec2(0.0, px.y)).rgb + texture2D(tex, tc - vec2(0.0, px.y)).rgb;" +
+            " c = sh > 0.0 ? clamp(c + sh * (c - n * 0.25), 0.0, 1.0) : mix(c, n * 0.25, -sh); } gl_FragColor = look(c); }"
         private const val FRAG_YUV = "precision mediump float; varying vec2 tc; uniform sampler2D y_tex; uniform sampler2D u_tex; uniform sampler2D v_tex;" + LOOK +
-            "\nvoid main(){ float y = texture2D(y_tex, tc).r; if (sh > 0.0) { float n = texture2D(y_tex, tc + vec2(px.x, 0.0)).r + texture2D(y_tex, tc - vec2(px.x, 0.0)).r + texture2D(y_tex, tc + vec2(0.0, px.y)).r + texture2D(y_tex, tc - vec2(0.0, px.y)).r; y = clamp(y + sh * (y - n * 0.25), 0.0, 1.0); } float u = texture2D(u_tex, tc).r - 0.5; float v = texture2D(v_tex, tc).r - 0.5;" +
+            "\nvoid main(){ float y = texture2D(y_tex, tc).r; if (sh != 0.0) { float n = texture2D(y_tex, tc + vec2(px.x, 0.0)).r + texture2D(y_tex, tc - vec2(px.x, 0.0)).r + texture2D(y_tex, tc + vec2(0.0, px.y)).r + texture2D(y_tex, tc - vec2(0.0, px.y)).r; y = sh > 0.0 ? clamp(y + sh * (y - n * 0.25), 0.0, 1.0) : mix(y, n * 0.25, -sh); } float u = texture2D(u_tex, tc).r - 0.5; float v = texture2D(v_tex, tc).r - 0.5;" +
             " gl_FragColor = look(vec3(y + 1.403 * v, y - 0.344 * u - 0.714 * v, y + 1.77 * u)); }"
     }
 }

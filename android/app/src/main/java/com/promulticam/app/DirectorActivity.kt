@@ -113,7 +113,9 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Ui.init(this); Auth.init(this); Rtc.init(this)
         brand = Brand(this); brand.refresh()
-        look = Looks.byId(sp.getString("look", "supermassive"))
+        autoLook = sp.getString("look", "supermassive") == "auto" && Auth.isPro
+        look = Looks.byId(if (autoLook) "supermassive" else sp.getString("look", "supermassive"))
+        main.postDelayed(autoTick, 2500)
         resumeFile = intent.getStringExtra("resume")?.let { File(it) }
         main.postDelayed({ loadStill() }, 800)
         prog = Program(W, H); prog.setLook(look.f); prog.layout = layout; prog.trans = trans
@@ -296,7 +298,19 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         main.postDelayed({ if (!stopped) fpsLoop() }, 1000)
     }
     private fun sendFmt() { srcs.forEach { it.data?.send(mapOf("t" to "fmt", "v" to if (land) "l" else "p")) }; refreshOverlay() }
-    private fun paintChips() { srcChip.text = mainSrc?.name ?: t("Director phone", "Telefon Pengarah"); lookChip.text = lookName(look) }
+    private fun paintChips() { srcChip.text = mainSrc?.name ?: t("Director phone", "Telefon Pengarah"); lookChip.text = (if (autoLook) "Auto · " else "") + lookName(look) }
+
+    /* Auto style: every 1.5 s look at the scene (dark place, food, faces, white product); change only after it is the same 3 times, and slowly */
+    private var autoLook = false; private var autoVote = ""; private var autoN = 0
+    private val autoTick: Runnable = object : Runnable { override fun run() {
+        if (isDestroyed) return
+        if (autoLook && mainSrc != null) prog.sample { px -> val sc = Looks.scene(px); main.post { autoVote(sc) } }
+        main.postDelayed(this, 1500) } }
+    private fun autoVote(sc: String) {
+        if (!autoLook) return
+        if (sc == autoVote) autoN++ else { autoVote = sc; autoN = 1 }
+        if (autoN >= 3 && sc != look.id) { look = Looks.byId(sc); prog.setLookSmooth(look.f); refreshOverlay(); paintChips() }
+    }
 
     private fun lookName(l: Looks.Look) = if (Ui.ms) l.ms else l.en
     private fun needPro(): Boolean { if (Auth.isPro) return false; toast(t("Pro feature", "Ciri Pro")); Nav.open(this, "pro"); return true }
@@ -316,9 +330,21 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         s.body.addView(Ui.label(this, "Look", 13f, Ui.SUB, true))
         val grid = android.widget.GridLayout(this); grid.columnCount = 3
         val pills = ArrayList<Button>()
+        // Auto: the app picks the style from the scene by itself
+        var autoB: Button? = null
+        autoB = Ui.pill(this, t("✨ Auto (picks by scene)", "✨ Auto (ikut suasana)"), autoLook) {
+            if (!Auth.isPro) { needPro(); return@pill }
+            autoLook = true; autoVote = ""; autoN = 0; sp.edit().putString("look", "auto").apply(); paintChips()
+            autoB?.let { Ui.setPill(this, it, true) }; pills.forEach { p -> Ui.setPill(this, p, false) }
+            toast(t("Auto: the style follows the scene (night, food, faces, products)", "Auto: gaya ikut suasana (malam, makanan, muka, produk)"))
+        }
+        s.body.addView(autoB, Ui.lp(this, 4))
+        s.body.addView(Ui.hint(this, t("Night → Night Bright · Food → Food Glow · Faces → Beauty · White products → Clean Product · Others → Supermassive",
+            "Malam → Pasar Malam · Makanan → Sedap · Muka → Wajah Cantik · Produk putih → Produk Bersih · Lain → Supermassive")))
         Looks.ALL.forEachIndexed { i, l ->
-            val b = Ui.pill(this, lookName(l), l === look) {
+            val b = Ui.pill(this, lookName(l), l === look && !autoLook) {
                 if (l.id != "std" && !Auth.isPro) { needPro(); return@pill }
+                autoLook = false; autoB?.let { Ui.setPill(this, it, false) }
                 val oldEv = look.ev; look = l; sp.edit().putString("look", l.id).apply(); prog.setLook(l.f); refreshOverlay(); paintChips(); if (oldEv != l.ev) applyEv()
                 pills.forEachIndexed { j, p -> Ui.setPill(this, p, Looks.ALL[j] === look) }
             }
@@ -767,7 +793,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private fun applyTpl(k: String?) {
         sp.edit().putString("tpl", k ?: "").apply()
         val c = TPL[k] ?: arrayOf("superior", "full", "fade", "0", "0", "0")
-        look = Looks.byId(c[0]); sp.edit().putString("look", look.id).putBoolean("intro", c[3] == "1").putBoolean("outro", c[4] == "1").putBoolean("story", c[5] == "1").apply()
+        autoLook = false; look = Looks.byId(c[0]); sp.edit().putString("look", look.id).putBoolean("intro", c[3] == "1").putBoolean("outro", c[4] == "1").putBoolean("story", c[5] == "1").apply()
         prog.setLook(look.f); trans = c[2]; prog.trans = trans
         layout = if (c[1] != "full" && srcs.count { it.track != null } < 2) "full" else c[1]; prog.layout = layout; pickSecond()
         refreshOverlay(); paintChips()
