@@ -108,7 +108,7 @@ const CSS=`
 .ed-panel{display:flex;flex-direction:column;gap:10px}
 .ed-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .ed-card{display:flex;flex-direction:column;gap:8px;background:var(--card2);border-radius:12px;padding:10px}
-.vtpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.vtpl{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:7px 8px;min-width:0;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font:inherit;cursor:pointer}.vtpl i{font-style:normal;font-size:17px}.vtpl b{font-size:11.5px;line-height:1.2}.vtpl span{font-size:9.5px;color:var(--muted);line-height:1.2}.vtpl.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.vtpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.vtpl .vt-pic{width:100%;height:auto;aspect-ratio:9/16;border-radius:8px;margin-bottom:4px;display:block}.vtpl{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:7px 8px;min-width:0;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font:inherit;cursor:pointer}.vtpl i{font-style:normal;font-size:17px}.vtpl b{font-size:11.5px;line-height:1.2}.vtpl span{font-size:9.5px;color:var(--muted);line-height:1.2}.vtpl.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
 .ed-card .ed-row .input{flex:1;min-width:110px}
 .ed-tin{display:flex;align-items:center;gap:6px;flex:1;min-width:130px}.ed-tin span{font-size:12px;color:var(--muted);white-space:nowrap}.ed-tin .input{min-width:0!important;width:100%;min-height:38px;padding:6px 10px;font-variant-numeric:tabular-nums}
 `;
@@ -622,6 +622,33 @@ const VTPL=[
   {id:'before',ic:'🔁',L:12,k:2,music:'hiphop',look:'std',ba:true},
   {id:'vlog',ic:'🎒',L:60,k:12,music:'lofi',look:'soft',title:{style:'write',font:'caveat',col:'white',size:9}}
 ];
+/* each template's kind of example pictures */
+const VT_CAT={promo:'sale',resepi:'food',produk:'sale',testi:'life',menu:'food',event:'greet',before:'life',vlog:'life'};
+/* watch a template with cartoon example pictures, its title and its song, then use it */
+function vtPreview(tp){
+  const n=Math.min(6,Math.max(3,tp.k||4)),cat=VT_CAT[tp.id]||'life',W=360,H=640,pics=[...Array(n)].map((_,k)=>DemoArt.draw(cat,k,W,H));
+  const wrap=document.createElement('div');wrap.style.cssText='position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;gap:10px;padding:14px 14px max(14px,env(safe-area-inset-bottom))';
+  wrap.innerHTML='<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;color:#fff;font-size:17px"></b><button class="btn" data-x>✕</button></div><canvas style="flex:1;min-height:0;width:100%;object-fit:contain"></canvas><span class="hint" style="text-align:center"></span><button class="btn btn-gold" data-u></button>';
+  wrap.querySelector('b').textContent=tp.ic+' '+t('vt_'+tp.id);wrap.querySelector('.hint').textContent=t('vtDemo');wrap.querySelector('[data-u]').textContent=t('vtApply');
+  const cv=wrap.querySelector('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');document.body.appendChild(wrap);
+  const per=1700,t0=performance.now(),title=tp.title?t('vtTitlePh'):(tp.top?t(tp.top.txt):''),cta=tp.cta?t('vtCta'):tp.end?t(tp.end==='end1'?'vtEnd1':'vtEnd2'):'';let alive=true;
+  const fx=(k,q)=>{const z=k%2?1.18-0.18*q:1+0.18*q;return z;};
+  const frame=()=>{if(!alive)return;const el=(performance.now()-t0)%(per*n),k=Math.floor(el/per),q=(el%per)/per;
+    const dr=(i,a,qq)=>{const z=fx(i,qq),w=W*z,h=H*z;c.globalAlpha=a;c.drawImage(pics[i],(W-w)/2,(H-h)/2,w,h);c.globalAlpha=1;};
+    c.fillStyle='#000';c.fillRect(0,0,W,H);dr(k,1,q);if(k>0&&q<0.15)dr(k-1,1-q/0.15,1);
+    const big=(txt,y,col)=>{if(!txt)return;c.font='800 34px "Luckiest Guy","Bricolage Grotesque",sans-serif';c.textAlign='center';c.lineWidth=7;c.strokeStyle='rgba(0,0,0,.75)';c.fillStyle=col;
+      String(txt).split('\n').forEach((ln,i)=>{c.strokeText(ln,W/2,y+i*38);c.fillText(ln,W/2,y+i*38);});};
+    if(k===0)big(title,H*0.2,'#ffd84a');if(k===n-1)big(cta,H*0.5,'#fff');
+    if(tp.ba&&k<2)big(k?t('vtAfter'):t('vtBefore'),H*0.14,k?'#7BD389':'#FF8FB1');
+    if(tp.labels&&k>0&&k<n-1)big(t('vtMenuN',{n:k}),H*0.85,'#fff');
+    if(tp.steps)big(t('vtStepN',{n:k+1}),H*0.12,'#fff');
+    requestAnimationFrame(frame);};
+  frame();
+  const ms=$('musicSel'),keep=ms?ms.value:'none';try{if(ms&&tp.music){ms.value=tp.music;startMusic(false);}}catch(e){}
+  const close=()=>{alive=false;try{stopMusic();}catch(e){}if(ms)ms.value=keep;wrap.remove();};
+  wrap.querySelector('[data-x]').onclick=close;
+  wrap.querySelector('[data-u]').onclick=()=>{close();ask(t('vt_'+tp.id),t('vtAsk'),t('vtApply'),()=>applyVtpl(tp));};
+}
 function applyVtpl(tp){
   snap();const D=E.dur,p=E.p,bv=id=>{const el=document.getElementById(id);return el?String(el.value||'').trim():'';};
   /* 1) pick the parts: evenly spread highlights (or the whole video, lightly trimmed) */
@@ -693,9 +720,10 @@ function renderPanel(){
     P.appendChild(hint(t('vtplHint')));
     const g=document.createElement('div');g.className='vtpl-grid';
     VTPL.forEach(tp=>{const b=document.createElement('button');b.type='button';b.className='vtpl'+(E.p.tpl===tp.id?' on':'');
-      b.innerHTML='<i></i><b></b><span></span>';b.querySelector('i').textContent=tp.ic;b.querySelector('b').textContent=t('vt_'+tp.id);
+      b.innerHTML='<canvas class="vt-pic" width="90" height="160"></canvas><i></i><b></b><span></span>';b.querySelector('i').textContent=tp.ic;b.querySelector('b').textContent=t('vt_'+tp.id);
+      try{b.querySelector('canvas').getContext('2d').drawImage(DemoArt.draw(VT_CAT[tp.id]||'life',0,90,160),0,0);}catch(e){}
       b.querySelector('span').textContent=(tp.L?t('vtLen',{n:tp.L}):t('vtFull'))+' · '+t('m_'+tp.music);
-      b.onclick=()=>ask(t('vt_'+tp.id),t('vtAsk'),t('vtApply'),()=>applyVtpl(tp));g.appendChild(b);});
+      b.onclick=()=>vtPreview(tp);g.appendChild(b);});
     P.appendChild(g);
     if(E.hist.length)P.appendChild(row(btn('↶ '+t('vtUndo'),()=>{if(typeof edUndo==='function')edUndo();})));
     return;
