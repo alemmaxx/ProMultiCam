@@ -215,7 +215,7 @@ object Templates {
     fun mine(c: Context): List<Item> = dir(c).listFiles { f -> f.name.endsWith(".json") }?.sortedByDescending { it.lastModified() }
         ?.mapNotNull { f -> try { val j = JSONObject(f.readText()); Item("m_" + f.nameWithoutExtension, j.optString("name"), j, "mine") } catch (e: Exception) { null } } ?: emptyList()
     fun saveMine(c: Context, j: JSONObject) { File(dir(c), "t_" + System.currentTimeMillis() + ".json").writeText(j.toString()) }
-    fun deleteMine(c: Context, id: String) { File(dir(c), id.removePrefix("m_") + ".json").delete() }
+    fun deleteMine(c: Context, id: String) { File(dir(c), id.removePrefix("m_") + ".json").delete(); CloudSync.dropTemplate(c, id.removePrefix("m_") + ".json") }
     /* ---- on the server (published by the super admin) ---- */
     fun server(): List<Item> = try { Fs.list("templates", "at", limit = 200).mapNotNull { d -> try { Item("s_" + d.id, d.s("name"), JSONObject(d.s("json")), "server") } catch (e: Exception) { null } } } catch (e: Exception) { emptyList() }
     fun publish(j: JSONObject): Boolean = Fs.write("templates/" + Fs.newId(), mapOf("name" to j.optString("name"), "json" to j.toString()), now = listOf("at"), merge = false)

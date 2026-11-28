@@ -35,7 +35,9 @@ class MainActivity : AppCompatActivity() {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
     }
     private var builtAdmin = false
-    override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin(); if (Auth.isAdmin != builtAdmin) recreate() }; alive = true; checkLoop() }
+    override fun onResume() { super.onResume(); paintLogin(); Auth.refreshProfile { paintLogin(); if (Auth.isAdmin != builtAdmin) recreate() }; alive = true; checkLoop(); cloud() }
+    /* settings, logos and own templates follow the account to any phone */
+    private fun cloud() { if (!Auth.signedIn) return; Thread { val got = CloudSync.sync(this); if (got) runOnUiThread { if (!isFinishing) { Ui.reloadLang(this); recreate() } } }.start() }
     override fun onPause() { super.onPause(); alive = false }
     private var adminBadge: android.widget.TextView? = null; private var supBadge: android.widget.TextView? = null; private var alive = false
     private var apkBadge: android.widget.TextView? = null
@@ -202,13 +204,13 @@ class MainActivity : AppCompatActivity() {
             val em = email.text.toString().trim(); val pw = pass.text.toString()
             if (em.isEmpty() || pw.length < 6) { toast(t("Fill in email and a 6+ character password", "Isi emel dan kata laluan 6+ aksara")); return@btn }
             go.isEnabled = false
-            val done: (String?) -> Unit = { err -> go.isEnabled = true; if (err == null) { s.dialog.dismiss(); toast(t("Welcome!", "Selamat datang!")); paintLogin() } else toast(Auth.errText(err)) }
+            val done: (String?) -> Unit = { err -> go.isEnabled = true; if (err == null) { s.dialog.dismiss(); toast(t("Welcome!", "Selamat datang!")); paintLogin(); cloud() } else toast(Auth.errText(err)) }
             if (reg) Auth.register(em, pw, done) else Auth.login(em, pw, done)
         }
         s.body.addView(go, Ui.lp(this, 16))
         s.body.addView(Ui.center(Ui.label(this, t("— or —", "— atau —"), 13f, Ui.SUB)).apply { layoutParams = Ui.lp(this@MainActivity, 12) })
         val gb = Ui.btn(this, "G   " + t("Log in with Google", "Log masuk dengan Google")) {}
-        gb.setOnClickListener { gb.isEnabled = false; Auth.google(this) { err -> gb.isEnabled = true; if (err == null) { s.dialog.dismiss(); toast(t("Welcome!", "Selamat datang!")); paintLogin() } else { val m = Auth.errText(err); if (m.isNotEmpty()) toast(m) } } }
+        gb.setOnClickListener { gb.isEnabled = false; Auth.google(this) { err -> gb.isEnabled = true; if (err == null) { s.dialog.dismiss(); toast(t("Welcome!", "Selamat datang!")); paintLogin(); cloud() } else { val m = Auth.errText(err); if (m.isNotEmpty()) toast(m) } } }
         s.body.addView(gb, Ui.lp(this, 10))
         val forgot = Ui.label(this, t("Forgot password?", "Lupa kata laluan?"), 14f, Ui.GOLD, true); forgot.gravity = Gravity.CENTER; forgot.setPadding(0, Ui.px(this, 14), 0, Ui.px(this, 8))
         forgot.setOnClickListener { val em = email.text.toString().trim(); if (em.isEmpty()) toast(t("Type your email first", "Taip emel dahulu")) else Auth.reset(em) { e -> toast(if (e == null) t("Reset link sent to your email", "Pautan set semula dihantar ke emel") else Auth.errText(e)) } }

@@ -57,6 +57,18 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isSuper();
     }
+    // a user's own settings, logos and templates (so a new phone gets them after log in)
+    match /userdata/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    match /userfiles/{id} {
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.uid == request.auth.uid && id.matches(request.auth.uid + '_.*');
+    }
+    match /usertpl/{id} {
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.uid == request.auth.uid && id.matches(request.auth.uid + '_.*');
+    }
     // community chat: signed-in users write their own short messages; owner or super admin can delete
     match /lounge/{id} {
       allow read: if signedIn();

@@ -43,6 +43,7 @@ object Ui {
 
     private var lang: String? = null
     fun init(c: Context) { if (lang == null) lang = c.getSharedPreferences("pmc", Context.MODE_PRIVATE).getString("lang", null) ?: if (Locale.getDefault().language in listOf("ms", "in")) "ms" else "en" }
+    fun reloadLang(c: Context) { lang = null; init(c) }
     fun setLang(c: Context, l: String) { lang = l; c.getSharedPreferences("pmc", Context.MODE_PRIVATE).edit().putString("lang", l).apply() }
     val ms: Boolean get() = (lang ?: "ms") == "ms"
     fun t(en: String, bm: String) = if (ms) bm else en
