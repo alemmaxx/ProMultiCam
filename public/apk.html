@@ -27,10 +27,10 @@ ol{margin:6px 0 0;padding-left:20px}li{margin:4px 0}.tag{display:inline-block;ba
 <div class="card"><b id="nowT"></b><ol id="now"></ol></div>
 <script>
 const ms=(localStorage.getItem('pmc_lang')||((navigator.language||'').startsWith('ms')?'ms':'en'))==='ms';
-const T=ms?{h:'App APK',tag:'Versi ujian · Native penuh',dl:'Muat turun APK',none:'APK sedang disediakan — cuba sebentar lagi',hwT:'Cara pasang',
+const T=ms?{h:'App APK',tag:'Versi rasmi · Native penuh',dl:'Muat turun APK',none:'APK sedang disediakan — cuba sebentar lagi',hwT:'Cara pasang',
   hw:['Tekan Muat turun APK.','Buka fail ProMultiCam.apk dari notifikasi atau folder Downloads.','Jika diminta, benarkan "Pasang app tidak diketahui" untuk pelayar ini.','Tekan Pasang, kemudian Buka.'],
   nowT:'Apa ada dalam versi ini',now:['Pengarah: kumpul kamera, tekan petak untuk tukar sudut, zum, rakam/jeda.','12 gaya warna, Penuh / Belah / Bingkai kecil, peralihan Lembut / Gelap / Terus.','Logo, tajuk, harga, telefon, kad tajuk & penutup — semua dilukis oleh kad grafik.','Kamera: sertai dengan ID Studio (boleh campur dengan versi web), teleprompter.','Video: tonton, kongsi, padam, gabung, sambung rakaman.','Rakam pantas 1 kamera. Edit guna editor web.']}
- :{h:'App APK',tag:'Test version · Full native',dl:'Download APK',none:'APK is being prepared — try again soon',hwT:'How to install',
+ :{h:'App APK',tag:'Official version · Full native',dl:'Download APK',none:'APK is being prepared — try again soon',hwT:'How to install',
   hw:['Tap Download APK.','Open ProMultiCam.apk from the notification or the Downloads folder.','If asked, allow "Install unknown apps" for this browser.','Tap Install, then Open.'],
   nowT:'In this version',now:['Director: gathers cameras, tap a tile to switch, zoom, record/pause.','12 looks, Full / Split / Small frame, Soft fade / Dip to black / Cut.','Logo, title, price, phone, title & closing cards — all drawn by the graphics chip.','Camera: join with the Studio ID (works with the web version), teleprompter.','Videos: watch, share, delete, join, continue recording.','Quick record with 1 camera. Edit with the web editor.']};
 document.getElementById('h').textContent=T.h;document.getElementById('tag').textContent=T.tag;document.getElementById('dlt').textContent=T.dl;
