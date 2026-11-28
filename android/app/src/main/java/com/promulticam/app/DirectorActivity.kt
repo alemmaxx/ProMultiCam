@@ -346,6 +346,15 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         q10 = Ui.pill(this, "1080p", brand.hd) { if (enc != null) return@pill; if (!Auth.isPro) { needPro(); return@pill }; brand.hd = true; prog.resize(W, H); Ui.setPill(this, q7, false); Ui.setPill(this, q10, true) }
         qr.addView(q7, LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = 6 }); qr.addView(q10, LinearLayout.LayoutParams(0, -2, 1f))
         b.addView(qr, Ui.lp(this, 6))
+        // file size: about how much 10 minutes takes
+        b.addView(Ui.label(this, t("File size", "Saiz fail"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val fr0 = LinearLayout(this); fr0.orientation = LinearLayout.HORIZONTAL; val fb0 = ArrayList<Button>(); val fsHint = Ui.hint(this, "")
+        fun fsText() { val hd = brand.hd; val mb = (if (hd) intArrayOf(5, 8, 14) else intArrayOf(3, 5, 8))[sp.getInt("fsize", 1)] * 600 / 8 + 10
+            fsHint.text = t("10 minutes ≈ $mb MB", "10 minit ≈ $mb MB") }
+        listOf(t("Small", "Kecil"), t("Normal", "Sederhana"), t("High", "Tinggi")).forEachIndexed { k, nm ->
+            val pb = Ui.pill(this, nm, sp.getInt("fsize", 1) == k) { if (enc != null) return@pill; sp.edit().putInt("fsize", k).apply(); fb0.forEachIndexed { j, x -> Ui.setPill(this, x, j == k) }; fsText() }
+            fb0.add(pb); fr0.addView(pb, LinearLayout.LayoutParams(0, -2, 1f).apply { if (k < 2) rightMargin = 6 }) }
+        b.addView(fr0, Ui.lp(this, 6)); b.addView(fsHint); fsText()
         b.addView(Ui.label(this, t("Title (optional)", "Tajuk (pilihan)"), 13f, Ui.SUB, true), Ui.lp(this, 12))
         val ti = Ui.input(this, t("e.g. Nasi Lemak Sambal Sotong", "cth: Nasi Lemak Sambal Sotong"), brand.title); multi(ti); b.addView(ti, Ui.lp(this, 6))
         b.addView(Ui.hr(this))
@@ -893,7 +902,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val pfd = try { ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_TRUNCATE) } catch (e: Exception) { toast(t("Cannot save here", "Tidak boleh simpan")); return }
         recPfd = pfd
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val e = Encoder(W, H, pfd.fileDescriptor, audio, look.id == "supermassive")
+        val e = Encoder(W, H, pfd.fileDescriptor, audio, sp.getInt("fsize", 1))
         try { e.start() } catch (x: Exception) { toast(t("Recording failed", "Rakaman gagal")); pfd.close(); return }
         enc = e; prog.attachEncoder(e)
         fadeIn(e)

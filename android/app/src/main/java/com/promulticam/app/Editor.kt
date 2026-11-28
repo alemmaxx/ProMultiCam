@@ -82,7 +82,8 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
     var pps = 60 * dp
     private val p = Paint(Paint.ANTI_ALIAS_FLAG); private val tp = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10 * dp; color = Ui.SUB }
     private val ruleH get() = 16 * dp; private val mainTop get() = ruleH + 6 * dp; private val mainH get() = 50 * dp
-    private val laneTop get() = mainTop + mainH + 8 * dp; private val laneH get() = 22 * dp; private val laneGap get() = 4 * dp
+    private val laneTop get() = mainTop + mainH + 8 * dp; private val laneH get() = lh; private val laneGap get() = lg
+    private var lh = 22f; private var lg = 4f   // track height shrinks when there are many tracks, so all of them fit
     private var layLane = IntArray(0); private var sndLane = IntArray(0); private var nLay = 0
     private fun x(us: Long) = width / 2f + (us - time) / 1e6f * pps
     private fun us(x: Float) = time + ((x - width / 2f) / pps * 1e6f).toLong()
@@ -92,6 +93,8 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
             r.indices.sortedBy { r[it].first }.forEach { i -> var k = ends.indexOfFirst { it <= r[i].first }; if (k < 0) { ends.add(0); k = ends.size - 1 }; ends[k] = r[i].second; out[i] = k }; return out }
         layLane = pack(ed.layers.map { it.s to it.e }); nLay = (layLane.maxOrNull() ?: -1) + 1
         sndLane = pack(ed.sounds.map { it.s to it.e }).map { it + nLay }.toIntArray()
+        val n = maxOf(1, (sndLane.maxOrNull() ?: (nLay - 1)) + 1); val avail = height - laneTop - 4 * dp
+        lg = if (n > 5) 2 * dp else 4 * dp; lh = if (height <= 0) 22 * dp else ((avail / n) - lg).coerceIn(11 * dp, 22 * dp)
     }
     private val scaleDet = ScaleGestureDetector(c, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(d: ScaleGestureDetector): Boolean { pps = (pps * d.scaleFactor).coerceIn(6 * dp, 400 * dp); invalidate(); return true } })
@@ -251,13 +254,13 @@ class Timeline(c: Context, private val ed: EditorActivity) : View(c) {
         fun item(a: Long, b: Long, lane: Int, col: Int, label: String, chosen: Boolean) {
             val y = laneY(lane); val r = RectF(x(a) + dp, y, x(b) - dp, y + laneH); if (r.right < 0 || r.left > width) return
             p.color = col; cv.drawRoundRect(r, 5 * dp, 5 * dp, p)
-            cv.save(); cv.clipRect(r); val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = 11 * dp; cv.drawText(label, r.left + 6 * dp, r.centerY() + 4 * dp, q); cv.restore()
+            cv.save(); cv.clipRect(r); val q = TextPaint(tp); q.color = Color.WHITE; q.textSize = minOf(11 * dp, laneH * 0.62f); cv.drawText(label, r.left + 6 * dp, r.centerY() + q.textSize * 0.36f, q); cv.restore()
             if (chosen) handles(cv, r)
         }
         ed.layers.forEachIndexed { i, l -> item(l.s, l.e, layLane.getOrElse(i) { 0 }, when (l.kind) { "text" -> 0xFF6B4E12.toInt(); "sticker" -> 0xFF6A2A5A.toInt(); "photo" -> 0xFF1F4A66.toInt(); "pip" -> 0xFF5A1F3A.toInt(); else -> 0xFF3F5A22.toInt() },
             when (l.kind) { "text" -> "T  " + l.text.replace('\n', ' '); "sticker" -> l.text; "photo" -> "🖼  " + t("Photo", "Gambar"); "pip" -> "🎞  " + t("Video", "Video"); "deco" -> Deco.icon(l.text) + "  " + Deco.name(l.text); else -> "🏷  " + t("Brand", "Jenama") }, (sel as? Sel.L)?.i == i) }
         ed.sounds.forEachIndexed { i, s -> item(s.s, s.e, sndLane.getOrElse(i) { 0 }, when (s.kind) { "music" -> 0xFF1E5A3A.toInt(); "sfx" -> 0xFF7A4A12.toInt(); "rec" -> 0xFF6A2A2A.toInt(); else -> 0xFF23407A.toInt() },
-            when (s.kind) { "music" -> "♪  " + File(s.file).name.substringAfter('_'); "sfx" -> "🔊 " + s.sfx; "rec" -> "🎙  " + t("Voice", "Suara"); else -> "🗣  " + s.text }, (sel as? Sel.S)?.i == i) }
+            when (s.kind) { "music" -> "♪  " + (MusicLib.ALL.firstOrNull { m -> File(s.file).name == "lib_${m.id}.wav" }?.let { m -> t(m.en, m.ms) } ?: File(s.file).name.substringAfter('_')); "sfx" -> "🔊 " + s.sfx; "rec" -> "🎙  " + t("Voice", "Suara"); else -> "🗣  " + s.text }, (sel as? Sel.S)?.i == i) }
         // play line
         p.color = Color.WHITE; cv.drawRect(width / 2f - 1.2f * dp, 0f, width / 2f + 1.2f * dp, height.toFloat(), p)
         cv.drawCircle(width / 2f, 3 * dp, 4 * dp, p)
