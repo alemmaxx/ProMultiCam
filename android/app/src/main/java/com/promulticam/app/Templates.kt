@@ -154,6 +154,21 @@ object Templates {
             val snd = listOf(fx("whoosh", d - 0.1f), fx("pop", d * 4), fx("ding", d * 6), fx("drum", d * 8), fx("clap", d * 12), fx("cash", d * 14))
             out.add(Item("b_superall", t("Everything ✨", "Semua fungsi ✨"), tpl(t("Everything ✨", "Semua fungsi ✨"), slots, L, snd).put("cat", "super").put("music", "ceria"), "built"))
         }
+        // 1b) "Weekend story" like the video the user sent: 13 quick clips, one big title all through (pulses on the strips),
+        //     tilted shots, warm / black & white looks, pink-orange light leaks, white flashes, 3 strips and reveal
+        run {
+            val d = 4 * 60f / 112; val n = 13; val total = d * n
+            val plan = listOf(Triple("dutch", "none", "cine"), Triple("zoomin", "leak", "warm"), Triple("sway", "white", "bw"), Triple("panr", "leak", "warm"),
+                Triple("dutch", "tilt", "cine"), Triple("zoomin", "none", "cine"), Triple("dutch", "tilt", "cine"), Triple("zoomout", "none", "std"),
+                Triple("zoomin", "bands", "cine"), Triple("zoomin", "reveal", "cine"), Triple("pulse", "bands", "cine"), Triple("zoomin", "leak", "warm"), Triple("dutch", "white", "cine"))
+            val slots = plan.mapIndexed { k, (fx, tr, lk) -> slot(d, fx, tr, lk, if (k == 0) 0.3f else 0f, if (k == n - 1) 1f else 0f) }
+            val t0 = (10 * d * 1e6).toLong(); val t1 = t0 + 350_000; val t2 = (11 * d * 1e6).toLong()
+            fun f(v: Float) = String.format(java.util.Locale.US, "%.4f", v)
+            val pulse = "0,${f(1.6f)},0.0000,${f(-0.08f)};$t0,${f(1.6f)},0.0000,${f(-0.08f)};$t1,${f(2.2f)},0.0000,${f(-0.08f)};$t2,${f(1.6f)},0.0000,${f(-0.08f)}"
+            val L = listOf(tx("WEEKEND", 0f, total, "shadow", "white", "fade", 0.42f, "playfair", 1.6f).put("kf", pulse),
+                tx("Story", 0.2f, total, "plain", "yellow", "fade", 0.47f, "dancing", 1.3f))
+            out.add(Item("b_superweekend", "Weekend story ✨", tpl("Weekend story ✨", slots, L).put("cat", "super").put("music", "ceria"), "built"))
+        }
         // 2) cinematic: light leaks, strips, reveal, tilt, story title, soft lights, film look
         run {
             val beat = 60f / 90; val d = beat * 4; val n = 10; val total = d * n
