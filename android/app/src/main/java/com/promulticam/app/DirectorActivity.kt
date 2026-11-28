@@ -715,15 +715,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val cnt = Ui.label(this, "", 15f, Color.WHITE, true); top.addView(cnt, LinearLayout.LayoutParams(0, -2, 1f))
         top.addView(Ui.btn(this, "✕") { dlg.dismiss() }, LinearLayout.LayoutParams(Ui.px(this, 52), Ui.px(this, 52)))
         col.addView(top)
-        val iv = android.widget.ImageView(this); iv.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        val iv = ZoomImage(this)
         col.addView(iv, LinearLayout.LayoutParams(-1, 0, 1f))
         fun show() { files = Photo.list(this); if (files.isEmpty()) { dlg.dismiss(); refreshThumb(); return }
             i = i.coerceIn(0, files.size - 1); cnt.text = "${i + 1} / ${files.size}"; val f = files[i]
-            Thread { val b = Photo.thumb(f, 1600); main.post { iv.setImageBitmap(b) } }.start() }
-        // swipe left / right for the other photos
-        var x0 = 0f
-        iv.setOnTouchListener { _, e -> when (e.action) { android.view.MotionEvent.ACTION_DOWN -> x0 = e.x
-            android.view.MotionEvent.ACTION_UP -> { val dx = e.x - x0; if (dx < -80 && i < files.size - 1) { i++; show() } else if (dx > 80 && i > 0) { i--; show() } } }; true }
+            Thread { val b = Photo.thumb(f, 2400); main.post { iv.show(b) } }.start() }
+        // two fingers or double-tap to zoom; swipe left / right (when not zoomed) for the other photos
+        iv.onSwipe = { d -> if (d < 0 && i < files.size - 1) { i++; show() } else if (d > 0 && i > 0) { i--; show() } }
         val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.setPadding(d, d, d, d)
         row.addView(Ui.btn(this, t("Save to Phone", "Simpan ke telefon"), true) { val f = files[i]
             Thread { val ok = Photo.save(this, f.readBytes(), f.name); main.post { toast(if (ok) t("Saved to the gallery", "Disimpan ke galeri") else t("Could not save the photo", "Gambar tak dapat disimpan")) } }.start() },
