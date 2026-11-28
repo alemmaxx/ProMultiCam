@@ -630,6 +630,10 @@ class EditorActivity : AppCompatActivity() {
         tool("📋", t("Templates", "Templat")) { templateSheet() }
         tool("✂", t("Cut", "Potong")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
         tool("♪", t("Audio", "Audio")) { audioTools() }
+        // one tap: the videos' own sound off / on (music, voice and effects stay)
+        tool(if (origVol == 0f) "🔇" else "🔊", if (origVol == 0f) t("Video sound off", "Suara video: tutup") else t("Video sound on", "Suara video: buka"), origVol == 0f) {
+            snap(); origVol = if (origVol == 0f) 1f else 0f; clipLook(); mixLater(); mainTools()
+            toast(if (origVol == 0f) t("Sound of all videos off", "Suara semua video ditutup") else t("Sound of videos on", "Suara video dibuka")) }
         tool("T", t("Text", "Teks")) { newText() }
         tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
         tool("🌸", t("Decor", "Hiasan")) { decoSheet() }
