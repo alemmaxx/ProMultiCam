@@ -68,7 +68,9 @@ object Shared {
         val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888); val cv = Canvas(b)
         val (c1, c2) = when (it.cat) { "food" -> 0xFFB5542A.toInt() to 0xFF3A1A0E.toInt(); "sale" -> 0xFFC8331E.toInt() to 0xFF2B0B12.toInt(); "greet" -> 0xFFD07A9A.toInt() to 0xFF35203A.toInt()
             "music" -> 0xFF2E3C8C.toInt() to 0xFF0C0F24.toInt(); else -> 0xFF2D7A78.toInt() to 0xFF0E2324.toInt() }
-        val p = Paint(); p.shader = LinearGradient(0f, 0f, w * 0.4f, h.toFloat(), c1, c2, Shader.TileMode.CLAMP); cv.drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
+        // a cartoon example picture of the template's kind, a little darker so the title reads well
+        try { cv.drawBitmap(DemoArt.draw(it.cat, 0, w, h), 0f, 0f, null) } catch (e: Exception) { val p = Paint(); p.shader = LinearGradient(0f, 0f, w * 0.4f, h.toFloat(), c1, c2, Shader.TileMode.CLAMP); cv.drawRect(0f, 0f, w.toFloat(), h.toFloat(), p) }
+        val sc = Paint(); sc.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), 0x66000000, 0x22000000, Shader.TileMode.CLAMP); cv.drawRect(0f, 0f, w.toFloat(), h.toFloat(), sc)
         // the boxes of the template, like little film frames
         val fp = Paint(Paint.ANTI_ALIAS_FLAG); fp.color = 0x22FFFFFF; val n = it.slots.coerceIn(1, 6)
         for (k in 0 until n) { val y = h * 0.62f + (k / 3) * h * 0.13f; val x = w * 0.08f + (k % 3) * w * 0.29f; cv.drawRoundRect(x, y, x + w * 0.26f, y + h * 0.11f, 10f, 10f, fp) }

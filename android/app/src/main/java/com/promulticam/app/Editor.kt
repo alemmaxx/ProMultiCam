@@ -799,8 +799,8 @@ class EditorActivity : AppCompatActivity() {
             c.addView(f, LinearLayout.LayoutParams(-1, ch))
             val nm = Ui.label(this, g.it.name, 14f, Ui.TEXT, true); nm.maxLines = 1; nm.ellipsize = android.text.TextUtils.TruncateAt.END; c.addView(nm, Ui.lp(this, 6))
             c.addView(Ui.label(this, "@" + g.user, 12f, Ui.SUB), Ui.lp(this, 2))
-            c.setOnClickListener { if (!Auth.isPro) { proOnly(); return@setOnClickListener }
-                tplChose?.invoke(); s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
+            val use = { tplChose?.invoke(); s.dialog.dismiss(); if (g.sharedId != null) Thread { Shared.used(g.sharedId) }.start(); useTemplate(g.it) }
+            c.setOnClickListener { previewTemplate(g.it) { if (!Auth.isPro) proOnly() else use() } }
             c.setOnLongClickListener {
                 val canDel = g.it.kind == "mine" || (g.sharedId != null && (Auth.isAdmin || g.ownerUid == Auth.uid)) || (g.it.kind == "server" && Auth.isAdmin)
                 if (canDel) AlertDialog.Builder(this).setMessage(t("Delete this template?", "Padam templat ini?")).setPositiveButton(t("Delete", "Padam")) { _, _ ->
@@ -834,6 +834,47 @@ class EditorActivity : AppCompatActivity() {
         s.dialog.setOnDismissListener { if (!chosen && clips.isEmpty()) finish() }
         tplChose = { chosen = true }
         s.dialog.show(); s.dialog.window?.setLayout(-1, -1)
+    }
+    /* watch a template with its cartoon examples, text and song before using it */
+    private fun previewTemplate(it: Templates.Item, onUse: () -> Unit) {
+        val j = it.j; val a = j.optJSONArray("slots") ?: org.json.JSONArray(); val n = maxOf(1, a.length())
+        val TW = j.optInt("W", 1080); val TH = j.optInt("H", 1920); val pw = 360; val ph = pw * TH / maxOf(1, TW)
+        val durs = LongArray(n) { k -> ((a.optJSONObject(k)?.optDouble("dur", 2.0) ?: 2.0) * 1e6).toLong() }; val total = durs.sum().coerceAtLeast(1L)
+        val fxs = Array(n) { k -> a.optJSONObject(k)?.optString("fx", "zoomin") ?: "zoomin" }
+        val pics = Array<Bitmap?>(n) { null }; val lays = Templates.layers(j)
+        val dlg = android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val col = LinearLayout(this); col.orientation = LinearLayout.VERTICAL; col.setBackgroundColor(Color.BLACK); val d = Ui.px(this, 12)
+        val top = LinearLayout(this); top.orientation = LinearLayout.HORIZONTAL; top.gravity = Gravity.CENTER_VERTICAL; top.setPadding(d, d, d, 0)
+        top.addView(Ui.label(this, it.name, 17f, Color.WHITE, true), LinearLayout.LayoutParams(0, -2, 1f)); top.addView(Ui.btn(this, "✕") { dlg.dismiss() }, LinearLayout.LayoutParams(Ui.px(this, 52), Ui.px(this, 52)))
+        col.addView(top)
+        var ov: Bitmap? = null; var ovAt = -1L; val start = android.os.SystemClock.uptimeMillis(); val pp = Paint(Paint.FILTER_BITMAP_FLAG)
+        val view = object : View(this) {
+            override fun onDraw(cv: Canvas) {
+                val tUs = ((android.os.SystemClock.uptimeMillis() - start) * 1000L) % total
+                var k = 0; var acc = 0L; while (k < n - 1 && tUs >= acc + durs[k]) { acc += durs[k]; k++ }
+                val p = ((tUs - acc).toFloat() / durs[k]).coerceIn(0f, 1f)
+                val vw = width.toFloat(); val vh = height.toFloat(); val sc = minOf(vw / pw, vh / ph); val dw = pw * sc; val dh = ph * sc; val ox = (vw - dw) / 2; val oy = (vh - dh) / 2
+                cv.save(); cv.clipRect(ox, oy, ox + dw, oy + dh)
+                fun pic(i: Int, alpha: Int, q: Float) { val b = pics[i] ?: return; val z = when (fxs[i]) { "zoomout" -> 1.18f - 0.18f * q; "pulse" -> 1f + 0.05f * kotlin.math.abs(kotlin.math.sin(q * 6.28f)); "none" -> 1f; else -> 1f + 0.18f * q }
+                    val dx = when (fxs[i]) { "panl" -> -0.08f * dw * q; "panr" -> 0.08f * dw * q; else -> 0f }
+                    pp.alpha = alpha; val w2 = dw * z; val h2 = dh * z; cv.drawBitmap(b, null, RectF(ox + (dw - w2) / 2 + dx, oy + (dh - h2) / 2, ox + (dw + w2) / 2 + dx, oy + (dh + h2) / 2), pp) }
+                pic(k, 255, p); if (k > 0 && p < 0.15f) pic(k - 1, ((1f - p / 0.15f) * 255).toInt(), 1f)
+                val tt = tUs / 100_000L; if (tt != ovAt) { ovAt = tt; ov = try { art.render(lays.filter { l -> l.kind != "pip" && l.s <= tUs && tUs <= l.e }, tUs, pw * 2, ph * 2) } catch (e: Exception) { null } }
+                ov?.let { pp.alpha = 255; cv.drawBitmap(it, null, RectF(ox, oy, ox + dw, oy + dh), pp) }
+                cv.restore(); if (dlg.isShowing) postInvalidateOnAnimation()
+            }
+        }
+        col.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
+        col.addView(Ui.hint(this, t("Example pictures — put in your own videos and photos after.", "Gambar contoh — masukkan video dan gambar anda sendiri selepas ini.")).apply { gravity = Gravity.CENTER; setPadding(d, d / 2, d, 0) })
+        col.addView(Ui.btn(this, if (Auth.isPro) t("Use this template", "Guna templat ini") else "👑 " + t("Use this template (Pro)", "Guna templat ini (Pro)"), true) { dlg.dismiss(); onUse() }, LinearLayout.LayoutParams(-1, Ui.px(this, 54)).apply { setMargins(d, d, d, d) })
+        dlg.setContentView(col)
+        var mp: android.media.MediaPlayer? = null
+        Thread { for (k in 0 until n) pics[k] = DemoArt.draw(it.cat, k, pw, ph)
+            val song = it.music.takeIf { m -> m.isNotEmpty() }?.let { m -> try { MusicLib.file(this, m) } catch (e: Exception) { null } }
+            main.post { if (!dlg.isShowing) return@post; view.invalidate()
+                if (song != null && song.exists()) try { mp = android.media.MediaPlayer().apply { setDataSource(song.absolutePath); isLooping = true; setVolume(0.7f, 0.7f); prepare(); start() } } catch (e: Exception) {} } }.start()
+        dlg.setOnDismissListener { try { mp?.release() } catch (e: Exception) {}; mp = null }
+        dlg.show()
     }
     /* templates: everyone can look, only Pro can use them */
     private fun proOnly() {
@@ -880,7 +921,16 @@ class EditorActivity : AppCompatActivity() {
     }
     private fun useTemplate(it: Templates.Item) { applyTemplate(it, emptyList()) }   // opens at once with empty boxes; tap a box to choose
     /* an empty box of a template: "+ tap to choose" */
-    private fun slotPic(k: Int, w: Int, h: Int): Bitmap {
+    /* a box of a template shows a cartoon example (so the video looks finished) with a small "tap to change" label */
+    private fun slotPic(cat: String, k: Int, w: Int, h: Int): Bitmap {
+        val b = DemoArt.draw(cat, k, w, h); val cv = Canvas(b); val m = minOf(w, h).toFloat()
+        val tp = Paint(Paint.ANTI_ALIAS_FLAG); tp.textSize = m * 0.055f; tp.isFakeBoldText = true; tp.textAlign = Paint.Align.CENTER
+        val tx = "✎ " + t("Tap to change", "Tekan untuk tukar") + "  " + (k + 1); val tw = tp.measureText(tx) + m * 0.08f; val y = h - m * 0.12f
+        val bg = Paint(Paint.ANTI_ALIAS_FLAG); bg.color = 0xB3000000.toInt(); cv.drawRoundRect(RectF(w / 2f - tw / 2, y - m * 0.07f, w / 2f + tw / 2, y + m * 0.035f), m * 0.05f, m * 0.05f, bg)
+        tp.color = Ui.GOLD; cv.drawText(tx, w / 2f, y, tp)
+        return b
+    }
+    private fun emptySlotPic(k: Int, w: Int, h: Int): Bitmap {
         val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888); val cv = Canvas(b); cv.drawColor(0xFF1C1B19.toInt())
         val m = minOf(w, h).toFloat(); val p = Paint(Paint.ANTI_ALIAS_FLAG); p.color = Ui.GOLD; p.style = Paint.Style.STROKE; p.strokeWidth = m * 0.012f
         p.pathEffect = DashPathEffect(floatArrayOf(m * 0.04f, m * 0.025f), 0f); cv.drawRoundRect(RectF(m * 0.08f, m * 0.08f, w - m * 0.08f, h - m * 0.08f), m * 0.05f, m * 0.05f, p)
@@ -906,7 +956,7 @@ class EditorActivity : AppCompatActivity() {
             for (k in 0 until a.length()) {
                 if (media.isEmpty()) {   // no media yet: an empty box to fill in the editor
                     val o = a.getJSONObject(k); val dur = (o.optDouble("dur", 2.0) * 1e6).toLong(); val v = File(work, "slot_" + System.currentTimeMillis() + "_" + k + ".mp4")
-                    try { StillClip.make(slotPic(k, tw / 3, th / 3), tw / 3, th / 3, (dur * o.optDouble("speed", 1.0)).toLong(), v, 10); val du = probe(v).third.takeIf { it > 0 } ?: dur
+                    try { StillClip.make(slotPic(tp.cat, k, tw / 3, th / 3), tw / 3, th / 3, (dur * o.optDouble("speed", 1.0)).toLong(), v, 10); val du = probe(v).third.takeIf { it > 0 } ?: dur
                         out.add(Clip(v, 0, du, true).also { it.fileDur = du; it.img = "slot"; it.fx = o.optString("fx", "none"); it.trans = if (k == 0) "none" else o.optString("trans", "none"); it.look = o.optString("look", "std")
                             it.speed = o.optDouble("speed", 1.0).toFloat(); it.bri = o.optDouble("bri", 0.0).toFloat(); it.con = o.optDouble("con", 0.0).toFloat(); it.sat = o.optDouble("sat", 0.0).toFloat()
                             it.blur = o.optBoolean("blur"); it.kf = o.optString("kf"); it.dn = o.optBoolean("dn")
