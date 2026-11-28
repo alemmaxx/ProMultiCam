@@ -222,6 +222,13 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         stage.addView(timeTx, Ui.fl(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = Ui.px(c, 46) })
         fpsTx = Ui.label(c, "", 11f, Color.WHITE, true); fpsTx.setPadding(d / 2, d / 4, d / 2, d / 4); fpsTx.background = Ui.round(0x88000000.toInt(), Ui.dp(c, 8f))
         stage.addView(fpsTx, Ui.fl(-2, -2, Gravity.TOP or Gravity.END).apply { rightMargin = d; topMargin = d })
+        // front / back camera of the angle on screen
+        val flipB = android.widget.ImageView(c); flipB.setImageResource(R.drawable.ic_flip); flipB.imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+        flipB.background = Ui.round(0x88000000.toInt(), Ui.dp(c, 99f)); flipB.setPadding(d, d, d, d)
+        flipB.setOnClickListener { val s = mainSrc ?: return@setOnClickListener
+            if (s.local) { cam?.flip(); Focus.torch = false } else s.data?.send(mapOf("t" to "cc", "op" to "flip"))
+            camState[s.id]?.set(0, 0); toast(t("Front / back camera", "Kamera depan / belakang")) }
+        stage.addView(flipB, Ui.fl(Ui.px(c, 48), Ui.px(c, 48), Gravity.BOTTOM or Gravity.END).apply { rightMargin = d; bottomMargin = d })
         // zoom: upright slider on the right, like the web
         zoomTx = Ui.label(c, "1.0×", 13f, Ui.GOLD, true)
         // zoom with two fingers on the picture; the level shows for a moment
@@ -302,6 +309,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 val oldEv = look.ev; look = l; sp.edit().putString("look", l.id).apply(); prog.setLook(l.f); refreshOverlay(); paintChips(); if (oldEv != l.ev) applyEv()
                 pills.forEachIndexed { j, p -> Ui.setPill(this, p, Looks.ALL[j] === look) }
             }
+            b.maxLines = 1; b.textSize = 14f; b.setAutoSizeTextTypeUniformWithConfiguration(9, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)   // long names shrink to one line
             pills.add(b)
             val p = android.widget.GridLayout.LayoutParams(android.widget.GridLayout.spec(i / 3), android.widget.GridLayout.spec(i % 3, 1f)); p.width = 0; p.setMargins(4, 6, 4, 6)
             grid.addView(b, p)
