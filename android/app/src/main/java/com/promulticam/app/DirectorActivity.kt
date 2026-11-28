@@ -206,7 +206,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
                 zoomTx.text = String.format(Locale.US, "%.1f×", z); zoomTx.animate().cancel(); zoomTx.alpha = 1f; return true }
             override fun onScaleEnd(g: android.view.ScaleGestureDetector) { zoomTx.animate().alpha(0f).setStartDelay(900).setDuration(300).start() }
         })
-        sv.setOnTouchListener { _, e ->
+        sv.setOnTouchListener { v, e ->
+            if (dragFree(v, e)) return@setOnTouchListener true   // Free text: drag a line or the box
             pinch.onTouchEvent(e)
             if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) pinching = false
             if (e.actionMasked == android.view.MotionEvent.ACTION_POINTER_DOWN) { val cx = android.view.MotionEvent.obtain(e); cx.action = android.view.MotionEvent.ACTION_CANCEL; tapper.onTouchEvent(cx); cx.recycle() }
@@ -412,7 +413,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
     private val SLOT_B = listOf("brand", "logoBg"); private val SLOT_I = listOf("logo", "title", "price", "phone").flatMap { listOf("dur_$it", "every_$it") }
     private fun saveSlot(n: Int) {
         val j = org.json.JSONObject(); val all = sp.all
-        (SLOT_S + SLOT_B + SLOT_I).forEach { k -> all[k]?.let { j.put(k, it) } }
+        (SLOT_S + SLOT_B + SLOT_I + FreeText.KEYS).forEach { k -> all[k]?.let { j.put(k, it) } }
         sp.edit().putString("slot$n", j.toString()).apply()
         for ((a, b) in listOf("logo.png" to "logo_s$n.png", "logo_orig.png" to "logo_orig_s$n.png")) { val src = File(filesDir, a); val dst = File(filesDir, b); if (src.exists()) src.copyTo(dst, true) else dst.delete() }
     }
@@ -421,6 +422,8 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val j = try { org.json.JSONObject(js) } catch (e: Exception) { return }
         val ed = sp.edit()
         (SLOT_S + SLOT_B + SLOT_I).forEach { k -> if (!j.has(k)) ed.remove(k) else when (k) { in SLOT_B -> ed.putBoolean(k, j.getBoolean(k)); in SLOT_I -> ed.putInt(k, j.getInt(k)); else -> ed.putString(k, j.getString(k)) } }
+        FreeText.KEYS.forEach { k -> if (!j.has(k)) ed.remove(k) else try { when { k.startsWith("fs") -> ed.putInt(k, j.getInt(k)); k.startsWith("fz") || k == "fbSz" -> ed.putFloat(k, j.getDouble(k).toFloat())
+            k == "fbOn" -> ed.putBoolean(k, j.getBoolean(k)); else -> ed.putString(k, j.getString(k)) } } catch (e: Exception) {} }
         ed.apply()
         for ((a, b) in listOf("logo.png" to "logo_s$n.png", "logo_orig.png" to "logo_orig_s$n.png")) { val src = File(filesDir, b); val dst = File(filesDir, a); if (src.exists()) src.copyTo(dst, true) else dst.delete() }
     }
@@ -443,6 +446,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             override fun surfaceDestroyed(h: SurfaceHolder) { mainSv?.let { m -> if (m.holder.surface.isValid) prog.setPreview(m.holder.surface, m.width, m.height) else prog.setPreview(null, 0, 0) } }
         })
         val box = FrameLayout(this); box.setBackgroundColor(android.graphics.Color.BLACK); box.addView(pv, FrameLayout.LayoutParams(-1, -1))
+        pv.setOnTouchListener { v, e -> dragFree(v, e) }
         outer.addView(box, 1, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.42f).toInt()).apply { topMargin = Ui.px(this@DirectorActivity, 6); bottomMargin = Ui.px(this@DirectorActivity, 6) })
         s.dialog.window?.setLayout(-1, -1); s.dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val full = (resources.displayMetrics.heightPixels * 0.42f).toInt(); val small = (resources.displayMetrics.heightPixels * 0.2f).toInt()
@@ -494,12 +498,14 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         val menuIn = Ui.input(this, "Laksam - RM5\nNasi kerabu - RM8", brand.menu, android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE); menuIn.minLines = 3; menuIn.gravity = Gravity.TOP
         val shopL = Ui.label(this, t("Shop name or @account", "Nama kedai atau @akaun"), 13f, Ui.SUB, true); val descL = Ui.label(this, t("Short description", "Penerangan ringkas"), 13f, Ui.SUB, true)
         val menuL = Ui.label(this, t("Menu (name - price, one per line)", "Menu (nama - harga, satu baris)"), 13f, Ui.SUB, true)
+        val freeBox = freeEditor()
         lateinit var fontBtn: Button
         fun showRows() { val st = brand.style
             val shopOn = st in listOf("band", "menu", "minimal", "polaroid", "gold", "panel")
             for (v in listOf(shopL, shopIn)) v.visibility = if (shopOn) View.VISIBLE else View.GONE
             for (v in listOf(descL, descIn)) v.visibility = if (st == "panel") View.VISIBLE else View.GONE
             for (v in listOf(menuL, menuIn)) v.visibility = if (st == "menu") View.VISIBLE else View.GONE
+            freeBox.visibility = if (st == "free") View.VISIBLE else View.GONE
             cards.forEachIndexed { j, cv -> cv.background = Ui.round(if (Overlay.STYLES[j] == st) 0xFF2A2416.toInt() else 0xFF15140F.toInt(), Ui.dp(this, 12f), if (Overlay.STYLES[j] == st) Ui.GOLD else Ui.LINE, Ui.px(this, if (Overlay.STYLES[j] == st) 2 else 1)) }
             fontBtn.text = (Overlay.FONTS[brand.font.ifEmpty { Overlay.DEF_FONT[st] ?: "bricolage" }]?.let { if (Ui.ms) it.ms else it.en } ?: "") + "  ▾"
             refreshOverlay() }
@@ -527,6 +533,7 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
             AlertDialog.Builder(this).setTitle(t("Font", "Fon")).setItems(names) { _, w -> brand.font = keys[w]; showRows() }.show()
         }
         b.addView(fontBtn, Ui.lp(this, 6))
+        b.addView(freeBox, Ui.lp(this, 10))
         for (v in listOf(shopL, shopIn, descL, descIn, menuL, menuIn)) b.addView(v, Ui.lp(this, if (v is TextView && v !is android.widget.EditText) 12 else 6))
         shopIn.addTextChangedListener(watch { brand.shop = it; refreshOverlay() }); descIn.addTextChangedListener(watch { brand.desc = it; refreshOverlay() }); menuIn.addTextChangedListener(watch { brand.menu = it; refreshOverlay() })
         b.addView(Ui.label(this, t("Logo position", "Kedudukan logo"), 13f, Ui.SUB, true), Ui.lp(this, 12))
@@ -582,6 +589,51 @@ class DirectorActivity : AppCompatActivity(), PeerSignal.Listener, PeerLink.Cb {
         studioDialog()
     }
 
+    /* Free text: drag a line or the box on the picture (frame shown fitted inside the view) */
+    private var dragKey: String? = null; private var dragAt = 0L
+    private fun dragFree(v: View, e: android.view.MotionEvent): Boolean {
+        if (brand.style != "free" || !brand.on) return false
+        val vw = v.width.toFloat(); val vh = v.height.toFloat(); if (vw <= 0 || vh <= 0) return false
+        var w = vw; var h = w * H / W; if (h > vh) { h = vh; w = h * W / H }
+        val fx = (e.x - (vw - w) / 2) / w * W; val fy = (e.y - (vh - h) / 2) / h * H
+        when (e.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> { dragKey = FreeText.hit(fx, fy); return dragKey != null }
+            android.view.MotionEvent.ACTION_MOVE -> { val k = dragKey ?: return false; FreeText.setPos(this, k, fx / W, fy / H)
+                val now = android.os.SystemClock.uptimeMillis(); if (now - dragAt > 45) { dragAt = now; refreshOverlay() }; return true }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> { val had = dragKey != null; dragKey = null; if (had) refreshOverlay(); return had }
+        }
+        return dragKey != null
+    }
+    /* the settings of the Free text style: 6 lines (text, look, size) and the info box */
+    private fun freeEditor(): LinearLayout {
+        val col = LinearLayout(this); col.orientation = LinearLayout.VERTICAL
+        col.addView(Ui.label(this, t("Your lines (drag them on the picture)", "Baris anda (tarik pada gambar)"), 13f, Ui.SUB, true))
+        for (n in 1..6) {
+            val r = LinearLayout(this); r.orientation = LinearLayout.HORIZONTAL; r.gravity = Gravity.CENTER_VERTICAL
+            val e = Ui.input(this, t("Line $n", "Baris $n"), sp.getString("fl$n", "") ?: ""); e.isSingleLine = true
+            e.addTextChangedListener(watch { sp.edit().putString("fl$n", it).apply(); refreshOverlay() })
+            r.addView(e, LinearLayout.LayoutParams(0, -2, 1f))
+            val lk = Ui.btn(this, "🎨") { val names = (0 until FreeText.LOOKS.size).map { FreeText.lookName(it) }.toTypedArray()
+                AlertDialog.Builder(this).setTitle(t("Look", "Rupa")).setItems(names) { _, w -> sp.edit().putInt("fs$n", w).apply(); refreshOverlay() }.show() }
+            r.addView(lk, LinearLayout.LayoutParams(Ui.px(this, 48), Ui.px(this, 48)).apply { leftMargin = Ui.px(this@DirectorActivity, 6) })
+            fun size(k: Float) { sp.edit().putFloat("fz$n", (sp.getFloat("fz$n", 1f) * k).coerceIn(0.5f, 2.5f)).apply(); refreshOverlay() }
+            r.addView(Ui.btn(this, "A-") { size(1 / 1.15f) }, LinearLayout.LayoutParams(Ui.px(this, 48), Ui.px(this, 48)).apply { leftMargin = Ui.px(this@DirectorActivity, 4) })
+            r.addView(Ui.btn(this, "A+") { size(1.15f) }, LinearLayout.LayoutParams(Ui.px(this, 48), Ui.px(this, 48)).apply { leftMargin = Ui.px(this@DirectorActivity, 4) })
+            col.addView(r, Ui.lp(this, 6))
+        }
+        // the info box (e.g. place, date, time)
+        val bx = LinearLayout(this); bx.orientation = LinearLayout.VERTICAL
+        val bt = Ui.input(this, t("e.g. 📍 Night market\nSaturday 28/11", "cth: 📍 Pasar malam\nSabtu 28/11"), sp.getString("fbTxt", "") ?: ""); multi(bt)
+        bt.addTextChangedListener(watch { sp.edit().putString("fbTxt", it).apply(); refreshOverlay() })
+        val bs = LinearLayout(this); bs.orientation = LinearLayout.HORIZONTAL
+        fun bsize(k: Float) { sp.edit().putFloat("fbSz", (sp.getFloat("fbSz", 1f) * k).coerceIn(0.5f, 2.2f)).apply(); refreshOverlay() }
+        bs.addView(Ui.btn(this, "A-") { bsize(1 / 1.15f) }, LinearLayout.LayoutParams(0, Ui.px(this, 46), 1f).apply { rightMargin = Ui.px(this@DirectorActivity, 6) })
+        bs.addView(Ui.btn(this, "A+") { bsize(1.15f) }, LinearLayout.LayoutParams(0, Ui.px(this, 46), 1f))
+        bx.addView(bt); bx.addView(bs, Ui.lp(this, 6)); bx.visibility = if (sp.getBoolean("fbOn", false)) View.VISIBLE else View.GONE
+        col.addView(Ui.check(this, t("Info box (drag it too)", "Kotak info (boleh tarik juga)"), sp.getBoolean("fbOn", false)) { v -> sp.edit().putBoolean("fbOn", v).apply(); bx.visibility = if (v) View.VISIBLE else View.GONE; refreshOverlay() }, Ui.lp(this, 12))
+        col.addView(bx, Ui.lp(this, 6))
+        return col
+    }
     private fun refreshOverlay() {
         fadeGen++
         brand.speaker = mainSrc?.name ?: ""

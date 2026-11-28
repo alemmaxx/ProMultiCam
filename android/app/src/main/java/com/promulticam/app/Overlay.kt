@@ -10,18 +10,18 @@ import android.graphics.Typeface
 
 /* The brand designs of the web app, drawn the same way: 10 styles x 4 colours x 10 fonts, logo position */
 object Overlay {
-    val STYLES = listOf("card", "band", "promo", "menu", "flash", "minimal", "polaroid", "gold", "panel", "speaker")
+    val STYLES = listOf("card", "band", "promo", "menu", "flash", "minimal", "polaroid", "gold", "panel", "speaker", "free")
     val STYLE_NAMES = mapOf(
         "card" to Pair("Standard", "Standard"), "band" to Pair("Lower band", "Jalur bawah"), "promo" to Pair("Promo sticker", "Pelekat promo"),
         "menu" to Pair("Menu board", "Papan menu"), "flash" to Pair("Flash sale", "Jualan kilat"), "minimal" to Pair("Minimal", "Minimal"),
         "polaroid" to Pair("Polaroid frame", "Bingkai polaroid"), "gold" to Pair("Premium frame", "Bingkai premium"), "panel" to Pair("Product panel", "Panel produk"),
-        "speaker" to Pair("Name by angle", "Nama ikut sudut"))
+        "speaker" to Pair("Name by angle", "Nama ikut sudut"), "free" to Pair("Free text", "Teks bebas"))
     val STYLE_DESC = mapOf(
         "card" to Pair("Title, price, contact", "Tajuk, harga, nombor"), "band" to Pair("News-style strip", "Gaya berita"), "promo" to Pair("Big round price", "Harga bulat besar"),
         "menu" to Pair("2 to 4 items with prices", "2 hingga 4 item berharga"), "flash" to Pair("Banner and order button", "Sepanduk dan butang tempah"),
         "minimal" to Pair("Small logo only", "Logo kecil sahaja"), "polaroid" to Pair("White frame, name below", "Bingkai putih, nama di bawah"),
         "gold" to Pair("Colour border, shop name on top", "Garis warna, nama kedai atas"), "panel" to Pair("Video plus info panel", "Video dan panel maklumat"),
-        "speaker" to Pair("Podcasts and talks", "Podcast dan ceramah"))
+        "speaker" to Pair("Podcasts and talks", "Podcast dan ceramah"), "free" to Pair("6 lines + box, drag anywhere", "6 baris + kotak, tarik ke mana-mana"))
     class Col(val c: Int, val ink: Int)
     val COLORS = linkedMapOf("gold" to Col(0xFFD9B44A.toInt(), 0xFF1B1503.toInt()), "red" to Col(0xFFD6453A.toInt(), Color.WHITE),
         "green" to Col(0xFF2F9E5B.toInt(), Color.WHITE), "white" to Col(Color.WHITE, 0xFF111111.toInt()))
@@ -37,7 +37,7 @@ object Overlay {
         "pacifico" to Font("pacifico.ttf", 400, script = true, en = "Pacifico — cute", ms = "Pacifico — comel"),
         "dancing" to Font("dancing.ttf", 700, script = true, en = "Dancing Script — handwritten", ms = "Dancing Script — tulisan tangan"),
         "marker" to Font("marker.ttf", 400, script = true, en = "Marker — chalkboard", ms = "Marker — papan tulis"))
-    val DEF_FONT = mapOf("card" to "bricolage", "band" to "poppins", "promo" to "anton", "menu" to "montserrat", "flash" to "anton", "minimal" to "poppins",
+    val DEF_FONT = mapOf("free" to "anton", "card" to "bricolage", "band" to "poppins", "promo" to "anton", "menu" to "montserrat", "flash" to "anton", "minimal" to "poppins",
         "polaroid" to "pacifico", "gold" to "playfair", "panel" to "poppins", "speaker" to "montserrat")
     val POS = listOf("tr" to Pair("Top right", "Atas kanan"), "tl" to Pair("Top left", "Atas kiri"), "br" to Pair("Bottom right", "Bawah kanan"), "bl" to Pair("Bottom left", "Bawah kiri"))
 
@@ -208,6 +208,7 @@ object Overlay {
                 ft(fs); val nw = minOf(W - m * 2, p.measureText(cap(who)) + pad * 2); rect(m, y, nw, fs * 1.7f, 0xEB0E0E0F.toInt()); text(fit(cap(who), nw - pad * 2), m + pad, y + fs * 1.2f, Color.WHITE)
                 if (title.isNotEmpty()) { fi(fs * 0.6f, 800); val tw = p.measureText(title) + pad * 2; rect(m, y - fs * 0.95f, minOf(tw, W - m * 2), fs * 0.95f, C.c); text(fit(title, W - m * 2 - pad * 2), m + pad, y - fs * 0.25f, C.ink) }
             }
+            "free" -> { placeLogo(Math.round(S * 0.18f).toFloat()); FreeText.draw(g, i.ctx, i.W, i.H, i.font, !FreeText.hideLines, !FreeText.hideBox) }
             else -> card(W, H, S, m, barH, title, price, phone, C)
         }
         p.clearShadowLayer()

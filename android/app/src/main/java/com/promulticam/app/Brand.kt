@@ -115,7 +115,7 @@ class Brand(private val ctx: Context) {
     /* draw upright into a W x H area: the same designs as the web */
     fun draw(c: Canvas, W: Int, H: Int) {
         val f = font.ifEmpty { Overlay.DEF_FONT[style] ?: "bricolage" }
-        val h = hidden
+        val h = hidden; FreeText.hideLines = "title" in h; FreeText.hideBox = "price" in h
         Overlay.draw(c, Overlay.In(ctx, W, H, Auth.isPro, bars, style, col, f, logoPos, if ("title" in h) "" else cTitle, if ("price" in h) "" else cPrice, if ("phone" in h) "" else cPhone, shop, desc, menu, speaker, if ("logo" in h) null else logo))
     }
 }
