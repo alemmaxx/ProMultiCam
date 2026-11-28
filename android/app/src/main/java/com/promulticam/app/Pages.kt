@@ -310,10 +310,15 @@ class ManualActivity : PageActivity() {
     override val title0 get() = "Manual"
     private var pg = 0
     private lateinit var pages: JSONArray
-    private var pics = JSONObject()
+    private var pics = JSONObject(); private var fill = mapOf("{MO}" to "…", "{YR}" to "…", "{TRIAL}" to "…")
     override fun build() {
         val j = try { JSONObject(assets.open("manual/manual.json").bufferedReader().readText()) } catch (e: Exception) { JSONObject() }
         pages = j.optJSONArray(if (Ui.ms) "ms" else "en") ?: JSONArray(); pics = j.optJSONObject("pics") ?: JSONObject()
+        // prices and free days come from the server (set by the admin)
+        Thread { val pl = try { Auth.plans() } catch (e: Exception) { JSONObject() }
+            fun m(k: String) = pl.optString(k).toDoubleOrNull()?.let { "RM" + (if (it % 1.0 == 0.0) it.toInt().toString() else String.format(java.util.Locale.US, "%.2f", it)) } ?: t("see Plans", "lihat Plans")
+            val map = mapOf("{MO}" to m("monthly"), "{YR}" to m("yearly"), "{TRIAL}" to (pl.optString("trialDays").toDoubleOrNull()?.toInt()?.toString() ?: "7"))
+            main.post { fill = map; paint() } }.start()
         val nav = LinearLayout(this); nav.orientation = LinearLayout.HORIZONTAL
         nav.addView(Ui.btn(this, "‹ " + t("Back", "Kembali")) { if (pg > 0) { pg--; paint() } else finish() }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
         nav.addView(Ui.btn(this, t("Next", "Seterusnya") + " ›", true) { if (pg < pages.length() - 1) { pg++; paint() } else finish() }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
@@ -338,7 +343,7 @@ class ManualActivity : PageActivity() {
             for (i in 1 until pages.length()) { val q = pages.getJSONObject(i)
                 body.addView(Ui.btn(this, q.optString("ic") + "  " + q.optString("t")) { pg = i; paint() }.apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL }, Ui.lp(this, 6)) }
         } else p.optJSONArray("b")?.let { b ->
-            for (i in 0 until b.length()) { val tv = TextView(this); tv.text = Html.fromHtml("•  " + b.getString(i), Html.FROM_HTML_MODE_LEGACY); tv.textSize = 15f; tv.setTextColor(Ui.TEXT); tv.setLineSpacing(0f, 1.25f)
+            for (i in 0 until b.length()) { var x = b.getString(i); fill.forEach { (k, v) -> x = x.replace(k, v) }; val tv = TextView(this); tv.text = Html.fromHtml("•  " + x, Html.FROM_HTML_MODE_LEGACY); tv.textSize = 15f; tv.setTextColor(Ui.TEXT); tv.setLineSpacing(0f, 1.25f)
                 body.addView(tv, Ui.lp(this, 10)) }
         }
         (body.parent as? ScrollView)?.scrollTo(0, 0)

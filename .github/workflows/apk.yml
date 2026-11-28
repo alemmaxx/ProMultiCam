@@ -5,7 +5,7 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths: ['android/**', '.github/workflows/apk.yml', 'public/manual.js', 'public/manual/**']
+    paths: ['android/**', '.github/workflows/apk.yml']
   workflow_dispatch: {}
 
 concurrency:
@@ -44,10 +44,6 @@ jobs:
           get dancing.ttf "dancingscript/DancingScript%5Bwght%5D.ttf"
           curl -fsSL -o "$d/marker.ttf" "https://raw.githubusercontent.com/google/fonts/main/apache/permanentmarker/PermanentMarker-Regular.ttf" || echo "font marker missing"
           ls -la $d
-      - name: Manual (same as the web)
-        run: |
-          node android/tools/manual.js public/manual.js android/app/src/main/assets/manual
-          cp public/manual/*.jpg android/app/src/main/assets/manual/
       - name: Release key (from the repository secrets; the test key is used only when they are missing)
         env:
           KS: ${{ secrets.PMC_KEYSTORE_B64 }}
