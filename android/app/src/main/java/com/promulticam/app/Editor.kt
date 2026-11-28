@@ -676,6 +676,7 @@ class EditorActivity : AppCompatActivity() {
         tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
         tool("⇋", t("Mirror", "Cermin"), c.mirror) { snap(); c.mirror = !c.mirror; rebuild(tl.time) }
         if (!c.still) tool("⏪", t("Reverse", "Terbalik")) { reverse(i) }
+        tool("👤", t("Remove background", "Buang latar")) { bgSheet(i) }
     }
     private fun layerTools(i: Int) {
         page = "layer"; tools.removeAllViews(); val l = layers.getOrNull(i) ?: return; back()
@@ -975,6 +976,46 @@ class EditorActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle(t("Photo duration", "Tempoh gambar")).setItems(opts.map { "${it.toInt()}s" }.toTypedArray()) { _, w ->
             val dl = wait(t("Please wait…", "Sila tunggu…"))
             makeStill(c.img, opts[w]) { n -> dl.dismiss(); if (n != null) { snap(); n.trans = c.trans; n.look = c.look; n.bri = c.bri; n.con = c.con; n.sat = c.sat; n.rot = c.rot; n.mirror = c.mirror; clips[i] = n; rebuild(tl.time) } } }.show()
+    }
+    /* AI: take the person out and put a new background behind (blur, colour, photo or video). Done once; undo brings the old clip back. */
+    private var bgAt = -1
+    private val pickBgImg = registerForActivityResult(PickMedia()) { l -> val u = l.firstOrNull() ?: return@registerForActivityResult; val i = bgAt
+        Thread { val f = copyIn(u, "bgi_", ".jpg"); val bm = f?.let { loadBitmap(it.absolutePath) }; main.post { if (bm != null) runBg(i, BgRemove.Bg("photo", img = bm)) else toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")) } }.start() }
+    private val pickBgVid = registerForActivityResult(PickMedia()) { l -> val u = l.firstOrNull() ?: return@registerForActivityResult; val i = bgAt
+        Thread { val f = copyIn(u, "bgv_", ".mp4"); main.post { if (f != null) runBg(i, BgRemove.Bg("video", video = f)) else toast(t("This video cannot be used", "Video ini tidak boleh digunakan")) } }.start() }
+    private fun bgSheet(i: Int) {
+        val c = clips.getOrNull(i) ?: return; bgAt = i
+        if (c.outUs - c.inUs > 60_000_000) { toast(t("Split the clip first: up to 60 s.", "Belah klip dulu: maksimum 60 saat.")); return }
+        val s = Ui.sheet(this, "👤 " + t("Remove background", "Buang latar")); val b = s.body
+        b.addView(Ui.label(this, t("New background", "Latar baru"), 13f, Ui.SUB, true))
+        val r = Flow(this, Ui.px(this, 6))
+        r.addView(Ui.pill(this, "🌫 " + t("Blur", "Kabur"), false) { s.dialog.dismiss(); runBg(i, BgRemove.Bg("blur")) })
+        r.addView(Ui.pill(this, "🖼 " + t("Photo", "Gambar"), false) { s.dialog.dismiss(); pickBgImg.launch(PickMedia.Req(false, "image")) })
+        r.addView(Ui.pill(this, "🎞 " + t("Video", "Video"), false) { s.dialog.dismiss(); pickBgVid.launch(PickMedia.Req(false, "video")) })
+        b.addView(r, Ui.lp(this, 6))
+        b.addView(Ui.label(this, t("Colour", "Warna"), 13f, Ui.SUB, true), Ui.lp(this, 12))
+        val cr = Flow(this, Ui.px(this, 8))
+        listOf(0xFFFFFFFF, 0xFF111111, 0xFFF4E3C3, 0xFFFFC7DA, 0xFFB9E4FF, 0xFFC9F2C7, 0xFFD9B44A, 0xFFE5483B, 0xFF2D7A78, 0xFF00B140).forEach { cl ->
+            val v = View(this); v.background = Ui.round(cl.toInt(), Ui.dp(this, 99f), 0x55FFFFFF, Ui.px(this, 2))
+            v.setOnClickListener { s.dialog.dismiss(); runBg(i, BgRemove.Bg("color", color = cl.toInt())) }; cr.addView(v, LinearLayout.LayoutParams(Ui.px(this, 40), Ui.px(this, 40))) }
+        b.addView(cr, Ui.lp(this, 6))
+        b.addView(Ui.hint(this, t("Works best with one person, good light and a background that is not the same colour as clothes.", "Paling baik untuk seorang, cahaya terang dan latar yang tidak sama warna dengan baju.")))
+        s.dialog.show()
+    }
+    private fun runBg(i: Int, bg: BgRemove.Bg) {
+        val c = clips.getOrNull(i) ?: return
+        val dl = wait(t("Removing background… 0%", "Membuang latar… 0%"))
+        Thread {
+            val f = File(work, "bg_" + System.currentTimeMillis() + ".mp4"); val (pw, ph, _) = probe(c.file); var last = -1
+            val ok = try { BgRemove.make(c.file, c.inUs, c.outUs, pw, ph, bg, f) { pc -> if (pc != last) { last = pc; main.post { dl.setMessage(t("Removing background… $pc%", "Membuang latar… $pc%")) } } }; true } catch (e: Throwable) { f.delete(); false }
+            main.post { dl.dismiss()
+                if (!ok) { toast(t("Could not remove the background", "Latar tidak dapat dibuang")); return@post }
+                val du = probe(f).third.takeIf { it > 0 } ?: (c.outUs - c.inUs)
+                snap()
+                val n = Clip(f, 0, du, false).also { it.fileDur = du; it.speed = c.speed; it.vol = c.vol; it.look = c.look; it.bri = c.bri; it.con = c.con; it.sat = c.sat; it.mirror = c.mirror
+                    it.trans = c.trans; it.fx = c.fx; it.fi = c.fi; it.fo = c.fo; it.fadeVid = c.fadeVid; it.kf = c.kf; it.dn = c.dn }
+                clips[i] = n; rebuild(tl.time); toast(t("New background ✓ (undo to go back)", "Latar baru ✓ (undo untuk kembali)")) }
+        }.start()
     }
     /* the clip plays backwards (pictures and sound); undo brings the normal one back */
     private fun reverse(i: Int) {

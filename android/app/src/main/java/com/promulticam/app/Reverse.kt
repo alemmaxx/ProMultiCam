@@ -120,7 +120,7 @@ object Reverse {
     }
 
     /* the sound of [fromUs, toUs) as 16-bit samples */
-    private fun decode(src: File, fromUs: Long, toUs: Long): Triple<ShortArray, Int, Int> {
+    fun decode(src: File, fromUs: Long, toUs: Long): Triple<ShortArray, Int, Int> {
         val ex = MediaExtractor(); ex.setDataSource(src.absolutePath)
         val ti = (0 until ex.trackCount).firstOrNull { ex.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true } ?: run { ex.release(); throw Exception("no sound") }
         val fmt = ex.getTrackFormat(ti); ex.selectTrack(ti); ex.seekTo(fromUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
