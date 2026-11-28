@@ -65,7 +65,7 @@ class AppCompatActivityLike(val act: androidx.appcompat.app.AppCompatActivity)
 /* the community chat: everyone signed in can talk; kind words only */
 class LoungeActivity : PageActivity() {
     override val title0 get() = Ui.t("Community chat", "Sembang komuniti")
-    private var alive = true; private var lastKey = ""
+    private var alive = true; private val feed = Feed("lounge", newestFirstLimit = 120)
     private lateinit var inp: android.widget.EditText; private lateinit var sv: ScrollView
     override fun build() {
         body.parent?.let { sv = it as ScrollView }
@@ -88,9 +88,9 @@ class LoungeActivity : PageActivity() {
     }
     private fun Toast(s: String) = android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show()
     private fun poll(again: Boolean) {
-        Thread { val l = try { Fs.list("lounge", "at", desc = true, limit = 120).reversed() } catch (e: Exception) { null }
+        Thread { val changed = try { feed.refresh() } catch (e: Exception) { false }; val l = ArrayList(feed.docs)
             main.post { if (!alive) return@post
-                if (l != null) { val key = l.joinToString { it.id }; if (key != lastKey) { lastKey = key; show(l) } }
+                if (changed) show(l)
                 if (again) main.postDelayed({ if (alive) poll(true) }, 4000) } }.start()
     }
     private fun show(l: List<Fs.Doc>) {
@@ -108,7 +108,7 @@ class LoungeActivity : PageActivity() {
             if (at > 0) b.addView(Ui.label(this, fmt.format(Date(at)), 10f, Ui.SUB), Ui.lp(this, 2))
             wrap.addView(b, LinearLayout.LayoutParams(-2, -2).apply { if (mine) leftMargin = Ui.px(this@LoungeActivity, 48) else rightMargin = Ui.px(this@LoungeActivity, 48) })
             if (mine || Auth.isAdmin) b.setOnLongClickListener { AlertDialog.Builder(this).setMessage(Ui.t("Delete this message?", "Padam mesej ini?"))
-                .setPositiveButton(Ui.t("Delete", "Padam")) { _, _ -> Thread { Fs.delete("lounge/" + m.id); main.post { poll(false) } }.start() }.setNegativeButton(Ui.t("Cancel", "Batal"), null).show(); true }
+                .setPositiveButton(Ui.t("Delete", "Padam")) { _, _ -> Thread { Fs.delete("lounge/" + m.id); feed.drop(m.id); val l = ArrayList(feed.docs); main.post { show(l) } }.start() }.setNegativeButton(Ui.t("Cancel", "Batal"), null).show(); true }
             body.addView(wrap, Ui.lp(this, 8))
         }
         sv.post { sv.fullScroll(View.FOCUS_DOWN) }

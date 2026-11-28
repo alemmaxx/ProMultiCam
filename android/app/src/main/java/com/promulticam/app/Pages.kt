@@ -171,6 +171,7 @@ class SupportActivity : PageActivity() {
     override val title0 get() = t("Support", "Sokongan")
     private var alive = true
     private var lastN = -1
+    private val feed by lazy { Feed("messages", "supportChats/" + Auth.uid, 300) }
     private var pending: String? = null
     private lateinit var inp: android.widget.EditText
     private var topic = ""
@@ -216,9 +217,9 @@ class SupportActivity : PageActivity() {
     }
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun poll(again: Boolean) {
-        bg { val l = Fs.list("messages", "at", desc = false, limit = 300, parent = "supportChats/" + Auth.uid)
+        bg { val ch = try { feed.refresh() } catch (e: Exception) { false }; val l = ArrayList(feed.docs)
             main.post { if (!alive) return@post
-                if (l.size != lastN) { lastN = l.size; Chat.show(this, body, l, "user", t("Hi! How can we help you with ProMultiCam?", "Hai! Apa yang boleh kami bantu tentang ProMultiCam?")) }
+                if (ch || lastN < 0) { lastN = l.size; Chat.show(this, body, l, "user", t("Hi! How can we help you with ProMultiCam?", "Hai! Apa yang boleh kami bantu tentang ProMultiCam?")) }
                 if (again) main.postDelayed({ if (alive) poll(true) }, 5000) } }
     }
 }

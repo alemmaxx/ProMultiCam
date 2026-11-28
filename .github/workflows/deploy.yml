@@ -66,6 +66,15 @@ jobs:
         if: env.HAS_SA == 'true'
         run: npx --yes firebase-tools@latest deploy --project "$PID" --only hosting:promulticam,firestore:promulticam,functions:promulticam --non-interactive --force
 
+      - name: Keep only the last 5 hosting versions (less storage cost)
+        if: env.HAS_SA == 'true'
+        continue-on-error: true
+        run: |
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" --quiet
+          TOKEN=$(gcloud auth print-access-token)
+          curl -sS -f -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            "https://firebasehosting.googleapis.com/v1beta1/sites/$SITE/config?updateMask=maxVersions" -d '{"maxVersions": 5}' > /dev/null && echo "max versions: 5"
+
       - name: Remove credentials
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"

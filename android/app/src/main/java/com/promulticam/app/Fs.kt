@@ -40,8 +40,11 @@ object Fs {
     private fun req(path: String) = Request.Builder().url(path).also { b -> Auth.tokenSync()?.let { b.header("Authorization", "Bearer $it") } }
     fun get(path: String): Doc? = http.newCall(req("$URL/$path").build()).execute().use { r -> if (!r.isSuccessful) null else doc(JSONObject(r.body?.string() ?: "{}")) }
     /* a collection (or sub-collection under parent), optionally filtered by one field */
-    fun list(col: String, order: String? = null, desc: Boolean = true, limit: Int = 500, parent: String = "", whereField: String? = null, whereVal: Any? = null): List<Doc> {
+    fun list(col: String, order: String? = null, desc: Boolean = true, limit: Int = 500, parent: String = "", whereField: String? = null, whereVal: Any? = null, afterMs: Long = 0L): List<Doc> {
         val q = JSONObject().put("from", JSONArray().put(JSONObject().put("collectionId", col)))
+        // only documents newer than afterMs (by the order field): a cheap "anything new?" check
+        if (afterMs > 0 && order != null) q.put("where", JSONObject().put("fieldFilter", JSONObject().put("field", JSONObject().put("fieldPath", order)).put("op", "GREATER_THAN")
+            .put("value", JSONObject().put("timestampValue", java.time.Instant.ofEpochMilli(afterMs).toString()))))
         if (order != null) q.put("orderBy", JSONArray().put(JSONObject().put("field", JSONObject().put("fieldPath", order)).put("direction", if (desc) "DESCENDING" else "ASCENDING")))
         if (whereField != null) q.put("where", JSONObject().put("fieldFilter", JSONObject().put("field", JSONObject().put("fieldPath", whereField)).put("op", "EQUAL").put("value", enc(whereVal))))
         q.put("limit", limit)

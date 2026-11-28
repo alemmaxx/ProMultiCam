@@ -267,6 +267,7 @@ class AdminChatActivity : PageActivity() {
     override val title0 get() = intent.getStringExtra("email")?.ifEmpty { null } ?: t("Support", "Sokongan")
     private val id get() = intent.getStringExtra("id") ?: ""
     private var alive = true; private var lastN = -1
+    private val feed by lazy { Feed("messages", "supportChats/$id", 300) }
     private lateinit var inp: android.widget.EditText
     private val pick = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { u -> if (u != null) bg { val b = Chat.photo(this, u); main.post { if (b != null) send(inp.text.toString().trim(), b) else toast(t("This photo cannot be used", "Gambar ini tidak boleh digunakan")) } } }
     override fun build() {
@@ -288,9 +289,9 @@ class AdminChatActivity : PageActivity() {
     }
     override fun onDestroy() { alive = false; super.onDestroy() }
     private fun poll(again: Boolean) {
-        bg { val l = Fs.list("messages", "at", desc = false, limit = 300, parent = "supportChats/$id")
+        bg { val ch = try { feed.refresh() } catch (e: Exception) { false }; val l = ArrayList(feed.docs)
             main.post { if (!alive) return@post
-                if (l.size != lastN) { lastN = l.size; Chat.show(this, body, l, "admin", null) }
+                if (ch || lastN < 0) { lastN = l.size; Chat.show(this, body, l, "admin", null) }
                 if (again) main.postDelayed({ if (alive) poll(true) }, 5000) } }
     }
 }
