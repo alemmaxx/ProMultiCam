@@ -510,7 +510,7 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
 <!-- ================= HOME ================= -->
 <div id="home" class="screen show">
   <div class="hero">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#9fb1cc" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c8c4bb" stroke-width="5" fill="#171718"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#c8a45c"/><circle cx="61" cy="61" r="7" fill="#17130b"/><circle cx="61" cy="61" r="3" fill="#d9776b"/></svg></div><div style="display:flex;gap:6px;align-items:center"><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:130px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select><button class="acct-btn bell" id="bellBtn" style="display:none" onclick="openNotif()" aria-label="Notifications"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bell-n" id="bellN"></span></button><button class="acct-btn" id="acctBtn" onclick="openAccount()"></button></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="logo"><svg width="44" height="44" viewBox="0 0 100 100" fill="none" aria-hidden="true"><rect x="16" y="22" width="46" height="34" rx="7" stroke="#9fb1cc" stroke-width="5"/><rect x="27" y="33" width="46" height="34" rx="7" stroke="#c8c4bb" stroke-width="5" fill="#171718"/><rect x="38" y="44" width="46" height="34" rx="7" fill="#c8a45c"/><circle cx="61" cy="61" r="7" fill="#17130b"/><circle cx="61" cy="61" r="3" fill="#d9776b"/></svg></div><div style="display:flex;gap:6px;align-items:center"><button class="icon-btn" aria-label="Chat" onclick="openLounge()" style="min-height:38px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button><select id="langSel" class="input" aria-label="Language" style="width:auto;max-width:130px;min-height:38px;padding:6px 10px;font-size:13px;background:var(--card)"></select><button class="acct-btn bell" id="bellBtn" style="display:none" onclick="openNotif()" aria-label="Notifications"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bell-n" id="bellN"></span></button><button class="acct-btn" id="acctBtn" onclick="openAccount()"></button></div></div>
     <button class="renew-bar" id="renewBar" style="display:none" onclick="openPro()"></button>
     <span class="tag" data-i18n="tag"></span>
     <h1 class="gold-h">ProMultiCam <span class="ver">v1.0</span></h1>
@@ -889,6 +889,26 @@ body.land .cam-bot .g3 .btn,body.land .cam-tools .btn{min-height:40px;padding:6p
       <textarea class="input" id="chatInput" rows="1" maxlength="2000" data-i18n-ph="chatPh" style="flex:1;min-width:0;resize:none;max-height:120px"></textarea>
       <button class="btn btn-gold" onclick="sendChat()" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
     </div>
+  </div>
+</div>
+<div class="sheet-wrap" id="loungeSheet" onclick="if(event.target===this)closeLounge()">
+  <div class="sheet" style="height:85vh;max-height:85vh">
+    <div class="row-between"><h3 data-i18n="lgT"></h3><button class="icon-btn" aria-label="Close" onclick="closeLounge()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <span class="hint" data-i18n="lgHint"></span>
+    <div class="row-between" style="font-size:13px"><span id="lgMe" style="color:var(--gold);font-weight:700"></span><button class="btn btn-sm" onclick="nameBox()" data-i18n="unChange"></button></div>
+    <div id="lgList" class="chat-list"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <textarea class="input" id="lgInput" rows="1" maxlength="500" data-i18n-ph="lgPh" style="flex:1;min-width:0;resize:none;max-height:120px"></textarea>
+      <button class="btn btn-gold" onclick="sendLounge()" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+    </div>
+  </div>
+</div>
+<div class="sheet-wrap" id="nameSheet" onclick="if(event.target===this)closeSheet(this.id)">
+  <div class="sheet">
+    <div class="row-between"><h3 data-i18n="unT"></h3><button class="icon-btn" aria-label="Close" onclick="closeSheet('nameSheet')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <input class="input" id="unIn" maxlength="30" data-i18n-ph="unPh" oninput="unCheck()">
+    <span id="unSt" style="font-size:13px;font-weight:700;min-height:18px"></span>
+    <button class="btn btn-gold" id="unOk" onclick="unSave()" disabled>OK</button>
   </div>
 </div>
 <div class="sheet-wrap" id="rcptSheet" onclick="if(event.target===this)closeSheet(this.id)">
@@ -2618,6 +2638,51 @@ function openLegal(sec){
   const u='legal.html'+(sec?'#'+sec:'');if(!f.src)f.src=u;else{try{f.contentWindow.location.replace(u);}catch(e){f.src=u;}}v.classList.add('show');
 }
 function closeLegal(){$('legalView').classList.remove('show');}
+/* keeps the chat polite (same list as the app; also catches tricks like b4b1 or fuuuck) */
+const MOD_W=['babi','bodoh','bangang','bengap','bebal','sial','celaka','puki','pukimak','kimak','pantat','kote','butoh','konek','lancau','lahanat','laknat','keparat','jahanam','bangsat','sundal','pelacur','jalang','lonte','cibai','pundek','pondan','mampus','haramjadah','anakharam','keling','bodo','tolol','goblok','kontol','memek','ngentot','anjing','fuck','fck','fuk','shit','bitch','bastard','asshole','dick','pussy','cunt','slut','whore','retard','nigger','nigga','faggot','motherfucker','dumbass','porn','sex','nude','rape','killyourself','kys','bunuhdiri','akubunuh','bunuhkau'];
+function modNorm(s){const m={'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i'};let a='';for(const ch of String(s).toLowerCase()){const c=m[ch]||ch;if(/\p{L}/u.test(c))a+=c;}let o='';for(const ch of a)if(!o||o[o.length-1]!==ch)o+=ch;return o;}
+function modBad(s){const j=modNorm(s),ws=String(s).toLowerCase().split(/[^\p{L}\p{N}@$!]+/u).map(modNorm);return MOD_W.some(w=>{const k=modNorm(w);return ws.includes(k)||(k.length>=5&&j.includes(k));});}
+let lgUnsub=null,unSeq=0,unAfter=null;
+async function openLounge(){
+  if(!window.PMC||!PMC.user){toast(t('loginNeeded2'));openAccount();return;}
+  openSheet('loungeSheet');$('lgMe').textContent='…';
+  PMC.uname().then(n=>{$('lgMe').textContent=n?'@'+n:t('unNone');if(!n)nameBox();});
+  if(lgUnsub)lgUnsub();
+  lgUnsub=PMC.loungeListen(list=>{const box=$('lgList');box.innerHTML='';
+    if(list===null){box.innerHTML='<div class="msg them">'+t('eGeneric')+'</div>';return;}
+    const me=PMC.user&&PMC.user.uid;
+    list.forEach(m=>{if(modBad(m.text||''))return;const mine=m.uid===me,d=document.createElement('div');d.className='msg '+(mine?'me':'them');
+      if(!mine){const u=document.createElement('b');u.style.cssText='display:block;font-size:12px;color:var(--gold)';u.textContent='@'+(m.user||'');d.appendChild(u);}
+      d.appendChild(document.createTextNode(m.text||''));
+      const sm=document.createElement('small');sm.textContent=new Date(m.ms).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});d.appendChild(sm);
+      if(mine||PMC.isAdmin()){let tm;const del=()=>{if(confirm(t('lgDel')))PMC.loungeDel(m.id).catch(()=>toast(t('eGeneric')));};
+        d.oncontextmenu=e=>{e.preventDefault();del();};d.addEventListener('touchstart',()=>{tm=setTimeout(del,650);},{passive:true});['touchend','touchmove'].forEach(x=>d.addEventListener(x,()=>clearTimeout(tm),{passive:true}));}
+      box.appendChild(d);});
+    box.scrollTop=box.scrollHeight;});
+  track('open_lounge');
+}
+function closeLounge(){closeSheet('loungeSheet');if(lgUnsub){lgUnsub();lgUnsub=null;}}
+async function sendLounge(){
+  const i=$('lgInput'),v=i.value.trim().slice(0,500);if(!v)return;
+  if(modBad(v)){alert(t('lgBad'));return;}
+  const un=await PMC.uname();if(!un){unAfter=sendLounge;nameBox();return;}
+  i.value='';try{await PMC.loungeSend(v,un);}catch(e){i.value=v;toast(t('lgFail'));}
+}
+function nameBox(){const i=$('unIn');PMC.uname().then(n=>{i.value=n||'';unCheck();});openSheet('nameSheet');setTimeout(()=>i.focus(),200);}
+function unCheck(){
+  const n=$('unIn').value.trim().replace(/^@/,'').trim(),st=$('unSt'),ok=$('unOk'),my=++unSeq;ok.disabled=true;
+  const bad=x=>{st.style.color='var(--red,#e5483b)';st.textContent=x;};
+  if(!n){st.textContent='';return;}if(n.length>30||n.includes('/')){bad(t('unLong'));return;}if(modBad(n)){bad(t('unRude'));return;}
+  st.style.color='var(--sub,#9a958a)';st.textContent=t('unChecking');
+  clearTimeout(unCheck.tm);unCheck.tm=setTimeout(async()=>{const f=await PMC.unameFree(n);if(my!==unSeq)return;
+    if(f===true){st.style.color='#3ddc97';st.textContent=t('unFree');ok.disabled=false;}else if(f===false)bad(t('unTaken'));else bad(t('unNet'));},450);
+}
+async function unSave(){
+  const n=$('unIn').value;$('unOk').disabled=true;const e=await PMC.unameClaim(n);
+  if(e){$('unSt').style.color='var(--red,#e5483b)';$('unSt').textContent=t(e==='TAKEN'?'unTaken':e==='BAD'?'unLong':'unNet');return;}
+  closeSheet('nameSheet');const me=$('lgMe');if(me)me.textContent='@'+n.trim().replace(/^@/,'').trim();toast(t('unSaved'));
+  const f=unAfter;unAfter=null;if(f)f();
+}
 let chatUnsub=null;
 const SUP_TOPICS=[['pay','Payment & plan','Bayaran & pelan'],['account','Account & login','Akaun & log masuk'],['connect','Camera connection','Sambungan kamera'],['record','Recording & video','Rakaman & video'],['editor','Editor','Editor'],['idea','Suggestion','Cadangan'],['other','Other','Lain-lain']];
 function supTopics(){const s=$('chatTopic');if(!s)return;const keep=s.value||lsGet('pmc_supTopic','');s.innerHTML='<option value="">'+(LANG==='ms'?'Pilih jenis masalah…':'Choose the issue…')+'</option>'+SUP_TOPICS.map(x=>'<option value="'+x[0]+'">'+(LANG==='ms'?x[2]:x[1])+'</option>').join('');s.value=keep;s.onchange=()=>{try{localStorage.setItem('pmc_supTopic',s.value);}catch(e){}};}

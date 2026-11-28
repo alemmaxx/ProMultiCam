@@ -54,6 +54,43 @@ try {
       const ref = F.doc(db, `supportChats/${u.uid}`); const s = await F.getDoc(ref);
       if (s.exists() && s.data().unreadUser) { const d = s.data(); await F.setDoc(ref, { uid: u.uid, email: d.email || u.email || '', lastMsg: d.lastMsg || '', lastAt: d.lastAt || F.serverTimestamp(), lastFrom: d.lastFrom || 'admin', unreadAdmin: !!d.unreadAdmin, unreadUser: false }); }
     },
+    // public user name (same as the app): profiles/{uid}.username + usernames/{key}.uid
+    unameKey: (n) => String(n).toLowerCase().replace(/\s+/g, '').replace(/\//g, '_').replace(/\./g, '_') || '_',
+    uname: async (fresh) => {
+      const u = auth.currentUser; if (!u) return null;
+      if (!fresh && PMC._uname && PMC._unameUid === u.uid) return PMC._uname;
+      try { const s = await F.getDoc(F.doc(db, `profiles/${u.uid}`)); const n = (s.exists() && s.data().username) || null; PMC._uname = n; PMC._unameUid = u.uid; return n; } catch (e) { return PMC._uname || null; }
+    },
+    unameFree: async (raw) => {
+      const u = auth.currentUser; if (!u) return null; const n = String(raw).trim().replace(/^@/, '').trim();
+      try { const s = await F.getDoc(F.doc(db, 'usernames/' + PMC.unameKey(n))); return !s.exists() || s.data().uid === u.uid; } catch (e) { return null; }
+    },
+    unameClaim: async (raw) => {
+      const u = auth.currentUser; if (!u) return 'NETWORK'; const n = String(raw).trim().replace(/^@/, '').trim();
+      if (!n || n.length > 30 || n.includes('/')) return 'BAD';
+      const old = await PMC.uname(true); if (old === n) return null;
+      const ref = F.doc(db, 'usernames/' + PMC.unameKey(n));
+      try {
+        const s = await F.getDoc(ref);
+        if (s.exists() && s.data().uid !== u.uid) return 'TAKEN';
+        if (!s.exists()) await F.setDoc(ref, { uid: u.uid });
+        await F.setDoc(F.doc(db, `profiles/${u.uid}`), { username: n, at: F.serverTimestamp() }, { merge: true });
+        if (old && PMC.unameKey(old) !== PMC.unameKey(n)) { try { await F.deleteDoc(F.doc(db, 'usernames/' + PMC.unameKey(old))); } catch (e) {} }
+        PMC._uname = n; PMC._unameUid = u.uid; return null;
+      } catch (e) { return /permission/i.test(e.code || '') ? 'TAKEN' : 'NETWORK'; }
+    },
+    // community chat: a live list that only sends what changed
+    loungeListen: (cb) => {
+      if (!auth.currentUser) return () => {};
+      const q = F.query(F.collection(db, 'lounge'), F.orderBy('at', 'asc'), F.limitToLast(120));
+      return F.onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data(), ms: d.data().at?.toMillis?.() || Date.now() }))), () => cb(null));
+    },
+    loungeSend: async (text, user) => {
+      const u = auth.currentUser; if (!u) throw new Error('auth');
+      text = String(text || '').trim().slice(0, 500); if (!text) return;
+      await F.addDoc(F.collection(db, 'lounge'), { uid: u.uid, user, text, at: F.serverTimestamp() });
+    },
+    loungeDel: (id) => F.deleteDoc(F.doc(db, 'lounge/' + id)),
     listPayments: async () => {
       if (!auth.currentUser) return [];
       const q = F.query(F.collection(db, 'payments'), F.where('uid', '==', auth.currentUser.uid));
