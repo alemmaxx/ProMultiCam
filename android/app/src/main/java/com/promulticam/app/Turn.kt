@@ -13,14 +13,14 @@ class Turn(private val a: Activity, private val onTurn: (Int) -> Unit) : Orienta
     override fun onOrientationChanged(o: Int) {
         if (o == ORIENTATION_UNKNOWN) return
         var near = -1
-        for (c in intArrayOf(0, 90, 270, 360)) { if (abs(o - c) < 28) { near = c % 360; break } }
+        for (c in intArrayOf(0, 90, 180, 270, 360)) { if (abs(o - c) < 28) { near = c % 360; break } }
         val now = SystemClock.uptimeMillis()
         if (near < 0 || near == cur) { cand = -1; return }
         if (near != cand) { cand = near; candAt = now; return }
         if (now - candAt >= 1300) { cur = near; cand = -1; apply(); onTurn(near) }
     }
     fun apply() {
-        a.requestedOrientation = when (cur) { 90 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE; 270 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+        a.requestedOrientation = when (cur) { 90 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE; 180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT; 270 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; else -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
     }
     val side get() = cur == 90 || cur == 270
 }
