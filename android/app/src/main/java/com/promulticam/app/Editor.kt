@@ -442,7 +442,10 @@ class EditorActivity : AppCompatActivity() {
     private fun locate(u: Long): Pair<Int, Long> { var o = 0L; clips.forEachIndexed { i, c -> if (u < o + c.dur) return i to (u - o); o += c.dur }; return maxOf(0, clips.size - 1) to (clips.lastOrNull()?.dur ?: 0) }
     private fun seekTo(u: Long) { if (clips.isEmpty()) return; val (i, l) = locate(u); player.seekTo(i, (l * clips[i].speed / 1000).toLong()); syncMusic(u, true); paintOverlay(u); veilAt(u); pipSync(u, true) }
     private fun fmt(u: Long) = String.format(Locale.US, "%02d:%02d", u / 60_000_000, (u / 1_000_000) % 60)
-    private fun showTime(u: Long) { timeTx.text = fmt(u) + " / " + fmt(total()) }
+    private var rowClip = -1
+    private fun showTime(u: Long) { timeTx.text = fmt(u) + " / " + fmt(total())
+        // main row shows the tools of the clip under the line: refresh when the line moves to another clip
+        if (page == "main" && tl.sel == Sel.None && clips.isNotEmpty()) { val ci = locate(u).first; if (ci != rowClip) { rowClip = ci; mainTools() } } }
     private fun loop() {
         if (!player.isPlaying) return
         if (!scrubbing) { val u = now(); tl.time = u; if (++tick % 2 == 0) tl.invalidate(); showTime(u); paintOverlay(u); veilAt(u); syncMusic(u, false); pipSync(u, false) }
@@ -622,19 +625,18 @@ class EditorActivity : AppCompatActivity() {
     private var page = "main"
     private fun refreshTools() { when (val s = tl.sel) { is Sel.C -> clipTools(s.i); is Sel.L -> layerTools(s.i); is Sel.S -> soundTools(s.i); else -> if (page == "audio") audioTools() else mainTools() } }
     private fun mainTools() {
-        page = "main"; tools.removeAllViews()
+        page = "main"; tools.removeAllViews(); if (clips.isNotEmpty()) rowClip = locate(tl.time).first
         if (clips.any { it.img == "slot" }) tool("📥", t("Fill all", "Isi semua"), true) { pickFill.launch(PickMedia.Req(true)) }
         tool("📋", t("Templates", "Templat")) { templateSheet() }
-        tool("✂", t("Edit", "Edit")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
+        tool("✂", t("Cut", "Potong")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
         tool("♪", t("Audio", "Audio")) { audioTools() }
         tool("T", t("Text", "Teks")) { newText() }
         tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
         tool("🌸", t("Decor", "Hiasan")) { decoSheet() }
+        // the clip under the line: effects, colours, speed, sound, keyframes, steady…
+        if (clips.isNotEmpty()) { val ci = locate(tl.time).first; clips.getOrNull(ci)?.let { clipRow(ci, it) } }
         tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch(PickMedia.Req(false, "image")) }
         tool("🎞", t("Video on top", "Video atas")) { pickPip.launch(PickMedia.Req(false, "video")) }
-        tool("✨", t("Effects", "Efek")) { if (clips.isNotEmpty()) fxSheet(locate(tl.time).first) }
-        tool("🎨", t("Filters", "Filter")) { if (clips.isNotEmpty()) filterSheet(locate(tl.time).first) }
-        tool("☀", t("Adjust", "Laras")) { if (clips.isNotEmpty()) adjustSheet(locate(tl.time).first) }
         tool("🏷", t("Brand", "Jenama")) { brand() }
         tool("⬚", t("Format", "Format")) { formatSheet() }
         tool("＋", t("Add clip", "Tambah klip")) { askAdd(false) }
@@ -649,9 +651,17 @@ class EditorActivity : AppCompatActivity() {
         tool(if (origVol == 0f) "🔇" else "🔈", t("Original", "Bunyi asal"), origVol != 1f) { volSheet(t("Original sound (all clips)", "Bunyi asal (semua klip)"), origVol) { v -> origVol = v; clipLook() } }
     }
     private fun clipTools(i: Int) {
+        // Cut page: only cutting tools (the rest sit on the main row)
         page = "clip"; tools.removeAllViews(); val c = clips.getOrNull(i) ?: return; back()
-        tool("🔁", t("Replace", "Tukar")) { replaceAt = i; pickReplace.launch(PickMedia.Req(false)) }
         tool("✂", t("Split", "Belah")) { split() }
+        tool("❄", t("Freeze", "Beku")) { freeze() }
+        if (c.still) tool("⏱", t("Duration", "Tempoh")) { stillDur(i) }
+        tool("⧉", t("Duplicate", "Salin")) { snap(); clips.add(i + 1, c.copy()); rebuild(tl.time) }
+        tool("🗑", t("Delete", "Padam")) { delClip(i) }
+    }
+    /* tools for one clip (the clip under the line), shown on the main row */
+    private fun clipRow(i: Int, c: Clip) {
+        tool("🔁", t("Replace", "Tukar")) { replaceAt = i; pickReplace.launch(PickMedia.Req(false)) }
         tool("⏩", t("Speed", "Laju"), c.speed != 1f) { speedSheet(i) }
         tool("〰", t("Fade", "Pudar"), c.fi > 0 || c.fo > 0) { fadeSheet(c, null) }
         tool("🔈", t("Volume", "Volum"), c.vol != 1f) { volSheet(t("Clip volume", "Volum klip"), c.vol) { v -> c.vol = v; clipLook() } }
@@ -666,10 +676,6 @@ class EditorActivity : AppCompatActivity() {
         tool("⟳", t("Rotate", "Putar"), c.rot != 0) { snap(); c.rot = (c.rot + 90) % 360; rebuild(tl.time) }
         tool("⇋", t("Mirror", "Cermin"), c.mirror) { snap(); c.mirror = !c.mirror; rebuild(tl.time) }
         if (!c.still) tool("⏪", t("Reverse", "Terbalik")) { reverse(i) }
-        tool("❄", t("Freeze", "Beku")) { freeze() }
-        if (c.still) tool("⏱", t("Duration", "Tempoh")) { stillDur(i) }
-        tool("⧉", t("Duplicate", "Salin")) { snap(); clips.add(i + 1, c.copy()); rebuild(tl.time) }
-        tool("🗑", t("Delete", "Padam")) { delClip(i) }
     }
     private fun layerTools(i: Int) {
         page = "layer"; tools.removeAllViews(); val l = layers.getOrNull(i) ?: return; back()
