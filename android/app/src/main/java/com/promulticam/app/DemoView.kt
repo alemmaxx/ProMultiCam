@@ -57,7 +57,7 @@ class DemoView(c: Context) : View(c) {
     private fun caption(cv: Canvas, s: String) { tp.alpha = 230; tp.textSize = height * 0.1f; tp.setShadowLayer(4f, 0f, 1f, Color.BLACK); cv.drawText(s, width / 2f, height * 0.9f, tp); tp.clearShadowLayer() }
 
     /* the same switches as the recording (old picture over the new one) */
-    private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
+    private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors", "leak", "bands", "reveal", "tilt")
     private fun draw(cv: Canvas, a: Int, b: Int, p0: Float, W: Float, H: Float, trans: String) {
         val e = p0 * p0 * (3 - 2 * p0)
         cam(cv, b, 0f, 0f, W, H)
@@ -73,6 +73,11 @@ class DemoView(c: Context) : View(c) {
                 pa.addCircle(W / 2, H / 2, e * hypot(W / 2, H / 2), Path.Direction.CW); cv.clipPath(pa); cam(cv, a, 0f, 0f, W, H); cv.restore() }
             "doors" -> { val d = e * W / 2; cv.save(); cv.clipRect(0f, 0f, W / 2 - d, H); cam(cv, a, -d, 0f, W - d, H); cv.restore()
                 cv.save(); cv.clipRect(W / 2 + d, 0f, W, H); cam(cv, a, d, 0f, W + d, H); cv.restore() }
+            "leak" -> { cam(cv, a, 0f, 0f, W, H, 1 - e); cover(cv, 0xFFFF9E40.toInt(), (1 - kotlin.math.abs(2 * p0 - 1)) * 0.75f) }
+            "bands" -> for (i in 0..2) { val q = ((e * 1.6f) - i * 0.3f).coerceIn(0f, 1f); val off = (if (i % 2 == 0) -1 else 1) * q * W; val y = i * H / 3
+                cv.save(); cv.clipRect(0f, y, W, y + H / 3); cam(cv, a, off, 0f, W + off, H); cv.restore() }
+            "reveal" -> { val h = (1 - e) * H / 2; cv.save(); cv.clipRect(0f, 0f, W, h); cam(cv, a, 0f, 0f, W, H); cv.restore(); cv.save(); cv.clipRect(0f, H - h, W, H); cam(cv, a, 0f, 0f, W, H); cv.restore() }
+            "tilt" -> { cv.save(); cv.rotate(-14f * e, W / 2, H / 2); val s = 1 + e * 0.35f; val w = W * s; val h = H * s; cam(cv, a, (W - w) / 2, (H - h) / 2, (W + w) / 2, (H + h) / 2, 1 - e); cv.restore() }
             else -> cam(cv, a, 0f, 0f, W, H, 1 - p0)   // fade
         }
     }

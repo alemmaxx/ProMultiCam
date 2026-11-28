@@ -86,7 +86,7 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
 
     /* a switch happened: keep the last picture to fade from */
     /* the effect for this switch: "auto" picks a different one each time */
-    private var eff = "fade"; private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors")
+    private var eff = "fade"; private val AUTO = listOf("fade", "black", "white", "flash", "slide", "slideup", "zoom", "whip", "wipe", "circle", "doors", "leak", "bands", "reveal", "tilt")
     private fun pickEff() { eff = if (trans == "auto") AUTO.filter { it != eff }.random() else trans }
     fun switched() { h.post { if (fbW > 0) { cur = 1 - cur; hasFrozen = true; transAt = SystemClock.uptimeMillis(); pickEff() } } }
 
@@ -243,6 +243,8 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
     private fun old(x: Int, y: Int, w: Int, hh: Int, a: Float = 1f) { fade.alpha = a; fade.drawRgb(tex[1 - cur], LookDrawer.ID, W, H, x, y, w, hh) }
     private fun solid(white: Boolean, a: Float) { if (a <= 0.003f) return; fade.cm = ZERO; fade.co = if (white) floatArrayOf(1f, 1f, 1f, 0f) else floatArrayOf(0f, 0f, 0f, 0f)
         fade.alpha = a.coerceAtMost(1f); fade.drawRgb(tex[cur], LookDrawer.ID, W, H, 0, 0, W, H); fade.cm = LookDrawer.ID.copyOf(); fade.co = floatArrayOf(0f, 0f, 0f, 0f) }
+    private fun tint(r: Float, g: Float, b: Float, a: Float) { if (a <= 0.003f) return; GLES20.glDisable(GLES20.GL_SCISSOR_TEST); fade.cm = ZERO; fade.co = floatArrayOf(r, g, b, 0f)
+        fade.alpha = a.coerceAtMost(1f); fade.drawRgb(tex[cur], LookDrawer.ID, W, H, 0, 0, W, H); fade.cm = LookDrawer.ID.copyOf(); fade.co = floatArrayOf(0f, 0f, 0f, 0f) }
     private fun clip(x: Int, y: Int, w: Int, hh: Int) { GLES20.glEnable(GLES20.GL_SCISSOR_TEST); GLES20.glScissor(x, y, maxOf(0, w), maxOf(0, hh)) }
     private fun transDraw(p: Float) {
         val e = p * p * (3 - 2 * p)   // smooth start and end
@@ -261,6 +263,11 @@ class Program(@Volatile var W: Int, @Volatile var H: Int) {
             }
             "doors" -> { val d = (e * W / 2).toInt()
                 clip(0, 0, W / 2 - d, H); old(-d, 0, W, H); clip(W / 2 + d, 0, W - W / 2 - d, H); old(d, 0, W, H) }
+            "leak" -> { old(0, 0, W, H, 1f - e); tint(1f, 0.62f, 0.25f, (1f - kotlin.math.abs(2f * p - 1f)) * 0.75f) }   // warm light washes over
+            "bands" -> { val bh = H / 3; for (i in 0..2) { val q = ((e * 1.6f) - i * 0.3f).coerceIn(0f, 1f); val y = H - (i + 1) * bh
+                val off = ((if (i % 2 == 0) -1 else 1) * q * W).toInt(); clip(0, y, W, bh); old(off, 0, W, H) } }
+            "reveal" -> { val hh = ((1f - e) * H / 2).toInt(); clip(0, H - hh, W, hh); old(0, 0, W, H); clip(0, 0, W, hh); old(0, 0, W, H) }
+            "tilt" -> { val s = 1f + e * 0.35f; val w = (W * s).toInt(); val hh = (H * s).toInt(); old((W - w) / 2 - (e * W * 0.25f).toInt(), (H - hh) / 2 + (e * H * 0.12f).toInt(), w, hh, 1f - e) }
             else -> old(0, 0, W, H, 1f - p)   // fade
         }
     }
