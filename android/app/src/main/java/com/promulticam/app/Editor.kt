@@ -496,7 +496,7 @@ class EditorActivity : AppCompatActivity() {
     private fun syncMusic(u: Long, hard: Boolean) {
         if (sounds.isEmpty() || mixFile == null) { if (mplayer.isPlaying) mplayer.pause(); return }
         if (hard || abs(mplayer.currentPosition * 1000 - u) > 150_000) mplayer.seekTo(u / 1000)
-        if (player.isPlaying && !mplayer.isPlaying) mplayFg()
+        if (player.isPlaying && !mplayer.isPlaying) if (fg) mplayer.play()
     }
     /* switch effects and clip effects in the preview (the same maths as when saving) */
     private fun veilAt(u: Long) {
@@ -1472,7 +1472,7 @@ class EditorActivity : AppCompatActivity() {
         Thread { val f = File(work, "mix_$gen.wav"); val ok = try { Snd.mix(list, tot, f, audioCache); true } catch (e: Exception) { false }
             main.post { if (gen != mixGen || !ok) { f.delete(); return@post }
                 val old = mixFile; mixFile = f; mplayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(f))); mplayer.prepare(); mplayer.seekTo(tl.time / 1000)
-                if (player.isPlaying) mplayFg(); if (old != null && old != f) old.delete() } }.start()
+                if (player.isPlaying) if (fg) mplayer.play(); if (old != null && old != f) old.delete() } }.start()
     }
 
     /* ---------------- cover picture ---------------- */
