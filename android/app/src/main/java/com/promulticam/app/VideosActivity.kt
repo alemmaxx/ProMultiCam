@@ -28,7 +28,7 @@ class VideosActivity : AppCompatActivity() {
     private lateinit var list: LinearLayout
     private val picked = LinkedHashSet<File>()
     private val main = Handler(Looper.getMainLooper())
-    private val importer = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { l -> if (l.isNotEmpty()) importVideos(l) }
+    private val importer = registerForActivityResult(PickMedia()) { l -> if (l.isNotEmpty()) importVideos(l) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +40,7 @@ class VideosActivity : AppCompatActivity() {
         top.addView(Ui.label(this, t("Saved Recordings", "Rakaman Tersimpan"), 22f, Ui.TEXT, true).apply { setPadding(d, 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(top)
         val r1 = LinearLayout(this); r1.orientation = LinearLayout.HORIZONTAL
-        r1.addView(btn(t("Import Video", "Import Video"), true) { importer.launch("video/*") }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
+        r1.addView(btn(t("Import Video", "Import Video"), true) { importer.launch(PickMedia.Req(true, "video")) }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f).apply { rightMargin = d / 2 })
         r1.addView(btn(t("Join Video", "Join Video")) { joinPicked() }.apply { setTextColor(Ui.GOLD) }, LinearLayout.LayoutParams(0, Ui.px(this, 52), 1f))
         root.addView(r1, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d })
         val r2 = LinearLayout(this); r2.orientation = LinearLayout.HORIZONTAL

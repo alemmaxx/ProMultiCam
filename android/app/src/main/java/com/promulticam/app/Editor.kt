@@ -321,9 +321,9 @@ class EditorActivity : AppCompatActivity() {
     private var vidW = 0; private var vidH = 0
     private var tts: TextToSpeech? = null; private var ttsOk = false
 
-    private val pickVideo = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addVideo(u) else if (clips.isEmpty()) finish() }
-    private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addPhoto(u) else if (clips.isEmpty()) finish() }
-    private val pickOverlay = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addOverlayPhoto(u) }
+    private val pickVideo = registerForActivityResult(PickMedia()) { l -> val u = l.firstOrNull(); if (u != null) addVideo(u) else if (clips.isEmpty()) finish() }
+    private val pickPhoto = registerForActivityResult(PickMedia()) { l -> val u = l.firstOrNull(); if (u != null) addPhoto(u) else if (clips.isEmpty()) finish() }
+    private val pickOverlay = registerForActivityResult(PickMedia()) { l -> l.firstOrNull()?.let { addOverlayPhoto(it) } }
     private val pickMusic = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addMusic(u) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -446,7 +446,7 @@ class EditorActivity : AppCompatActivity() {
     /* ---------------- video over video ---------------- */
     private val PIPS = 3
     private val pipTvs = ArrayList<TextureView>(); private val pplayers = ArrayList<ExoPlayer>(); private val pipFiles = arrayOfNulls<String>(3)
-    private val pickPip = registerForActivityResult(ActivityResultContracts.GetContent()) { u -> if (u != null) addPip(u) }
+    private val pickPip = registerForActivityResult(PickMedia()) { l -> l.firstOrNull()?.let { addPip(it) } }
     private fun addPip(u: Uri) {
         if (clips.isEmpty()) return
         val w = wait(t("Loading video…", "Memuatkan video…"))
@@ -586,7 +586,7 @@ class EditorActivity : AppCompatActivity() {
     fun onLive() { ovKey = "?"; paintOverlay(tl.time); showTime(tl.time) }
     fun onEdited() { rebuild(tl.time) }
     fun onSelect(s: Sel) {
-        if (s is Sel.C && clips.getOrNull(s.i)?.img == "slot") { replaceAt = s.i; pickReplace.launch(arrayOf("video/*", "image/*")) }
+        if (s is Sel.C && clips.getOrNull(s.i)?.img == "slot") { replaceAt = s.i; pickReplace.launch(PickMedia.Req(false)) }
         tl.sel = s; stage.sel = (s as? Sel.L)?.i ?: -1; tl.invalidate(); stage.invalidate(); refreshTools() }
     fun onStageTap(i: Int) { if (i >= 0) { onSelect(Sel.L(i)); if (layers[i].kind == "text") textSheet(layers[i]) } else if (tl.sel is Sel.L) onSelect(Sel.None) else togglePlay() }
     fun moveLayer(i: Int, dx: Float, dy: Float) { val l = layers.getOrNull(i) ?: return
@@ -618,15 +618,15 @@ class EditorActivity : AppCompatActivity() {
     private fun refreshTools() { when (val s = tl.sel) { is Sel.C -> clipTools(s.i); is Sel.L -> layerTools(s.i); is Sel.S -> soundTools(s.i); else -> if (page == "audio") audioTools() else mainTools() } }
     private fun mainTools() {
         page = "main"; tools.removeAllViews()
-        if (clips.any { it.img == "slot" }) tool("📥", t("Fill all", "Isi semua"), true) { pickFill.launch(arrayOf("video/*", "image/*")) }
+        if (clips.any { it.img == "slot" }) tool("📥", t("Fill all", "Isi semua"), true) { pickFill.launch(PickMedia.Req(true)) }
         tool("📋", t("Templates", "Templat")) { templateSheet() }
         tool("✂", t("Edit", "Edit")) { if (clips.isNotEmpty()) onSelect(Sel.C(locate(tl.time).first)) }
         tool("♪", t("Audio", "Audio")) { audioTools() }
         tool("T", t("Text", "Teks")) { newText() }
         tool("😊", t("Stickers", "Stiker")) { stickerSheet() }
         tool("🌸", t("Decor", "Hiasan")) { decoSheet() }
-        tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch("image/*") }
-        tool("🎞", t("Video on top", "Video atas")) { pickPip.launch("video/*") }
+        tool("🖼", t("Overlay", "Tindih")) { pickOverlay.launch(PickMedia.Req(false, "image")) }
+        tool("🎞", t("Video on top", "Video atas")) { pickPip.launch(PickMedia.Req(false, "video")) }
         tool("✨", t("Effects", "Efek")) { if (clips.isNotEmpty()) fxSheet(locate(tl.time).first) }
         tool("🎨", t("Filters", "Filter")) { if (clips.isNotEmpty()) filterSheet(locate(tl.time).first) }
         tool("☀", t("Adjust", "Laras")) { if (clips.isNotEmpty()) adjustSheet(locate(tl.time).first) }
@@ -645,7 +645,7 @@ class EditorActivity : AppCompatActivity() {
     }
     private fun clipTools(i: Int) {
         page = "clip"; tools.removeAllViews(); val c = clips.getOrNull(i) ?: return; back()
-        tool("🔁", t("Replace", "Tukar")) { replaceAt = i; pickReplace.launch(arrayOf("video/*", "image/*")) }
+        tool("🔁", t("Replace", "Tukar")) { replaceAt = i; pickReplace.launch(PickMedia.Req(false)) }
         tool("✂", t("Split", "Belah")) { split() }
         tool("⏩", t("Speed", "Laju"), c.speed != 1f) { speedSheet(i) }
         tool("〰", t("Fade", "Pudar"), c.fi > 0 || c.fo > 0) { fadeSheet(c, null) }
@@ -725,7 +725,7 @@ class EditorActivity : AppCompatActivity() {
     private var tplPending: Templates.Item? = null
     /* replace the picture of one clip (keeps its length, effects, switch and colours) */
     private var replaceAt = -1
-    private val pickReplace = registerForActivityResult(ActivityResultContracts.OpenDocument()) { u -> val i = replaceAt; replaceAt = -1; if (u != null && i >= 0) replaceClip(i, u) }
+    private val pickReplace = registerForActivityResult(PickMedia()) { l -> val u = l.firstOrNull(); val i = replaceAt; replaceAt = -1; if (u != null && i >= 0) replaceClip(i, u) }
     private fun replaceClip(i: Int, u: Uri, done: () -> Unit = {}) {
         val old = clips.getOrNull(i) ?: return
         val isImg = (contentResolver.getType(u) ?: "").startsWith("image")
@@ -874,7 +874,7 @@ class EditorActivity : AppCompatActivity() {
         tp.color = Color.WHITE; tp.textSize = m * 0.055f; cv.drawText(t("video or photo ", "video atau gambar ") + (k + 1), w / 2f, h / 2f + m * 0.23f, tp)
         return b
     }
-    private val pickFill = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { us -> fillNext(us, 0) }
+    private val pickFill = registerForActivityResult(PickMedia()) { us -> fillNext(us, 0) }
     private fun fillNext(us: List<Uri>, k: Int) {
         val i = clips.indexOfFirst { it.img == "slot" }; if (i < 0 || k >= us.size) { refreshTools(); return }
         replaceClip(i, us[k]) { fillNext(us, k + 1) }
@@ -919,7 +919,7 @@ class EditorActivity : AppCompatActivity() {
         addEnd = !first && tl.time >= total() - 1_000
         AlertDialog.Builder(this).setTitle(t("Add video or photo", "Tambah video atau gambar"))
             .setItems(if (first) arrayOf(t("Video", "Video"), t("Photo", "Gambar"), "📋 " + t("Use a template", "Guna templat")) else arrayOf(t("Video", "Video"), t("Photo", "Gambar"))) { _, w ->
-                when (w) { 0 -> pickVideo.launch("video/*"); 1 -> pickPhoto.launch("image/*"); else -> templateSheet() } }
+                when (w) { 0 -> pickVideo.launch(PickMedia.Req(false, "video")); 1 -> pickPhoto.launch(PickMedia.Req(false, "image")); else -> templateSheet() } }
             .setNegativeButton(t("Cancel", "Batal")) { _, _ -> if (clips.isEmpty()) finish() }.setOnCancelListener { if (clips.isEmpty()) finish() }.show()
     }
     private fun wait(s: String): AlertDialog = AlertDialog.Builder(this).setMessage(s).setCancelable(false).show()
